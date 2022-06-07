@@ -1,0 +1,14 @@
+- name: DB Server playbook
+  hosts: appservers
+  tasks:
+      - name: Copy ingest scripts
+        ansible.builtin.copy: 
+          src: ingest
+          dest: .
+      - name: Install python packages
+        ansible.builtin.pip:
+          name: sqlalchemy, tenacity, astropy
+          state: present
+        become: yes
+
+

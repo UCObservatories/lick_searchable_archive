@@ -1,0 +1,5 @@
+db_data_device: /dev/sdh
+postgres_version: 12
+archive_nfs_source: legion:/data/mthamilton
+archive_nfs_uid: 1009
+archive_nfs_gid: 1039

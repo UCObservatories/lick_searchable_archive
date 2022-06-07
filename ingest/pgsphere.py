@@ -1,0 +1,28 @@
+from sqlalchemy import func
+from sqlalchemy.types import UserDefinedType
+
+class SPoint(UserDefinedType):
+
+    @classmethod
+    def convert(cls, ra, dec):
+        return f'({ra}d, {dec}d)'
+
+    @classmethod
+    def convert_hmsdms(cls, ra, dec):
+        split_ra = ra.split(":")
+        if len(split_ra) != 3:
+            raise ValueError(f"RA value {ra} is not valid hms format.")
+
+        split_dec = dec.split(":")
+        if len(split_dec) != 3:
+            raise ValueError(f"DEC value {dec} is not valid dms format.")
+
+        return f'({split_ra[0]}h {split_ra[1]}m {split_ra[2]}s, {split_dec[0]}d {split_dec[1]}m {split_dec[2]}s)'
+
+    def get_col_spec(self):
+        return "SPOINT"
+
+    def bind_expression(self, bindvalue):
+        return func.spoint(bindvalue)
+
+
