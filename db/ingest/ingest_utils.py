@@ -1,19 +1,34 @@
+"""
+Common utility functions for ingesting metadata from fits files
+"""
+
 from pathlib import Path
 from pgsphere import SPoint
 
 def safe_header(header, key):
+    """Read a keyword from a header, returning None if it's not there."""
     if key in header:
         return header[key]
     else:
         return None
 
+def safe_strip(string_or_none):
+    """Strip the leading and trailing whitespace from a string, ignoring None values."""
+    if string_or_none is not None:
+        return string_or_none.strip()
+
 def parse_file_date(filename):
-    file_path = Path(filename)
+    """
+    Parse lick archive filenames to get the date of the file was stored under.
+    The format of the filename is expected to be 'YYYY-MM/DD/instrument/file
+    """
     day = filename.parent.parent.name
     year_month = filename.parent.parent.parent.name
     return f'{year_month}-{day}'
 
 def get_shane_lamp_status(header):
+    """Translate the LAMPSTAX header keywords in shane files to an array
+       of booleans."""
     lamp_names = [ '1', '2', '3', '4', '5',
                    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
@@ -24,7 +39,17 @@ def get_shane_lamp_status(header):
     return lamp_status
 
 def get_ra_dec(header):
-
+    """Read RA and DEC coordinates from a fits header, prioritizing the
+       WCS keywords first, and falling back to 'RA' and 'DEC' if those
+       are not set.
+       
+       Returns:
+       
+       ra (str): The RA in string format
+       dec (str): The DEC in string format
+       coord (SPoint): The coordinates as a SPoint object suitable
+                       for inserting into a pgsphere column
+    """
     ra = None
     dec = None
     coord = None
@@ -67,6 +92,9 @@ def get_ra_dec(header):
         else:
             coord = SPoint.convert(ra, dec)
 
-    return (ra, dec, coord)
-    
+    if isinstance(ra, str):
+        ra = ra.strip()
 
+    if isinstance(dec, str):
+        dec = dec.strip()
+    return (ra, dec, coord)

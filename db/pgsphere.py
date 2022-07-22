@@ -1,3 +1,6 @@
+"""Adds SQL Alchemy support for the pgsphere SPoing custom postgres data type. 
+This datatype allows sptial index support for RA/DEC cone searches.
+"""
 from sqlalchemy import func
 from sqlalchemy.types import UserDefinedType
 
@@ -5,10 +8,12 @@ class SPoint(UserDefinedType):
 
     @classmethod
     def convert(cls, ra, dec):
+        """Convert ra/dec in decimal degrees to an SPoint."""
         return f'({ra}d, {dec}d)'
 
     @classmethod
     def convert_hmsdms(cls, ra, dec):
+        """Convert ra/dec in hms format to an SPoint"""
         split_ra = ra.split(":")
         if len(split_ra) != 3:
             raise ValueError(f"RA value {ra} is not valid hms format.")

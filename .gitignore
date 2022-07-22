@@ -29,3 +29,5 @@ MANIFEST
 # VS Code
 .vscode
 
+# Coverage
+.coverage

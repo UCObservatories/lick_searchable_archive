@@ -1,9 +1,16 @@
+"""
+MetadataReader implementation for Shane Kast data.
+"""
+
 from datetime import datetime
 import logging
 
-from readers.metadata_reader import MetadataReader
-from readers.reader_utils import safe_header, parse_file_date, get_shane_lamp_status, get_ra_dec
-from archive_schema import  Main, FrameType
+from sqlalchemy.dialects.postgresql import BIT
+from sqlalchemy import cast
+
+from ingest.metadata_reader import MetadataReader
+from ingest.ingest_utils import safe_header, safe_strip, parse_file_date, get_shane_lamp_status, get_ra_dec
+from archive_schema import  Main, FrameType, IngestFlags
 from pgsphere import SPoint
 
 logger = logging.getLogger(__name__)
@@ -18,40 +25,52 @@ class ShaneKastReader(MetadataReader):
     
 
     def determine_frame_type(self, exptime, lamps, object):
-
+        """
+        Determine the frame type based on exposure time, lamps and object name.
+        Parts of this logic was adapted from PypeIt
+        """
+        ingest_flags = IngestFlags.CLEAR
         if lamps is None:
             logger.debug("No lamps information, using OBJECT to determine frame type.")
+            ingest_flags = ingest_flags | IngestFlags.NO_LAMPS_IN_HEADER
             if object is not None:
-                if 'dark' in object.lower():
-                    return FrameType.dark
-                elif 'flat' in object.lower():
-                    return FrameType.flat
+                if 'flat' in object.lower():
+                    frame_type = FrameType.flat
                 elif 'bias' in object.lower():
-                    return FrameType.bias
-                elif len(object) > 1:
-                    return FrameType.science
+                    frame_type = FrameType.bias
+                elif len(object.strip()) > 0:
+                    frame_type = FrameType.science
+                else:
+                    ingest_flags = ingest_flags | IngestFlags.NO_OBJECT_IN_HEADER
+                    frame_type = FrameType.unknown
+            else:
+                ingest_flags = ingest_flags | IngestFlags.NO_OBJECT_IN_HEADER
+                frame_type = FrameType.unknown
 
         else:
-
+            # If there are no lamps, it's science if it's > 1s exposure or
+            # bias if it's less
+            frame_type = FrameType.unknown
             if not any(lamps):
                 if exptime > 1:
-                    return FrameType.science
+                    frame_type = FrameType.science
 
+            # It's still bias if < 1s
             if exptime <= 1:
-                return FrameType.bias
+                frame_type = FrameType.bias
             else:
                 if any([lamps[i] for i in range(0, 5)]):
                     # If any dome lights are on this is considered a flat
-                    return FrameType.flat
+                    frame_type = FrameType.flat
                 
                 elif any([lamps[i] for i in range(5, 16)]):
+                    # Check for arcs
                     if exptime <= 61:
-                        return FrameType.arc
+                        frame_type = FrameType.arc
 
-        return FrameType.unknown
+        return (frame_type, ingest_flags)
 
-
-    def read_row(self, file_path, hdul):
+    def read_row(self, file_path, hdul, ingest_flags = IngestFlags.CLEAR):
         header = hdul[0].header
         m = Main()
         m.telescope = 'Shane'
@@ -72,35 +91,40 @@ class ShaneKastReader(MetadataReader):
             logger.debug(f"Used file path for date for file {file_path}.")
             filename_date = parse_file_date(file_path)
             m.obs_date = datetime.strptime(f"{filename_date}T00:00:00+00:00", '%Y-%m-%dT%H:%M:%S%z')
+            ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
         else:
             # Parse the observation date as an iso date, adding +00:00 to make it UTC
             m.obs_date = datetime.strptime(header['DATE-OBS'] + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
-
 
         m.exptime           = safe_header(header, 'EXPTIME')
 
         (m.ra, m.dec, m.coord) = get_ra_dec(header)
 
-        m.object            = safe_header(header, 'OBJECT')
-        m.slit_name         = safe_header(header, 'SLIT_N')
+        m.object            = safe_strip(safe_header(header, 'OBJECT'))
+        m.slit_name         = safe_strip(safe_header(header, 'SLIT_N'))
         m.airmass           = safe_header(header, 'AIRMASS')
-        m.beam_splitter_pos = safe_header(header, 'BSPLIT_N')
-        m.grism             = safe_header(header, 'GRISM_N')
-        m.grating_name      = safe_header(header, 'GRATNG_N')
+        m.beam_splitter_pos = safe_strip(safe_header(header, 'BSPLIT_N'))
+        m.grism             = safe_strip(safe_header(header, 'GRISM_N'))
+        m.grating_name      = safe_strip(safe_header(header, 'GRATNG_N'))
         m.grating_tilt      = safe_header(header, 'GRTILT_P')
 
         m.apername = None
         m.filter1 = None
         m.filter2 = None
-        m.filter3 = None
-        m.program = safe_header(header,'PROGRAM')
-        m.observer = safe_header(header,'OBSERVER')
+        m.sci_filter = None
+        m.program = safe_strip(safe_header(header,'PROGRAM'))
+        m.observer = safe_strip(safe_header(header,'OBSERVER'))
 
 
         m.filename = str(file_path)
 
         lamp_status = get_shane_lamp_status(header)
-        m.frame_type = self.determine_frame_type(m.exptime, lamp_status, m.object)
+        (m.frame_type, frame_flags) = self.determine_frame_type(m.exptime, lamp_status, m.object)
+
+        ingest_flags |= frame_flags
+        m.ingest_flags = f'{ingest_flags:032b}'
+        m.header = header.tostring(sep='\n', endcard=False, padding=False)
+
         return m
 
         

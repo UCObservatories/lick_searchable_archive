@@ -1,2 +1,4 @@
 [dbservers]
 quarry.ucolick.org
+[appservers]
+quarry.ucolick.org
