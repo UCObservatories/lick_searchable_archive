@@ -139,6 +139,7 @@ def test_red_headers():
     assert row.ingest_flags == "00000000000000000000000000010001"
     assert row.object == ""
 
+    # Older product, no VERSION but INSTRUME and SPSIDE
     file = '2006-08_17_shane_r96-hdu0.txt'
     hdul = get_hdul_from_text([test_data_dir / file])
     path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
@@ -154,6 +155,42 @@ def test_red_headers():
     assert row.ingest_flags == "00000000000000000000000000000001"
     assert row.object == "IR arc R2"
 
+    # Older, had "60" as seconds in RA
+    file = '2007-08_10_shane_r1014-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Red'
+
+    assert row.frame_type == FrameType.flat
+    assert row.ingest_flags == "00000000000000000000000000000001"
+    assert row.object == "flat"
+    assert row.program == 'KAST'
+    assert row.ra == "14:11:60.0"
+    assert row.dec == '+37:25:57.0'
+    assert row.coord == '(213d, 37.4325d)'
+
+    # Older, had no INSTRUME but program and SPSIDE
+    file = '2007-08_20_shane_r90-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Red'
+
+    assert row.frame_type == FrameType.flat
+    assert row.ingest_flags == "00000000000000000000000000000001"
+    assert row.object == "Vis2S flat"
+    assert row.program == 'KAST'
 
 
 def test_blue_headers():

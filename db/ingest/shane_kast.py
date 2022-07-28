@@ -27,6 +27,11 @@ class ShaneKastReader(MetadataReader):
                     # Older 2008 and earlier headers                
                     return True
 
+                program = safe_header(hdul[0].header, 'PROGRAM')
+                # Some headers had blank INSTRUME but KAST in the program
+                if instr.strip().upper() == '' and program.strip().upper() == 'KAST':
+                    return True
+
         return False
     
 
@@ -94,8 +99,11 @@ class ShaneKastReader(MetadataReader):
         # The older examples have INSTRUME set to KAST and
         # use SPSIDE to indicate red/blue
         elif 'INSTRUME' in header:
-            instrument = header['INSTRUME']
-            if instrument.strip().upper() == 'KAST':
+            instrument = header['INSTRUME'].strip().upper()
+            # Some older data had a blank instrument, but program was still
+            # Kast
+            if (instrument == 'KAST' or 
+               instrument == "" and safe_header(header, 'PROGRAM').strip().upper() == 'KAST'):
                 side = safe_header(header, 'SPSIDE')
                 if side is None:
                     raise ValueError("Could not ingest older Kast data because it did not have SPSIDE set.")
