@@ -23,7 +23,7 @@ def test_not_shane_kast():
     assert ShaneKastReader.can_read(path, hdul) is False
 
     reader = ShaneKastReader()
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match = "Version was: 'None'"):
         row = reader.read_row(path, hdul)
 
 
@@ -139,6 +139,21 @@ def test_red_headers():
     assert row.ingest_flags == "00000000000000000000000000010001"
     assert row.object == ""
 
+    file = '2006-08_17_shane_r96-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Red'
+
+    assert row.frame_type == FrameType.arc
+    assert row.ingest_flags == "00000000000000000000000000000001"
+    assert row.object == "IR arc R2"
+
 
 
 def test_blue_headers():
@@ -215,3 +230,17 @@ def test_blue_headers():
     assert row.frame_type == FrameType.bias
     assert row.ingest_flags == "00000000000000000000000000000001"
 
+    file = '2006-08_17_shane_b100-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Blue'
+
+    assert row.frame_type == FrameType.science
+    assert row.ingest_flags == "00000000000000000000000000000001"
+    assert row.object == "sn2006eb uv"

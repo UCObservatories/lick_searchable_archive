@@ -21,6 +21,12 @@ class ShaneKastReader(MetadataReader):
         if "shane" in str(file_path.parent):
             if safe_header(hdul[0].header,'VERSION' ) in ['kastr', 'kastb']:
                 return True
+            elif 'INSTRUME' in hdul[0].header:
+                instr = hdul[0].header['INSTRUME']
+                if instr.strip().upper() == 'KAST':
+                    # Older 2008 and earlier headers                
+                    return True
+
         return False
     
 
@@ -36,6 +42,8 @@ class ShaneKastReader(MetadataReader):
             if object is not None:
                 if 'flat' in object.lower():
                     frame_type = FrameType.flat
+                elif 'arc' in object.lower():
+                    frame_type = FrameType.arc
                 elif 'bias' in object.lower():
                     frame_type = FrameType.bias
                 elif len(object.strip()) > 0:
@@ -74,17 +82,33 @@ class ShaneKastReader(MetadataReader):
         header = hdul[0].header
         m = Main()
         m.telescope = 'Shane'
-        # All of the shane kast examples I've seen have 
-        # VERSION set, so this is intended to throw an
-        # exception if there's no VERSION to differentiate any older
-        # date files in the "shane" directory that aren't from kast.
-        instrument = header['VERSION'] 
+
+        # The newer shane kast examples I've seen have 
+        # VERSION set to kastr or kastb
+        instrument = safe_header(header, 'VERSION')
         if instrument == "kastb":
             m.instrument = "Kast Blue"
         elif instrument == "kastr":
             m.instrument = "Kast Red"
+
+        # The older examples have INSTRUME set to KAST and
+        # use SPSIDE to indicate red/blue
+        elif 'INSTRUME' in header:
+            instrument = header['INSTRUME']
+            if instrument.strip().upper() == 'KAST':
+                side = safe_header(header, 'SPSIDE')
+                if side is None:
+                    raise ValueError("Could not ingest older Kast data because it did not have SPSIDE set.")
+                if side.strip().lower() == "red":
+                    m.instrument = 'Kast Red'
+                elif side.strip().lower() == 'blue':
+                    m.instrument = 'Kast Blue'
+                else:
+                    raise ValueError(f"Could not ingest older Kast data because the SPSIDE value {side} was not red or blue.")
+            else:
+                raise ValueError(f"Unrecognized instrument for Shane telescope: '{instrument}'.")
         else:
-            raise ValueError(f"Unrecognized instrument for Shane telescope: '{instrument}'.")
+            raise ValueError(f"Unrecognized instrument for Shane telescope. Version was: '{instrument}'.")
 
         date_obs = safe_header(header, 'DATE-OBS')
         if date_obs is None:
@@ -97,6 +121,9 @@ class ShaneKastReader(MetadataReader):
             m.obs_date = datetime.strptime(header['DATE-OBS'] + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
 
         m.exptime           = safe_header(header, 'EXPTIME')
+        if m.exptime is None:
+            # Some older examples use EXPOSURE
+            m.exptime       = safe_header(header, 'EXPOSURE')
 
         (m.ra, m.dec, m.coord) = get_ra_dec(header)
 
