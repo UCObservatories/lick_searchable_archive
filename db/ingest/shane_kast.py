@@ -47,6 +47,8 @@ class ShaneKastReader(MetadataReader):
             if object is not None:
                 if 'flat' in object.lower():
                     frame_type = FrameType.flat
+                elif 'dark' in object.lower():
+                    frame_type = FrameType.dark
                 elif 'arc' in object.lower():
                     frame_type = FrameType.arc
                 elif 'bias' in object.lower():
@@ -85,6 +87,7 @@ class ShaneKastReader(MetadataReader):
 
     def read_row(self, file_path, hdul, ingest_flags = IngestFlags.CLEAR):
         header = hdul[0].header
+       
         m = Main()
         m.telescope = 'Shane'
 
@@ -134,6 +137,8 @@ class ShaneKastReader(MetadataReader):
             m.exptime       = safe_header(header, 'EXPOSURE')
 
         (m.ra, m.dec, m.coord) = get_ra_dec(header)
+        if m.coord is None:
+            ingest_flags = ingest_flags | IngestFlags.NO_COORD
 
         m.object            = safe_strip(safe_header(header, 'OBJECT'))
         m.slit_name         = safe_strip(safe_header(header, 'SLIT_N'))
@@ -157,9 +162,15 @@ class ShaneKastReader(MetadataReader):
         (m.frame_type, frame_flags) = self.determine_frame_type(m.exptime, lamp_status, m.object)
 
         ingest_flags |= frame_flags
-        m.ingest_flags = f'{ingest_flags:032b}'
-        m.header = header.tostring(sep='\n', endcard=False, padding=False)
 
+        # Save the header for future updates, and 
+        # check for an invalid \x00 in the header string, which the DB rejects
+        m.header = header.tostring(sep='\n', endcard=False, padding=False)
+        if m.header.find('\x00') != -1:
+            m.header = m.header.replace('\x00', ' ')
+            ingest_flags |= IngestFlags.INVALID_CHAR
+
+        m.ingest_flags = f'{ingest_flags:032b}'            
         return m
 
         

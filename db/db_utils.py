@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from tenacity import retry, stop_after_delay, wait_exponential
 
+from archive_schema import Main
 
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
 def create_db_engine():
@@ -25,4 +26,23 @@ def open_db_session(engine):
     Session = sessionmaker(bind=engine)
     session = Session()
     return session
+
+@retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
+def insert_one(engine, row):
+    """
+    Insert one row of metadata using a new database session. This function uses exponential backoff
+    retries for deailing with database issues.
+    """
+    session = open_db_session(engine)
+    session.add(row)
+    session.commit()
+
+@retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
+def check_exists(engine, row):
+    """
+    Check if a row has already been inserted. 
+    """
+    session = open_db_session(engine)
+    q = session.query(Main.id).filter(Main.filename == row.filename)
+    return session.query(q.exists()).scalar()
 

@@ -115,6 +115,8 @@ class ShaneAO_ShARCS(MetadataReader):
             m.exptime           = None    
         
         (m.ra, m.dec, m.coord) = get_ra_dec(header)
+        if m.coord is None:
+            ingest_flags = ingest_flags | IngestFlags.NO_COORD
 
         m.object            = safe_header(header, 'OBJECT')
         m.slit_name         = None

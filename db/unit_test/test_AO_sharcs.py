@@ -57,7 +57,7 @@ def test_ao_sharcs():
     assert row.telescope == 'Shane'
     assert row.instrument == 'ShaneAO/ShARCS'
     assert row.obs_date == datetime(2014, 5, 20, 0, 0, 0, 0, tzinfo=timezone.utc)
-    assert row.ingest_flags == '00000000000000000000000000011011'
+    assert row.ingest_flags == '00000000000000000000001000011011'
     assert row.exptime == None
     assert row.ra == None
     assert row.dec == None
@@ -87,7 +87,7 @@ def test_ao_sharcs():
     assert row.telescope == 'Shane'
     assert row.instrument == 'ShaneAO/ShARCS'
     assert row.obs_date == datetime(2014, 5, 20, 23, 15, 39, 78000, tzinfo=timezone.utc)
-    assert row.ingest_flags == '00000000000000000000000000010111'
+    assert row.ingest_flags == '00000000000000000000001000010111'
     assert row.exptime == (0.09797 * 2)
     assert row.frame_type == FrameType.unknown
 
@@ -152,6 +152,6 @@ def test_ao_sharcs():
     assert row.telescope == 'Shane'
     assert row.instrument == 'ShaneAO/ShARCS'
     assert row.obs_date == datetime(2019, 7, 18, 22, 52, 14, 273000, tzinfo=timezone.utc)
-    assert row.ingest_flags == '00000000000000000000000000010001'
+    assert row.ingest_flags == '00000000000000000000001000010001'
     assert row.object is None
     assert row.frame_type == FrameType.unknown

@@ -92,7 +92,7 @@ def test_red_headers():
     assert row.instrument == 'Kast Red'
 
     assert row.frame_type == FrameType.unknown
-    assert row.ingest_flags == "00000000000000000000000000011001"
+    assert row.ingest_flags == "00000000000000000000001000011001"
     assert row.object is None
     assert row.obs_date == datetime(2019, 12, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -192,6 +192,24 @@ def test_red_headers():
     assert row.object == "Vis2S flat"
     assert row.program == 'KAST'
 
+    # Invalid ra/dec
+    file = '2008-03_11_shane_r814-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Red'
+
+    assert row.frame_type == FrameType.science
+    assert row.ingest_flags == "00000000000000000000001000000001"
+    assert row.object == "test"
+    assert row.ra == '29829:03:39.4'
+    assert row.dec == '+00:00:00.0'
+    assert row.coord is None
 
 def test_blue_headers():
     test_data_dir = Path(__file__).parent / 'test_data'
@@ -235,7 +253,7 @@ def test_blue_headers():
     assert row.instrument == 'Kast Blue'
 
     assert row.frame_type == FrameType.unknown
-    assert row.ingest_flags == "00000000000000000000000000011001"
+    assert row.ingest_flags == "00000000000000000000001000011001"
     assert row.object is None
     assert row.obs_date == datetime(2019, 5, 4, 0, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -281,3 +299,20 @@ def test_blue_headers():
     assert row.frame_type == FrameType.science
     assert row.ingest_flags == "00000000000000000000000000000001"
     assert row.object == "sn2006eb uv"
+
+    # Has invalid \x00 chars in header
+    file = '2008-09_16_shane_b7993-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+
+    assert ShaneKastReader.can_read(path, hdul) is True
+
+    reader = ShaneKastReader()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'Kast Blue'
+
+    assert row.frame_type == FrameType.dark
+    assert row.ingest_flags == "00000000000000000000010000000001"
+    assert row.object == "KAST BLUE -108c dark ARAL s8g1"
+    assert row.header.find('\x00') == -1

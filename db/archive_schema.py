@@ -23,17 +23,19 @@ class FrameType(enum.Enum):
     unknown = enum.auto()
 
 class IngestFlags(enum.IntFlag):
-    CLEAR               = 0
-    NO_LAMPS_IN_HEADER  = 1
-    AO_NO_DATE_BEG      = 2
-    AO_USE_DATE_OBS     = 4
-    USE_DIR_DATE        = 8
-    NO_OBJECT_IN_HEADER = 16
-    NO_FITS_END_CARD    = 32
-    NO_FITS_SIMPLE_CARD = 64
-    FITS_VERIFY_ERROR   = 128
-    UNKNOWN_FORMAT      = 256
-
+    CLEAR               = 0        # Nothing of interest when ingesting the file
+    NO_LAMPS_IN_HEADER  = 1        # No lamps were specified in the header, so OBJECT was used to find the type
+    AO_NO_DATE_BEG      = 2        # A Shane AO/ShARCS file had no DATE_BEG
+    AO_USE_DATE_OBS     = 4        # A Shane AO/ShARCS file had used DATE_OBS, which is less reliable
+    USE_DIR_DATE        = 8        # The obs date for a file was determined by the directory name, so is only accurate to 24 hours.
+    NO_OBJECT_IN_HEADER = 16       # There was no OBJECT in the header
+    NO_FITS_END_CARD    = 32       # The FITS header had no END card
+    NO_FITS_SIMPLE_CARD = 64       # The FITS header had no SIMPLE card at the beginning.
+    FITS_VERIFY_ERROR   = 128      # The FITS header failed a verification check.
+    UNKNOWN_FORMAT      = 256      # The FITS file could not be identified (used internally, should not be inserted to DB).
+    NO_COORD            = 512      # The RA/DEC in the header could be parsed, so cone searches will not match it.
+    INVALID_CHAR        = 1024     # An invalid character (such as '\x00') was found in the header.
+    
 class Main(Base):
     __tablename__ = 'main'
 
