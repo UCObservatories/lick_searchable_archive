@@ -152,7 +152,7 @@
           backup: yes
           boot: yes
           state: mounted
-          opts: defaults,bg,ro
+          opts: defaults,bg,ro,x-systemd.mount-timeout=300s
         become: yes
 
 
