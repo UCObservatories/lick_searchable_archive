@@ -27,52 +27,46 @@ class ShaneAO_ShARCS(MetadataReader):
 
         return False
     
-    def determine_frame_type(self, object, filter2, lamps):
+    def determine_frame_type(self, object, filter2, caly_name, lamps):
 
         ingest_flags = IngestFlags.CLEAR
+        frame_type = FrameType.unknown
         if filter2 == "Blank25":
             frame_type = FrameType.dark
+        elif caly_name is not None and caly_name in ('Red Light', 'Argon'):
+            frame_type = FrameType.arc
+        elif lamps is not None and any(lamps[0:5]):
+            # If any dome lights are on this is considered a flat
+            # Per an e-mail from Ellie Gates, only the flat lamps matter for ShARCS,
+            # with lamps 5 and 2 being the most often used and others used rarely.
+            # The TUB lamps (higher than lamp 5) are not used.
+            frame_type = FrameType.flat
 
-        elif lamps is None or not any(lamps):
-            # Log why we are using object
-            if lamps is None:
-                ingest_flags = ingest_flags | IngestFlags.NO_LAMPS_IN_HEADER
-                logger.debug("Could not find lamps, using OBJECT to determine frame type.")
-            else:
-                logger.debug("Lamps are off, using OBJECT to double check frame type.")
+        # Keep track of whether the lamps is present so the ingest_flags are correct
+        if lamps is None:
+            ingest_flags = ingest_flags | IngestFlags.NO_LAMPS_IN_HEADER
+            logger.debug("No Lamps in header.")
+            
+        # If the above does not determine the type, use the object
+        if frame_type == FrameType.unknown:
 
             if object is not None:
-                if "dark" in object.lower():
+                if "dark" in object.lower() and filter2 is None:
+                    # Don't set it to dark if filter2 is actually in the header
                     frame_type = FrameType.dark
                 elif "flat" in object.lower():
                     frame_type = FrameType.flat
                 elif "bias" in object.lower():
                     frame_type = FrameType.bias
+                elif "arc" in object.lower():
+                    frame_type = FrameType.arc
                 elif len(object.strip()) > 0:
                     frame_type = FrameType.science
                 else:
-                    if lamps is not None:
-                        # If lamps are specified in the header but are all off, 
-                        # count it as a science image even if the object is empty
-                        frame_type = FrameType.science
-                    else:
-                        # No lamps in the header and an empty object, treat it as unknown
-                        frame_type = FrameType.unknown                        
                     ingest_flags = ingest_flags | IngestFlags.NO_OBJECT_IN_HEADER
 
             else:
                 ingest_flags = ingest_flags | IngestFlags.NO_OBJECT_IN_HEADER
-                frame_type = FrameType.unknown
-
-        elif any([lamps[i] for i in range(0, 5)]):
-            # If any dome lights are on this is considered a flat
-            frame_type = FrameType.flat
-            
-        elif any([lamps[i] for i in range(5, 16)]):
-            # Check for arc lights
-            frame_type = FrameType.arc
-        else:
-            frame_type = FrameType.unknown
 
         return (frame_type, ingest_flags)
 
@@ -133,7 +127,7 @@ class ShaneAO_ShARCS(MetadataReader):
         m.program = safe_header(header,'PROGRAM')
         m.observer = safe_header(header,'OBSERVER')
         lamp_status = get_shane_lamp_status(header)
-        (m.frame_type, frame_flags) = self.determine_frame_type(m.object, m.filter2, lamp_status)
+        (m.frame_type, frame_flags) = self.determine_frame_type(m.object, m.filter2, safe_header(header, 'CALYNAM'), lamp_status)
         ingest_flags |= frame_flags
         m.ingest_flags = f'{ingest_flags:032b}'
         m.header = header.tostring(sep='\n', endcard=False, padding=False)

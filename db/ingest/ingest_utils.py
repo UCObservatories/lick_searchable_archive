@@ -35,7 +35,7 @@ def get_shane_lamp_status(header):
                    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
     try:
-        lamp_status = [ (isinstance(header[f'LAMPSTA{name}'], bool) and header[f'LAMPSTA{name}']) or (header[f'LAMPSTA{name}'].lower()=='on') for name in lamp_names]
+        lamp_status = [ (isinstance(header[f'LAMPSTA{name}'], bool) and header[f'LAMPSTA{name}']) or (isinstance(header[f'LAMPSTA{name}'], str) and header[f'LAMPSTA{name}'].lower()=='on') for name in lamp_names]
     except KeyError:
         lamp_status = None
     return lamp_status
