@@ -7,13 +7,13 @@ import logging
 from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy import cast
 
-from ingest.metadata_reader import MetadataReader
-from ingest.ingest_utils import safe_header, parse_file_date, get_shane_lamp_status, get_ra_dec
-from archive_schema import  Main, FrameType, IngestFlags
+from lick_archive.metadata.abstract_reader import AbstractReader
+from lick_archive.metadata.metadata_utils import safe_header, parse_file_date, get_shane_lamp_status, get_ra_dec
+from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags
 
 logger = logging.getLogger(__name__)
 
-class ShaneAO_ShARCS(MetadataReader):
+class ShaneAO_ShARCS(AbstractReader):
     @classmethod
     def can_read(cls, file_path, hdul):
         if "AO" in str(file_path.parent):
@@ -82,12 +82,12 @@ class ShaneAO_ShARCS(MetadataReader):
             logger.debug("Found DATE-BEG")
             try:
                 m.obs_date = datetime.strptime(date_beg + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
-            except ValueError:
+            except ValueError as e:
                 logger.error(f"Invalid format for DATE-BEG: {date_beg}")
 
+        # Check for weird out of sync DATE-OBS
         if m.obs_date is None:
             ingest_flags = ingest_flags | IngestFlags.AO_NO_DATE_BEG
-            # Check for weird out of sync DATE-OBS
             filename_date = parse_file_date(file_path)
             date_obs = safe_header(header, 'DATE-OBS')
             if date_obs is not None and date_obs == filename_date:

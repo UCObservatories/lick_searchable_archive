@@ -1,14 +1,11 @@
 from astropy.io import fits
 from pathlib import Path
 
-from ingest.shane_ao_sharcs import ShaneAO_ShARCS
-from archive_schema import FrameType, IngestFlags
+from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
+from lick_archive.db.archive_schema import FrameType
 from unit_test.utils import get_hdul_from_text
 import os 
 from datetime import datetime, timezone
-
-from sqlalchemy.dialects.postgresql import BIT
-from sqlalchemy import cast
 
 
 def test_ao_sharcs():

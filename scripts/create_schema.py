@@ -1,9 +1,9 @@
 """ Create the Lick Archive schema in an existing empty database. """
 from datetime import datetime, timezone
 
-from archive_schema import Base, VersionHistory, version
+from lick_archive.db.archive_schema import Base, VersionHistory, version
 
-from db_utils import create_db_engine, open_db_session
+from lick_archive.db.db_utils import create_db_engine, open_db_session
 
 engine = create_db_engine()
 

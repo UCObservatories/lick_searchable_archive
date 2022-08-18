@@ -110,7 +110,7 @@
           - /pg_data/backups
       - name: Copy backup script
         ansible.builtin.copy: 
-          src: db/archive_db_backup.sh
+          src: scripts/archive_db_backup.sh
           dest: /var/lib/postgresql/scripts/archive_db_backup.sh
           owner: postgres
           group: postgres

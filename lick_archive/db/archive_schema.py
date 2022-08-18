@@ -8,7 +8,7 @@ from sqlalchemy import Column, Float, String, Integer, Sequence, ForeignKey, TIM
 from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy.orm import relationship
 from sqlalchemy import Index, Enum
-from pgsphere import SPoint
+from lick_archive.db.pgsphere import SPoint
 
 Base = declarative_base()
 

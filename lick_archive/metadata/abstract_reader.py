@@ -11,7 +11,7 @@ The steps to add a new instrument are:
 """
 
 
-class MetadataReader:
+class AbstractReader:
 
     @classmethod
     def can_read(cls, file_path, hdul):

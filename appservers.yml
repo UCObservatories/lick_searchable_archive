@@ -1,13 +1,29 @@
-- name: DB Server playbook
+- name: App Server playbook
   hosts: appservers
   tasks:
-      - name: Copy db scripts
+      - name: Create scripts directory
+        ansible.builtin.file: 
+          path: "scripts/"
+          mode: 0750
+          state: directory
+      # I use a file glob here to avoid copying the database .sh script
+      - name: Copy scripts
         ansible.builtin.copy: 
-          src: db
-          dest: .
+          src: "{{ item }}"
+          dest: scripts/
+        with_fileglob:
+          - "scripts/*.py"
+      - name: Copy lick_archive package
+        ansible.builtin.copy: 
+          src: lick_archive
+          dest: scripts/
+      - name: Copy Django project
+        ansible.builtin.copy: 
+          src: lick_searchable_archive
+          dest: .scripts/
       - name: Install python packages
         ansible.builtin.pip:
-          name: sqlalchemy, tenacity, astropy, alembic
+          name: sqlalchemy, tenacity, astropy, Django, djangorestframework, Celery
           state: present
         become: yes
 

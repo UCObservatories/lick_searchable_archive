@@ -9,9 +9,9 @@ from datetime import date, datetime, timezone
 import re
 import logging
 
-from ingest.reader import read_row
-from db_utils import create_db_engine, open_db_session, insert_one
-from ingest.ingest_utils import setup_logging, get_unique_file
+from lick_archive.metadata.reader import read_row
+from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_one, insert_batch
+from lick_archive.script_utils import setup_logging, get_unique_file
 
 logger = logging.getLogger(__name__)
 
@@ -120,11 +120,6 @@ def get_parser():
     return parser
 
 
-def insert_batch(session, batch):
-    """Insert a batch of metadata using a database session"""
-    print("Inserting batch")
-    session.bulk_save_objects(batch)
-    session.commit()
 
 def retry_one_by_one(error_file, engine, batch):
     """

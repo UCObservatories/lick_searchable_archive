@@ -2,16 +2,17 @@
 Reads metadata from files for ingest into the archive.
 """
 import logging
+from pathlib import Path
 
-from ingest.metadata_reader import MetadataReader
+from lick_archive.metadata.abstract_reader import AbstractReader
 from astropy.io import fits
 
 # Add each new MetadataReader subclass here
 # Importing each reader registers them as a subclass
-import ingest.shane_kast
-import ingest.shane_ao_sharcs
+import lick_archive.metadata.shane_kast
+import lick_archive.metadata.shane_ao_sharcs
 
-from archive_schema import IngestFlags
+from lick_archive.db.archive_schema import IngestFlags
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def open_fits_file(file_path):
     Opens a fits file, attempting to deal with invalid files as much as possible.
 
     Args:
-    file_path (pathlib.Path):
+    file_path (pathlib.Path or str):
         Path to the file to open.
 
     Return (tuple of astropy.io.fits.HDUList, archive_schema.IngestFlags):
@@ -32,6 +33,9 @@ def open_fits_file(file_path):
     raises: Exception: Exceptions raised for unexpected errors openiong the file.
 
     """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+
     ingest_flags = IngestFlags.CLEAR
     hdul = None
     ignore_missing_end = False
@@ -90,11 +94,14 @@ def read_row(file_path):
     Read a row of metadata from a file.
         
     Args:
-    file_path (pathlib.Path):
+    file_path (pathlib.Path, or str):
         The path of the file to read. This should be in the Lick Archive directory
         format (YYYY-MM/DD/<instrument>/<file>), as the directory name may be used
         to help identifying the instrument that created the file.
     """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
+
     hdul = None
     try:
         hdul, ingest_flags = open_fits_file(file_path)
@@ -123,7 +130,7 @@ def read_hdul(file_path, hdul, ingest_flags):
     reading header data from text files.
 
     Args:
-    file_path (pathlib.Path):
+    file_path (pathlib.Path, or str):
         The path of the file the HDUList was read from. This should be in the 
         Lick Archive directory format (YYYY-MM/DD/<instrument>/<file>), as the
         directory name may be used to help identifying the instrument that 
@@ -136,10 +143,12 @@ def read_hdul(file_path, hdul, ingest_flags):
         Any ingest bit flags that were set during the process of opening a FITS file.
 
     """
+    if isinstance(file_path, str):
+        file_path = Path(file_path)
 
-    # Ask each MetadataReader subclass if it can handle the file, and use it 
+    # Ask each AbstractReader subclass if it can handle the file, and use it 
     # if it can
-    for child in MetadataReader.__subclasses__():
+    for child in AbstractReader.__subclasses__():
         if child.can_read(file_path, hdul):
             return child().read_row(file_path, hdul, ingest_flags)
 

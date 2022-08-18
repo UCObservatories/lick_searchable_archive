@@ -7,9 +7,9 @@ import sys
 import logging
 from pathlib import Path
 
-from ingest.ingest_utils import setup_logging, get_unique_file
-from db_utils import create_db_engine, insert_one, check_exists
-from ingest.reader import read_row
+from lick_archive.script_utils import setup_logging, get_unique_file
+from lick_archive.db.db_utils import create_db_engine, insert_one, check_exists
+from lick_archive.metadata.reader import read_row
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def retry_one_file(error_file, failed_file):
         logger.info(f"Inserting data for {failed_file}.")
         engine = create_db_engine()
 
-        if not check_exists(engine, row):
+        if not check_exists(engine, row.filename):
             insert_one(engine, row)
             logger.info(f"Finished inserting data for {failed_file}.")
         else:

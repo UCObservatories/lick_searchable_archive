@@ -5,17 +5,13 @@ MetadataReader implementation for Shane Kast data.
 from datetime import datetime
 import logging
 
-from sqlalchemy.dialects.postgresql import BIT
-from sqlalchemy import cast
-
-from ingest.metadata_reader import MetadataReader
-from ingest.ingest_utils import safe_header, safe_strip, parse_file_date, get_shane_lamp_status, get_ra_dec
-from archive_schema import  Main, FrameType, IngestFlags
-from pgsphere import SPoint
+from lick_archive.metadata.abstract_reader import AbstractReader
+from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_date, get_shane_lamp_status, get_ra_dec
+from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags
 
 logger = logging.getLogger(__name__)
 
-class ShaneKastReader(MetadataReader):
+class ShaneKastReader(AbstractReader):
     @classmethod
     def can_read(cls, file_path, hdul):
         if "shane" in str(file_path.parent):

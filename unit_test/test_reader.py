@@ -2,8 +2,8 @@ import pytest
 
 from pathlib import Path
 
-from ingest.reader import open_fits_file, read_row
-from archive_schema import IngestFlags
+from lick_archive.metadata.reader import open_fits_file, read_row
+from lick_archive.db.archive_schema import IngestFlags
 
 
 def test_open_fits_file():

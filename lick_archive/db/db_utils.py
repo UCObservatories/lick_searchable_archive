@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from tenacity import retry, stop_after_delay, wait_exponential
 
-from archive_schema import Main
+from lick_archive.db.archive_schema import Main
 
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
 def create_db_engine():
@@ -38,11 +38,21 @@ def insert_one(engine, row):
     session.commit()
 
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
-def check_exists(engine, row):
+def insert_batch(session, batch):
+    """Insert a batch of metadata using a database session"""
+    print("Inserting batch")
+    session.bulk_save_objects(batch)
+    session.commit()
+
+
+@retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
+def check_exists(engine, filename, session = None):
     """
-    Check if a row has already been inserted. 
+    Check if a file has already been inserted. 
     """
-    session = open_db_session(engine)
-    q = session.query(Main.id).filter(Main.filename == row.filename)
+    if session is None:
+        session = open_db_session(engine)
+
+    q = session.query(Main.id).filter(Main.filename == filename)
     return session.query(q.exists()).scalar()
 
