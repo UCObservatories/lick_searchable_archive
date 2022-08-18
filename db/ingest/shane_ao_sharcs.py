@@ -56,8 +56,6 @@ class ShaneAO_ShARCS(MetadataReader):
                     frame_type = FrameType.dark
                 elif "flat" in object.lower():
                     frame_type = FrameType.flat
-                elif "bias" in object.lower():
-                    frame_type = FrameType.bias
                 elif "arc" in object.lower():
                     frame_type = FrameType.arc
                 elif len(object.strip()) > 0:
@@ -78,28 +76,37 @@ class ShaneAO_ShARCS(MetadataReader):
 
         # Parse the observation date as an iso date, adding +00:00 to make it UTC
         
+        m.obs_date = None
         date_beg = safe_header(header, 'DATE-BEG')
         if date_beg is not None:
             logger.debug("Found DATE-BEG")
-            m.obs_date = datetime.strptime(date_beg + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
-        else:
+            try:
+                m.obs_date = datetime.strptime(date_beg + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+            except ValueError:
+                logger.error(f"Invalid format for DATE-BEG: {date_beg}")
+
+        if m.obs_date is None:
             ingest_flags = ingest_flags | IngestFlags.AO_NO_DATE_BEG
             # Check for weird out of sync DATE-OBS
             filename_date = parse_file_date(file_path)
-            m.obs_date = None
             date_obs = safe_header(header, 'DATE-OBS')
             if date_obs is not None and date_obs == filename_date:
                 time_obs = safe_header(header, 'TIME-OBS')
                 if time_obs is not None:
-                    ingest_flags = ingest_flags | IngestFlags.AO_USE_DATE_OBS
-                    m.obs_date = datetime.strptime(f"{date_obs}T{time_obs}+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+                    try:
+                        m.obs_date = datetime.strptime(f"{date_obs}T{time_obs}+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+                        ingest_flags = ingest_flags | IngestFlags.AO_USE_DATE_OBS
+                    except ValueError:
+                        logger.error(f"Invalid format for DATE-OBS/TIME-OBS: {date_obs}/{time_obs}")
+
                     logger.debug("Did not find DATE-BEG, but DATE-OBS/TIME-OBS seem sane, using those")
             else:
                 logger.debug("DATE-OBS is on a different day than the directory name, not using.")
-            if m.obs_date is None:
-                logger.debug("Using directory date for observation date.")
-                ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
-                m.obs_date = datetime.strptime(f"{filename_date}T00:00:00+00:00", '%Y-%m-%dT%H:%M:%S%z')
+
+        if m.obs_date is None:
+            logger.debug("Using directory date for observation date.")
+            ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
+            m.obs_date = datetime.strptime(f"{filename_date}T00:00:00+00:00", '%Y-%m-%dT%H:%M:%S%z')
 
         m.coadds_done = safe_header(header, 'COADDONE')
         m.true_int_time = safe_header(header, 'TRUITIME')

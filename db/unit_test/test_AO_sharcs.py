@@ -292,4 +292,32 @@ def test_ao_sharcs():
     assert row.object is None
     assert row.frame_type == FrameType.unknown
 
-    
+    # Test invalid DATE-BEG
+    file = '2014-07_16_AO_s0196-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
+
+    assert ShaneAO_ShARCS.can_read(path, hdul) is True
+
+    reader = ShaneAO_ShARCS()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.obs_date == datetime(2014, 7, 16, 21, 55, 15, 624000, tzinfo=timezone.utc)
+    assert row.ingest_flags == '00000000000000000000001000010111'
+    assert row.frame_type == FrameType.unknown
+
+    # Test invalid TIME-OBS with no DATE-BEG
+    file = '2014-07_16_AO_s0196-modified-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
+
+    assert ShaneAO_ShARCS.can_read(path, hdul) is True
+
+    reader = ShaneAO_ShARCS()
+    row = reader.read_row(path, hdul)
+    assert row.telescope == 'Shane'
+    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.obs_date == datetime(2014, 7, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.ingest_flags == '00000000000000000000001000011011'
+    assert row.frame_type == FrameType.unknown
