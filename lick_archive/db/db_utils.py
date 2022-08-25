@@ -1,19 +1,22 @@
 """
 Helper functions for connecting the archive database with SQL Alchemy
 """
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select, func
 from sqlalchemy.orm import sessionmaker
 
 from tenacity import retry, stop_after_delay, wait_exponential
 
 from lick_archive.db.archive_schema import Main
 
+import logging
+logger = logging.getLogger(__name__)
+
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
 def create_db_engine():
     """Create a database engine object for the Lick archive database. 
     Uses exponential backoff to deal with connection issues.
     """
-    print("Connecting to database")
+    logger.debug("Connecting to database")
     engine = create_engine('postgresql://archive@/archive')
     return engine
 
@@ -33,6 +36,7 @@ def insert_one(engine, row):
     Insert one row of metadata using a new database session. This function uses exponential backoff
     retries for deailing with database issues.
     """
+    logger.info(f"Inserting row.")
     session = open_db_session(engine)
     session.add(row)
     session.commit()
@@ -40,7 +44,7 @@ def insert_one(engine, row):
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
 def insert_batch(session, batch):
     """Insert a batch of metadata using a database session"""
-    print("Inserting batch")
+    logger.info(f"Inserting batch of length {len(batch)}")
     session.bulk_save_objects(batch)
     session.commit()
 
@@ -53,6 +57,13 @@ def check_exists(engine, filename, session = None):
     if session is None:
         session = open_db_session(engine)
 
-    q = session.query(Main.id).filter(Main.filename == filename)
-    return session.query(q.exists()).scalar()
+    # We do a select count()... and see if the result is one. There's a unique constraint
+    # on filename so it should always be 1 or 0
+    stmt = select(func.count(Main.id)).where(Main.filename == filename)
+    logger.debug(f"Running SQL: {stmt.compile()}")
+    return session.execute(stmt).scalar() == 1
 
+@retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10))
+def execute_db_statement(session, stmt):    
+    logger.debug(f"Running SQL: {stmt.compile()}")
+    return session.execute(stmt)

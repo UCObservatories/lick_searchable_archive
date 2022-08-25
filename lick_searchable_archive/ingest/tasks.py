@@ -45,8 +45,10 @@ def ingest_new_files(new_ingests):
         failed_files = [row.filename for row in rows_to_add]
 
     logger.info(f"Updating status on {len(good_files)} successful ingests and {len(failed_files)} failed ingests.")
-    if len(good_files) > 1:
-        Ingest.objects.filter(filename__in=good_files).update(status='COMPLETE')
+    if len(good_files) > 0:
+        results = Ingest.objects.filter(filename__in=good_files).update(status='COMPLETE')
+        logger.info(f"Update found {results} rows")
 
-    if len(failed_files) > 1:
-        Ingest.objects.filter(filename__in=failed_files).update(status='FAILED')
+    if len(failed_files) > 0:
+        results = Ingest.objects.filter(filename__in=failed_files).update(status='FAILED')
+        logger.info(f"Update found {results} rows")

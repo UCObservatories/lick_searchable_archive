@@ -23,7 +23,7 @@
           dest: .scripts/
       - name: Install python packages
         ansible.builtin.pip:
-          name: sqlalchemy, tenacity, astropy, Django, djangorestframework, Celery
+          name: sqlalchemy, tenacity, astropy, Django, djangorestframework, Celery, watchdog, requests
           state: present
         become: yes
 

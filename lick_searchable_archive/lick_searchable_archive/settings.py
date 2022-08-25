@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-&rfumrv32o4gj&)s+y@7sjqu=-%ncsd5a8(-(!2myfxv=f7)et
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.122.96']
+ALLOWED_HOSTS = ['192.168.122.96', 'localhost']
 
 
 # Application definition
@@ -141,3 +141,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery configuration
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
+
+LICK_ARCHIVE_ROOT_DIR = '/data'
+
+LICK_ARCHIVE_INSTRUMENT_DIRS = ['shane', 'AO']

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def setup_logging(log_path, log_name, log_level):
+def setup_logging(log_path, log_name, log_level, log_tid=False):
     """Setup loggers to send some information to stderr and the configured log level to a file"""
 
     log_timestamp = datetime.now(timezone.utc).isoformat(timespec='milliseconds')
@@ -14,7 +14,8 @@ def setup_logging(log_path, log_name, log_level):
     # Configure a file handler to write detailed information to the log file
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(log_level)
-    file_handler.setFormatter(logging.Formatter(fmt="{levelname:8} {asctime} {module}:{funcName}:{lineno} {message}", style='{'))
+    tid_format = " tid:{thread}" if log_tid else ""
+    file_handler.setFormatter(logging.Formatter(fmt="{levelname:8} {asctime}" + tid_format + " {module}:{funcName}:{lineno} {message}", style='{'))
 
     # Setup a basic formatter for output to stderr
     stream_handler = logging.StreamHandler()
