@@ -31,3 +31,6 @@ MANIFEST
 
 # Coverage
 .coverage
+
+# Sphinx build
+_build

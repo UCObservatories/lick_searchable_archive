@@ -17,6 +17,7 @@
         ansible.builtin.copy: 
           src: lick_archive
           dest: scripts/
+      # TODO: This should not go here  
       - name: Copy Django project
         ansible.builtin.copy: 
           src: lick_searchable_archive
