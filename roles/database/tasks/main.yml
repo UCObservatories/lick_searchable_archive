@@ -1,0 +1,174 @@
+# The default postgres install on Ubuntu will create a 
+# a "main" cluster, and a postgres user
+- name: Install PostgreSQL and plugins
+  ansible.builtin.apt:
+    name: postgresql-{{postgres_version}}, postgresql-pgsphere
+    state: present
+  become: yes
+- name: Create DB data file system
+  community.general.filesystem:
+    dev: "{{db_data_device}}"
+    fstype: ext4
+    state: present
+  become: yes
+- name: Create pg_data mount point
+  ansible.builtin.file:
+    name: /pg_data
+    owner: postgres
+    group: postgres
+    state: directory
+  become: yes
+- name: Mount DB data file system
+  ansible.posix.mount:
+    src: "{{db_data_device}}"
+    path: /pg_data
+    fstype: ext4
+    backup: yes
+    boot: yes
+    state: mounted
+  become: yes
+- name: Get existing clusters
+  ansible.builtin.command:
+    cmd: "pg_lsclusters -h"
+  register: lsclusters_output
+  changed_when: False
+- name: Delete default main cluster
+  ansible.builtin.command:
+    cmd: "pg_dropcluster {{postgres_version}} main --stop"
+  when: lsclusters_output is not skipped and lsclusters_output.stdout.find("main") != -1
+  become: yes
+- name: Delete old archive_db data directory if it's not in lsclusters output
+  ansible.builtin.file:
+    name: /pg_data/archive_db
+    state: absent
+  when: lsclusters_output is not skipped and lsclusters_output.stdout.find("archive_db") == -1
+  become: yes
+- name: Create new archive_db cluster
+  ansible.builtin.command:
+    cmd: "pg_createcluster --start -u postgres -d /pg_data/archive_db {{postgres_version}} archive_db"
+  when: lsclusters_output is not skipped and lsclusters_output.stdout.find("archive_db") == -1
+  become: yes
+  become_user: postgres
+- name: Install python packages needed for admin scripts
+  ansible.builtin.pip:
+    name: psycopg2-binary, sqlalchemy, astropy
+    state: present
+    virtualenv: "{{ venv_root }}"
+    virtualenv_command: python{{ python_version }} -m venv
+  become: yes
+  become_user: "{{ archive_service_user }}"
+- name: Install psycopg2-binary for ansible tasks running as postgres
+  ansible.builtin.apt:
+    name: python3-psycopg2
+    state: present
+  become: yes
+- name: Create archive postgres user
+  community.postgresql.postgresql_user:
+    name: archive
+    state: present
+  become: yes
+  become_user: postgres
+- name: Create archive database
+  community.postgresql.postgresql_db:
+    name: archive
+    state: present
+    owner: archive
+  become: yes
+  become_user: postgres
+- name: Install pgsphere plugin
+  community.postgresql.postgresql_ext:
+    db: archive
+    name: pg_sphere
+    state: present
+  become: yes
+  become_user: postgres
+- name: Allow local users to connect to archive DB
+  ansible.builtin.blockinfile:
+    path: /etc/postgresql/{{postgres_version}}/archive_db/pg_hba.conf
+    insertafter: "# TYPE  DATABASE        USER            ADDRESS                 METHOD"
+    block: |
+      #
+      # Allow any user who can login to the local host to access the "archive" user
+      local   archive         archive                                 trust
+    backup: yes
+  become: yes
+  register: pg_hba_result
+- name: Reload postgres configuration
+  ansible.builtin.command: "pg_ctlcluster {{postgres_version}} archive_db reload"
+  become: yes
+  become_user: postgres
+  when: pg_hba_result is changed
+- name: Create backup script related directories
+  ansible.builtin.file: 
+    path: "{{item}}"
+    owner: postgres
+    group: postgres
+    mode: 0770
+    state: directory
+  become: yes
+  loop:
+    # Note the postgres user home directory is in var/lib/postgresql
+    - /var/lib/postgresql/scripts
+    - /pg_data/backups
+- name: Copy backup script
+  ansible.builtin.copy: 
+    src: scripts/postgres_scripts/archive_db_backup.sh
+    dest: /var/lib/postgresql/scripts/archive_db_backup.sh
+    owner: postgres
+    group: postgres
+    mode: 0770
+  become: yes
+- name: Setup DB backup cron
+  ansible.builtin.cron:
+    name: Archive DB pg_dump backup
+    hour: "8" # Should be either 12pm or 1pm local time
+    minute: "0"
+    user: postgres
+    job: "/var/lib/postgresql/scripts/archive_db_backup.sh"
+  become: yes
+- name: Copy admin scripts
+  ansible.builtin.copy: 
+    src: scripts/admin_scripts/
+    dest: "{{ venv_root }}/bin/"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0770
+  become: yes
+- name: Setup group for archive data nfs mount
+  ansible.builtin.group:
+    name: "{{archive_nfs_group}}"
+    gid: "{{archive_nfs_gid}}"
+  become: yes
+- name: Setup user for archive data nfs mount
+  ansible.builtin.user:
+    name: "{{archive_nfs_name}}"
+    create_home: no
+    group: "{{archive_nfs_group}}"
+    home: /data
+    password: '*'
+    shell: /usr/sbin/nologin
+    uid: "{{archive_nfs_uid}}"
+  become: yes
+- name: Add local user to nfs group
+  ansible.builtin.user:
+    name:   "{{ ansible_user_id }}"
+    groups: "{{archive_nfs_group}}"
+    append: yes
+  become: yes
+- name: Install Ubuntu packages needed for nfs
+  ansible.builtin.apt:
+    name: nfs-common
+    state: present
+  become: yes
+- name: NFS mount the archive data directory        
+  ansible.posix.mount:
+    src: "{{archive_nfs_source}}"
+    path: "{{archive_data_mount}}"
+    fstype: nfs
+    backup: yes
+    boot: yes
+    state: mounted
+    opts: defaults,bg,ro,x-systemd.mount-timeout=300s
+  become: yes
+
+

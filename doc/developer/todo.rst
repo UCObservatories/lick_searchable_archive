@@ -19,6 +19,7 @@ Deployment
 * Deploy gunicorn, celery, redis.
 * Deploy in Pythoh packages? Debian Packages for ingest_watchdog? I think at least the common code
   in lick_archive should be packaged up.
+* Deploy rotating logging handlers for celery
 
 Code Quality
 ------------

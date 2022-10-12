@@ -1,0 +1,7 @@
+- name: Ingest Watchdog Remote Deploy Playbook
+  hosts: watchdog
+  roles:
+    - common
+    - role: ingest_watchdog
+      vars:
+        remote_watchdog: False

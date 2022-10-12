@@ -1,0 +1,15 @@
+[Unit]
+Description=Lick Searchable Archive service that watches the archive's file system for new files and notifies the archive of those files.
+RequiresMountsFor={{ archive_data_mount }}
+
+[Service]
+Type=simple
+ExecStart={{ venv_root }}/bin/python {{ venv_root }}/bin/ingest_watchdog.py --config {{ archive_config_dir }}/{{ watchdog_config }} -L INFO -l {{ archive_log_dir }}
+User={{ archive_service_user }}
+Group={{ archive_service_group }}
+StandardOutput = null
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target

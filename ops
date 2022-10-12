@@ -1,4 +1,11 @@
 [dbservers]
 quarry.ucolick.org
+
 [appservers]
+quarry.ucolick.org
+
+[ingest_servers]
+quarry.ucolick.org
+
+[watchdog]
 quarry.ucolick.org

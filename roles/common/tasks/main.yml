@@ -1,0 +1,67 @@
+- name: Setup group for archive service (unspecified gid)
+  ansible.builtin.group:
+    name: "{{ archive_service_group }}"
+  become: yes
+  when: archive_service_gid is undefined
+- name: Setup group for archive service (specified gid)
+  ansible.builtin.group:
+    name: "{{ archive_service_group }}"
+    gid: "{{ archive_service_gid }}"
+  become: yes
+  when: archive_service_gid is defined
+- name: Add local user to archive group
+  ansible.builtin.user:
+    name:   "{{ ansible_user_id }}"
+    groups: "{{ archive_service_group }}"
+    append: yes
+  become: yes
+- name: Setup user for archive service (unspecified uid)
+  ansible.builtin.user:
+    name: "{{ archive_service_user }}"
+    create_home: no
+    group: "{{ archive_service_group }}"
+    password: '*'
+    shell: /usr/sbin/nologin
+  become: yes
+  when: archive_service_uid is undefined
+- name: Setup user for archive service (specified uid)
+  ansible.builtin.user:
+    name: "{{ archive_service_user }}"
+    uid: "{{ archive_service_uid }}"
+    create_home: no
+    group: "{{ archive_service_group }}"
+    password: '*'
+    shell: /usr/sbin/nologin
+  become: yes
+  when: archive_service_uid is defined
+- name: Install Desired Python Version
+  ansible.builtin.apt:
+    name: python{{ python_version }}, python{{ python_version }}-venv
+    state: present
+  become: yes
+- name: Install ACL so that ansible can use it
+  ansible.builtin.apt:
+    name: acl
+    state: present
+  become: yes
+- name: Create virtual env directory
+  ansible.builtin.file: 
+    path: "{{ venv_root }}"
+    mode: 0750
+    state: directory
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+  become: yes
+- name: Create virtual python environment
+  ansible.builtin.pip: 
+    name: tenacity, watchdog, requests
+    virtualenv: "{{ venv_root }}"
+    virtualenv_command: python{{ python_version }} -m venv
+  become: yes
+  become_user: "{{ archive_service_user }}"
+- name: Copy common lick_archive python code
+  ansible.builtin.copy: 
+    src: lick_archive
+    dest: "{{ package_install_dir }}"
+  become: yes
+  become_user: "{{ archive_service_user }}"

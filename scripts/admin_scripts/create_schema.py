@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """ Create the Lick Archive schema in an existing empty database. """
 from datetime import datetime, timezone
 

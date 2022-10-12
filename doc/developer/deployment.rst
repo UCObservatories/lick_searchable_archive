@@ -35,7 +35,7 @@ Requirements for deploying to a machine
     * The machine must use Ubuntu as its OS
     * You must have a user that can ssh to the target machine without being prompted for a password.
     * That user must have sudo acceess.
-    * A database data partition. (Which will be formatted and mountedduring the deployment).
+    * A database data partition. (Which will be formatted and mounted during the deployment).
     * Permission to NFS mount the archive file storage.
 
 For example, for the current ``Quarry.ucolick.org`` machine I've been using the ``localdusty`` account.
@@ -124,8 +124,16 @@ To deploy Archive's Python software to the target machine::
 
 
 
+Post Deployment Steps
+---------------------
 
+Fresh machine:
+create schema *todo link to db docs*
+python /opt/lick_archive/bin/create_schema.py # Can't run directly, shebang is wrong.
 
+Create django db.
+cd /opt/lick_archive/lib/python3.9/site-packages/lick_searchable_archive
+sudo -u archive /opt/lick_archive/bin/python manage.py migrate
 
 
 

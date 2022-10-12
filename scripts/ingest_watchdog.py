@@ -20,7 +20,7 @@ import watchdog.events
 import watchdog.observers.api
 import watchdog.observers.polling
 
-from lick_archive.script_utils import setup_logging
+from lick_archive.script_utils import setup_service_logging
 from lick_archive.lick_archive_client import LickArchiveIngestClient
 
 logger = logging.getLogger(__name__)
@@ -194,6 +194,20 @@ def logging_stat(path):
 
 
 class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter):
+    """ 
+    Extends the watchdog package's PollingEmitter class with the ability to send a "Close" event
+    a configurable delay after a file has been created (or modified). This allows time for a file to be fully 
+    written to disk, and allows clients to treat the events from polling like they would from an
+    inotify observer.
+
+    Args:
+    event_queue:    Event queue that receives events.
+    watch:          Watch object representing the path being watched.
+    timeout:        Polling interval between scans of the watched directory.
+    writing_delay:  How long to wait (in seconds) after a file is created to send a close event.
+    stat:           Function used to stat files.
+    listdir:        Function used to scan directories.
+    """
     def __init__(self, event_queue, watch, timeout, writing_delay, stat=os.stat, listdir=os.scandir):
         super().__init__(event_queue, watch, timeout, stat=logging_stat, listdir=logging_scandir)
         self._writing_delay = datetime.timedelta(seconds=writing_delay)
@@ -201,27 +215,62 @@ class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter
         self._file_modify_lock = threading.Lock()
     
     def queue_events(self, timeout):
+        """
+        Scan the watched directory and issue events.
+        
+        This overridden version calls the superclass method to do the scan, and then
+        sends a close event for each file in its own internal map older than the writing delay.  
+
+        Args:
+        timeout (int): From the watchdog framework, this is the time the superclass method sleeps before
+                       scanning the directory. 
+        """
         super().queue_events(timeout)
 
-        with self._lock:            
-            if not self.should_keep_running():
-                return
+        try:
+            # Make sure nothing has stopped this thread while the scan was happening
+            with self._lock:
+                if not self.should_keep_running():
+                    return
 
-        current_time = datetime.datetime.now(tz=datetime.timezone.utc)
-        files_to_queue = []
-        with self._file_modify_lock:
-            for file in self._file_modify_map.keys():
-                if  current_time - self._file_modify_map[file]  > self._writing_delay:
-                    files_to_queue.append(file)
-                    del self._file_modify_map[file]
-    
-        for file in files_to_queue:
-            self.queue_event(watchdog.events.FileClosedEvent(file))
+            # Go through the _file_modify_map and find any files older than the writing delay
+            # Multiple threads can call queue_event, which also uses the file_modify_map.
+            # So we protect the map with _file_modify_lock
+            current_time = datetime.datetime.now(tz=datetime.timezone.utc)
+            files_to_queue = []
+            with self._file_modify_lock:
+                
+                # Get a list of files in the map. We don't directly iterate over keys
+                # because we'll be removing files from the map as we go which would invalidate
+                # iteration
+                file_list = list(self._file_modify_map.keys())
+                for file in file_list:
+                    if  current_time - self._file_modify_map[file]  > self._writing_delay:
+                        files_to_queue.append(file)
+                        del self._file_modify_map[file]
+        
+            # Now queue the close events for files older than the writing delay
+            for file in files_to_queue:
+                self.queue_event(watchdog.events.FileClosedEvent(file))
+        except Exception as e:
+            # Letting exceptions escape this method will kill this thread, preventing future
+            # scans of the directory
+            logger.error(f"Exception in queue_events {e}", exc_info=True)
 
     def queue_event(self, event):
+        """
+        Queue a file system event for this emitter. This method keeps track of new files
+        (or new modifications to files) that will need a close event sent for them before
+        calling the superclass method to queue the event.
+
+        Args:
+        event: The file system event to queue.
+        """
         current_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
         if not event.is_directory:
+            # Update the _file_modify_map with new and modified files, and delete any files
+            # that were deleted before _writing_delay seconds passed.
             with self._file_modify_lock:
                 if event.event_type in (watchdog.events.EVENT_TYPE_CREATED, watchdog.events.EVENT_TYPE_MODIFIED):
                     self._file_modify_map[event.src_path] = current_time
@@ -488,7 +537,7 @@ def get_parser():
 
 def main(args):
 
-    setup_logging(args.log_path, "ingest_watchdog", args.log_level, log_tid=True)
+    setup_service_logging(args.log_path, "ingest_watchdog", args.log_level, rollover_days=1, backup_count=14, log_tid=True)
 
     try:
         logger.info(f"Reading configuration from '{args.config}'.")

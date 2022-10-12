@@ -15,6 +15,17 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+{% if inventory_file.split('/')|last == "ops" %}
+
+with open('{{ django_secret_keyfile }}') as f:
+    SECRET_KEY = f.read().strip()
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = False
+
+{% else %}
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
@@ -24,29 +35,31 @@ SECRET_KEY = 'django-insecure-&rfumrv32o4gj&)s+y@7sjqu=-%ncsd5a8(-(!2myfxv=f7)et
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.122.96', 'localhost']
+{% endif %}
+
+ALLOWED_HOSTS = ["{{ groups['ingest_servers']|first }}", 'localhost']
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+#    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+#    'django.contrib.sessions',
+#    'django.contrib.messages',
+#    'django.contrib.staticfiles',
     'rest_framework',
     'ingest',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+#    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
+#    'django.contrib.auth.middleware.AuthenticationMiddleware',
+#    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -77,7 +90,7 @@ WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': '{{ venv_root }}/var/run/db.sqlite3',
     }
 }
 
@@ -104,16 +117,30 @@ LOGGING = {
     'version':1,
     'disable_existing_loggers': False,
     'handlers': {
-        'file': {
+        'django_log': {
+{% if inventory_file.split('/')|last == "ops" %}
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': '{{ django_log }}',   
+            'level': 'INFO',
+            'when': 'D',
+            'interval': 1,
+            'backupCount': 14,
+
+{% else %}
             'class': 'logging.FileHandler',
-            'filename': 'ingest.log',   
+            'filename': '{{ django_log }}',   
             'level': 'DEBUG',         
+{% endif %}
         },
     },
     'loggers': {
         '': {
-            'level': 'DEBUG',
-            'handlers': ['file']
+{% if inventory_file.split('/')|last == "ops" %}
+            'level': 'INFO',         
+{% else %}
+            'level': 'DEBUG',         
+{% endif %}
+            'handlers': ['django_log']
         },
     },
 }
@@ -140,8 +167,8 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Celery configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = '{{ redis_url }}'
 
-LICK_ARCHIVE_ROOT_DIR = '/data'
+LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
 
-LICK_ARCHIVE_INSTRUMENT_DIRS = ['shane', 'AO']
+LICK_ARCHIVE_INSTRUMENT_DIRS = {{ supported_instrument_dirs }}
