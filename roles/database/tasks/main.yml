@@ -155,6 +155,12 @@
     groups: "{{archive_nfs_group}}"
     append: yes
   become: yes
+- name: Add archive user to the archive data group
+  ansible.builtin.user:
+    name:   "{{ archive_service_user }}"
+    groups: "{{archive_nfs_group}}"
+    append: yes
+  become: yes
 - name: Install Ubuntu packages needed for nfs
   ansible.builtin.apt:
     name: nfs-common
