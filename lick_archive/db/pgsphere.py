@@ -1,4 +1,4 @@
-"""Adds SQL Alchemy support for the pgsphere SPoing custom postgres data type. 
+"""Adds SQL Alchemy support for the pgsphere SPoint custom postgres data type. 
 This datatype allows sptial index support for RA/DEC cone searches.
 """
 import logging
@@ -11,6 +11,9 @@ from astropy.coordinates import SkyCoord
 logger = logging.getLogger(__name__)
 
 class SPoint(UserDefinedType):
+    """ SQLAlchemy user defined type for the pgsphere SPoint datatype. This
+    type allows for spherical coordinates.
+    """
 
     @classmethod
     def convert(cls, ra, dec):

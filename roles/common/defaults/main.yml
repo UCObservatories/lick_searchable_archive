@@ -5,7 +5,6 @@ python_version: 3.9
 package_install_dir: "{{ venv_root }}/lib/python{{ python_version }}/site-packages"
 archive_log_dir: "{{ venv_root }}/var/log"
 archive_config_dir: "{{ venv_root }}/etc"
-ingest_log: ingest.log
 ingest_port: 8000
 watchdog_config: ingest_watchdog.conf
 django_settings: settings.py

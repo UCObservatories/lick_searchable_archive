@@ -19,7 +19,7 @@
     mode: 0660
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
-    src: templates/lick_archive.conf.j2
+    src: templates/ingest_watchdog.conf.j2
     dest: "{{ archive_config_dir }}/{{ watchdog_config }}"
   become: yes
 - name: Create logging directory

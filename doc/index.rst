@@ -44,7 +44,7 @@ The development of the Searchable Archive is broken up into several phases.
 
 1. Infrastructure (Complete)
 2. Catalog Existing of Shane Kast and Shane AO/ShARCS data.(Complete)
-3. Catalog new Shane Kast and Shane AO/ShARCS data (In progress, expected Q3 2022)
+3. Catalog new Shane Kast and Shane AO/ShARCS data (Complete)
 4. Provide a simple web interface for querying the archive. (Expected end of 2022)
 5. Provide Authentication and access to proprietary data (Q1 2023)
 6. Provide ability to download data.

@@ -25,6 +25,7 @@ from lick_archive.lick_archive_client import LickArchiveIngestClient
 
 logger = logging.getLogger(__name__)
 
+# Keys from the config file
 _CONFIG_KEY = 'ingest_watchdog'
 _CONFIG_DATA_ROOT = 'data_root'
 _CONFIG_METHOD = 'method'
@@ -40,6 +41,19 @@ _CONFIG_REQUEST_TIMEOUT = 'ingest_request_timeout'
 _CONFIG_STARTUP_RESYNC_AGE = 'startup_resync_age'
 
 def validate_int(parsed_config, section, key):
+    """
+    Validate that a given value in the config is an integer.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+
+    Returns (int): The validated value.
+
+    Raises:
+    ValueError: Raised if the value is not an integer.
+    """
     try:
         value = parsed_config[section].getint(key)
         if value is None:
@@ -49,6 +63,19 @@ def validate_int(parsed_config, section, key):
         raise ValueError(f"Config setting '{key}'  under '[{section}]': {e}.")       
 
 def validate_url(parsed_config, section, key):
+    """
+    Validate that a given value in a URL. Uses urllib.parse.urlparse to validate.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+
+    Returns (int): The validated URL.
+
+    Raises:
+    ValueError: Raised if the value is not a URL.
+    """
     try:
         value = parsed_config[section].get(key)
         if value is None:
@@ -64,6 +91,20 @@ def validate_url(parsed_config, section, key):
 
 
 def validate_float(parsed_config, section, key):
+    """
+    Validate that a given value in the config is a float.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+
+    Returns (float): The validated value.
+
+    Raises:
+    ValueError: Raised if the value is not a floating point number.
+    """
+    
     try:
         value = parsed_config[section].getfloat(key)
         if value is None:
@@ -74,6 +115,20 @@ def validate_float(parsed_config, section, key):
 
 
 def validate_list(parsed_config, section, key):
+    """
+    Validate that a given value in the config is a list. This includes a single item 
+    which is treated as a one element list.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+
+    Returns (list): The validated value.
+
+    Raises:
+    ValueError: Raised if the value is not a list.
+    """
     value = parsed_config[section].get(key)
     if value is None:
         raise ValueError(f"Config missing '{key}' setting under '[{section}]'.")
@@ -86,6 +141,20 @@ def validate_list(parsed_config, section, key):
     return l
 
 def validate_not_empty(parsed_config, section, key):
+    """
+    Validate that a given value in the config is not empty.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+
+    Returns (str): The validated value.
+
+    Raises:
+    ValueError: Raised if the value does not exist or is blank.
+    """
+
     value = parsed_config[section].get(key)
     if value is None:
         raise ValueError(f"Config missing '{key}' setting under '[{section}]'.")
@@ -95,6 +164,24 @@ def validate_not_empty(parsed_config, section, key):
 
 
 def validate_path(parsed_config, section, key, exists=False, is_dir=False):
+    """
+    Validate that a given value in the config is an path.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the value
+    key (str): Name of the value to validate.
+    exists (bool): If set to true, the path will be validated to exist in the file system.
+                   Defaults to false.
+    is_dir (bool): If set to true, the path will be validated to be a directory that exists in the file system.
+                   Defaults to false.
+
+    Returns (pathlib.Path): The validated value.
+
+    Raises:
+    ValueError: Raised if the value is not a path or doesn't pass the requested exists/is_dir tests.
+    """
+
     value = parsed_config[section].get(key)
     if value is None:
         raise ValueError(f"Config missing '{key}' setting under '[{section}]'.")
@@ -115,6 +202,21 @@ def validate_path(parsed_config, section, key, exists=False, is_dir=False):
 
 
 def parse_and_validate_polling_config(parsed_config, section):
+    """
+    Validate the polling related configuration options. These include 'polling_interval', 
+    'polling_searches', and 'polling_write_delay'.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate
+    section (str): Name of the section containing the polling values to validate.
+
+    Returns (namedtuple): A named tuple with validated values for "interval", "searches", 
+    and "write_delay".
+
+    Raises:
+    ValueError: Raised if one of the values wasn't set or wasn't the appropriate type.
+    """
+
     polling_fields = [ "interval", "searches", "write_delay" ]
 
     PollingConfig = namedtuple("PollingConfig", polling_fields)
@@ -122,6 +224,11 @@ def parse_and_validate_polling_config(parsed_config, section):
     polling_interval = validate_int(parsed_config, section, _CONFIG_POLLING_INTERVAL)
 
     unparsed_searches = validate_list(parsed_config, section, _CONFIG_POLLING_SEARCHES)
+
+    # A "search" is the name for one of the date ranges to periodically search.
+    # They are comprised of an interval in seconds, and an age in days
+    # indicating how far back to search. See the ingest watchdog documentation for more
+    # information.
 
     polling_searches = []
     Search = namedtuple("Search", ["interval", "age"])
@@ -141,6 +248,22 @@ def parse_and_validate_polling_config(parsed_config, section):
     return PollingConfig(polling_interval, polling_searches, polling_write_delay)
 
 def parse_and_validate_ingest_config(parsed_config, section):
+    """
+    Validate the ingest notification related configuration options. These include 
+    'ingest_url', 'ingest_retry_max_delay', 'ingest_retry_max_time',  and
+    'ingest_request_timeout'.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser with values to validate    
+    section (str): Name of the section containing the ingest notification values to validate.
+
+    Returns (namedtuple): A named tuple with validated values for "url", "retry_max_delay", 
+                          "retry_max_time", "request_timeout"
+
+    Raises:
+    ValueError: Raised if one of the values wasn't set or wasn't the appropriate type.
+    """
+
     ingest_fields = [ "url", "retry_max_delay", "retry_max_time", "request_timeout" ]
 
     IngestConfig = namedtuple("IngestConfig", ingest_fields)
@@ -153,6 +276,18 @@ def parse_and_validate_ingest_config(parsed_config, section):
     return IngestConfig(url, retry_max_delay, retry_max_time, request_timeout)
 
 def parse_and_validate_config(parsed_config):
+    """
+    Parse and validate the ingest_watchdog's configuration file. See the 
+    ingest_watchdog documentation for more information on the configuration values.
+
+    Args:
+    parsed_config (configparser.ConfigParser): Config parser for the ingest_watchdog.conf file.    
+
+    Returns (namedtuple): A named tuple with the ingest_watchdog configuration values.
+
+    Raises:
+    ValueError: Raised if one of the values wasn't set or wasn't the appropriate type.
+    """
 
     config_fields = ("data_root", "startup_resync_age", "method", "polling", "inotify_age", "instrument_dirs", "ingest")
 
@@ -183,11 +318,24 @@ def parse_and_validate_config(parsed_config):
                                 ingest_config)
 
 def logging_scandir(path):
+    """
+    A scandir wrapper to log debug information about when the watchdog scans a directory.
+
+    Args:
+    path (str): The path to scan.
+    """
     logger.debug(f"Scanning {path}")
     return os.scandir(path)
 
 
 def logging_stat(path):
+    """
+    A stat wrapper to log debug information about when the watchdog scans a directory.
+
+    Args:
+    path (str): The path to scan.
+    """
+
     logger.debug(f"Stating {path}")
     result = os.stat(path)
     return result
@@ -282,6 +430,15 @@ class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter
         super().queue_event(event)
 
 class PollingWithSimulatedCloseObserver(watchdog.observers.api.BaseObserver):
+    """Extends the watchdog packages Observer interface with a polling observer that emits close events a 
+    configurable delay after finding a new file.
+    
+    Args:
+    timeout:        Polling interval between scans of the watched directory.
+    writing_delay:  How long to wait (in seconds) after a file is created to send a close event.
+    stat:           Function used to stat files.
+    listdir:        Function used to scan directories.
+    """
     def __init__(self, timeout, writing_delay, stat, listdir):
         emitter_cls = partial(PollingWithSimulatedCloseEmitter, writing_delay=writing_delay, timeout=timeout, stat=stat, listdir=listdir)
         super().__init__(emitter_cls, timeout)
@@ -291,11 +448,40 @@ class PollingWithSimulatedCloseObserver(watchdog.observers.api.BaseObserver):
         super().start()
 
 
-
-
 class IngestWatcher(watchdog.events.FileSystemEventHandler):
+    """
+    Watch the events emitted from the watchdog package about
+    the archive file system, and act on those events. 
+    
+    The lick archive directory structure is 
+    "/root_path/year_month/day/instrument/data_file".
+
+    If new data files are found, the lick archive ingest
+    service is notified.
+
+    Since the physical archive file system may not
+    have the directory for a particular day and instrument yet,
+    this class also watches directories along the directory hierarchy
+    until the instrument directories are created.
+
+    Args:
+    config (namedtuple):   The ingest_watchdog configuration values.
+    path (logging.Logger): The logger to use.
+    client (lick_archive.LickArchiveIngestClient): The client to use when communicating with the 
+                                                   archive metadata ingest software.
+
+    """
 
     class PathInfo:
+        """
+        Internal class holding information on a path being watched.
+
+        Args:
+        path (pathlib.Path):     The path being watched.
+        is_ingest_dir(bool):     Whether or not this path contains files to ingest.
+        observer (BaseObserver): The watchdog API observer watching this path.
+        watch (ObservedWatch):   The watchdog API watch object for this path.
+        """
         def __init__(self, path, is_ingest_dir,observer=None, watch=None):
             self.path = path
             self.observer = observer
@@ -318,9 +504,24 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         self._lock = threading.Lock()
 
     def start_observers(self, current_date):
+        """
+        Start observing the archive file system.
+
+        Args:
+        current_date (datetime): The current date. Used to determine 
+                                 which directories to watch.
+        """
         self.restart_observers(current_date, startup=True)
 
     def restart_observers(self, current_date, startup=False):
+        """
+        Reset observing of the archive file system with a new current date.
+
+        Args:
+        current_date (datetime): The current date. Used to determine 
+                                 which directories to watch.
+        startup (bool): Whether this is the initial startup of the ingest_watchdog.
+        """
         with self._lock:
             self._path_info_map.clear()
             self._observer_list.clear()
@@ -333,11 +534,21 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         # Start the observer event threads
         self.start()
 
-        # If we're not on initial startup, do a one day resync as a sanity check
+        # If we're not on initial startup, do a one day resync as a sanity check for
+        # any files in the current day's directory that were created before we noticed the
+        # new date. This is not needed for initial startup because the startup resync handles this.
         if not startup:
             self.resync(self, current_date, 1)
 
     def _reset_polling_observers(self, current_date):
+        """
+        Reset the observers when using the "polling" method.
+
+        Args:
+        current_date (datetime): The current date. Used to determine 
+                                 which directories to watch.
+
+        """
         
         # We create one observer per "search". We also want to avoid having more than one observer watching the same
         # path. So we sort the searches by interval so that any paths covered by two searches are watched
@@ -356,6 +567,14 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
                 self._watch(path_info)
 
     def _reset_inotify_observers(self, current_date):
+        """
+        Reset the observers when using the "inotify" method.
+
+        Args:
+        current_date (datetime): The current date. Used to determine 
+                                 which directories to watch.
+
+        """
 
         observer = watchdog.observers.inotify.InotifyObserver(generate_full_events=True)
         self._observer_list.append(observer)
@@ -367,6 +586,17 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
             self._watch(path_info)
 
     def _get_paths_for_age(self, current_date, age_in_days):
+        """
+        Builds PathInfo objects for all the paths age_in_days away from current_date.
+        
+        Args:
+        current_date (datetime): The current date.
+        age_in_days (int): How many days in the past to search for files.
+
+        Returns (set): The paths to watch for new data files, including parent directories to watch for
+        new child directoreis.
+    
+        """
         paths = set()
         paths.add(IngestWatcher.PathInfo(self.config.data_root, False))
     
@@ -384,6 +614,13 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         return paths
 
     def _watch(self, path_info):
+        """
+        Watch a path using the watchdog API.
+
+        Args:
+        path_info (PathInfo): The path to watch. This will be updated with the observer and
+                              watch object from the watchdog API. 
+        """
         if path_info.path.exists():
             self.logger.info(f"Watching path {path_info.path}")
             if path_info.watch is not None:
@@ -393,6 +630,9 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
             self.logger.info(f"Path {path_info.path} does not exist (yet). Will wait for it to be created.")
 
     def start(self):
+        """
+        Start all observer threads.
+        """
         self.logger.debug(f"Starting...")
         with self._lock:
             for observer in self._observer_list:
@@ -400,6 +640,9 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         self.logger.debug(f"Started.")
 
     def stop(self):
+        """
+        Stop all observer threads.
+        """
         self.logger.debug(f"Stopping...")
         with self._lock:
             for observer in self._observer_list:                
@@ -408,17 +651,31 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         self.logger.debug(f"Stopped...")
 
     def is_alive(self):
+        """
+        Determine if all observer threads are still alive.
+        """
         self.logger.debug(f"is_alive...")
         with self._lock:
             result =  all([o.is_alive() for o in self._observer_list])
             self.logger.debug(f"Alive: {result}")
             return result
 
-    def on_any_event(self, event):
+    def on_any_event(self, event):       
+        """
+        Event handler method called by the watchdog API for any events.
+
+        Args:
+        event (FileSystemEvent): The event that ocurred.
+        """
         self.logger.debug(repr(event))
 
     def on_created(self, event):
+        """
+        Event handler method called when a new file or directory is found.
 
+        Args:
+        event (FileSystemEvent): The event object with information about what was created.
+        """
         try:
             if event.is_directory:
                 self.logger.debug("New directory created " + event.src_path)
@@ -442,6 +699,15 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
             raise
 
     def on_closed(self, event):
+        """
+        Event handler method called when a new file or directory is closed.
+        If this happens on a file in an instrument directory, the file is 
+        considered completed and a notification is sent to the lick archive ingest
+        service.
+
+        Args:
+        event (FileSystemEvent): The event object with information about what was closed.
+        """
         # A new file is done writing, is it in one of our lowest level paths?
         new_file = Path(event.src_path)
         notify = False
@@ -457,10 +723,21 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
 
 
     def on_moved(self, event):
+        """
+        Event handler method called when a file or directory is moved
+        into or out of the archive filesystem.
+        If a new file is moved to an instrument directory, a notification is sent to the 
+        lick archive ingest service.
+
+        Args:
+        event (FileSystemEvent): The event object with information about what was moved.
+        """
+
         # check for a file moved into our lowest level paths
         if event.dest_path is None:
-            # We'll get move-in and move-out events some times. move-out only that the source,
-            # and we only care about the destination. So we reutrn if there is no dest path
+            # We'll get move-in and move-out events sometimes. move-out events will only
+            # have a source. Since we only care about new things in the archive,
+            # we reutrn if there is no dest path
             return
         if not event.is_directory:
             new_file = Path(event.dest_path)
@@ -491,11 +768,26 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
                 self.resync_path(new_path)
 
     def resync(self, current_date, age):
+        """
+        Resync all paths age days older than current_date. 
+
+        Args:
+        current_date (datetime): 
+        """
         for path_info in self._get_paths_for_age(current_date, age):
             if path_info.is_ingest_dir and path_info.path.exists():
                 self.resync_path(path_info.path)
             
     def resync_path(self, path):
+        """
+        Resync the contents of a given path with what's in the archive database. This
+        is done by querying the archive software for how many files it has for the path.
+        If this doesn't match how many files are actually in the path, all the files are
+        sent to the lick archive ingest service.
+
+        Args:
+        path (pathlib.Path): The path to resync.
+        """
         self.logger.info(f"Resyncing {path}")
         date = datetime.date.fromisoformat(f"{path.parent.parent.name}-{path.parent.name}")
         instrument_dir = path.name

@@ -9,7 +9,7 @@ Quarry
     The current host VM for the Lick Searchable Archive's database an software. It NFS mounts the
     archive data from the Storage Host (currently Legion). In theory the archive could be split 
     between multiple machines (for example a downloading VM, query VM, database VM, and ingest VM)
-    but more than the load will not be large enough to justify that.
+    but more than likely the load will not be large enough to justify that.
 
 WSGI Web Server
     A WSGI Web Server interfaces between the UCO's webserver and Django Python code. The static 
@@ -79,6 +79,9 @@ Major Software Dependencies
 
 10. `Python <https://python.org>`_
      All software is written in Python.
+
+11. `Ansible <https://www.ansible.com/>`_
+     Ansible is used to deploy the archive.
 
 
 

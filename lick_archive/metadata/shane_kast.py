@@ -12,8 +12,26 @@ from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags
 logger = logging.getLogger(__name__)
 
 class ShaneKastReader(AbstractReader):
+    """
+    Reader implementation for Shane Kast data.
+    """
     @classmethod
     def can_read(cls, file_path, hdul):
+        """
+        Determine if a file is Shane Kast data.
+
+        Args:
+
+        file_path (pathlib.Path): 
+            Path to the file to check. This should be in the Lick Archive directory
+            format (YYYY-MM/DD/<instrument>/<file>).
+
+        hdul (None or astropy.io.fits.HDUList): 
+            An HDUList from the file.
+
+        Returns (bool): True if the file is supported, False if it is not.
+        """
+
         if "shane" in str(file_path.parent):
             if safe_header(hdul[0].header,'VERSION' ) in ['kastr', 'kastb']:
                 return True
@@ -35,6 +53,14 @@ class ShaneKastReader(AbstractReader):
         """
         Determine the frame type based on exposure time, lamps and object name.
         Parts of this logic was adapted from PypeIt
+
+        Args:
+        exptime (float):      Exposure time in seconds.
+        lamps (list of bool): The lamp status, as returned by metadata_utils.get_shane_lamp_status.
+        object (str):         The OBJECT keyword from the file's header.
+
+        Returns (FrameType, IngestFlags): A tuple with the frame type, and any ingest flags set
+                                          while determining the frame type.
         """
         ingest_flags = IngestFlags.CLEAR
         if lamps is None:
@@ -82,6 +108,25 @@ class ShaneKastReader(AbstractReader):
         return (frame_type, ingest_flags)
 
     def read_row(self, file_path, hdul, ingest_flags = IngestFlags.CLEAR):
+        """Read an SQL Alchemy row of metadata from a file.
+
+        Args:
+
+        file_path (pathlib.Path): 
+            The path of the file to read. This should be in the Lick Archive directory
+            format (YYYY-MM/DD/<instrument>/<file>).
+
+        hdul (None or astropy.io.fits.HDUList): 
+            An HDUList from the file.
+
+        ingest_flags (archive_schema.IngestFlags):
+            Any ingest bit flags that were set during the process of opening a FITS file.
+
+        Returns (archive_schema.Main): A row of metadata read from the file.
+
+        Raises: Exception raised if the file is corrupt or lacks required metadata.
+        """
+
         header = hdul[0].header
        
         m = Main()

@@ -3,7 +3,17 @@ import requests
 from tenacity import Retrying, stop_after_delay, wait_exponential
 
 class LickArchiveIngestClient:
-    """Client for the Lick Searchable Archive's Ingest REST API"""
+    """Client for the Lick Searchable Archive's Ingest REST API
+    
+    Args:
+    ingest_url (str):              The URL of the Ingest REST API
+    ingest_retry_max_delay (int):  The maximum delay between retrying an API call in seconds. 
+                                   The actual delay will be an exponential backoff starting at 5s. 
+    ingest_retry_max_time (int):   The maximum time to spend retrying a call.
+    request_timeout (int):         The maximum time to wait for an API call to return before
+                                   timing out and assuming it failed.
+    
+    """
     def __init__(self, ingest_url, ingest_retry_max_delay, ingest_retry_max_time, request_timeout):
     
         # The ingest URLs should have a / on it so the sync_query, or ingest_new_files part can be appended
