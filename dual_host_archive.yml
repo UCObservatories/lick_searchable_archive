@@ -1,0 +1,18 @@
+- name: Deploys lick searchable archive to the main node in a dual node configuration
+  hosts: dbservers:appservers:ingest_servers
+  vars:
+    remote_watchdog: True
+    force_regen: False
+  roles:
+    - common
+    - database
+    - django_apps
+    - selfsigned_certs
+
+- name: Deploys lick searchable archive to the storage node in a dual node configuration
+  hosts: ingest_servers
+  vars:
+    remote_watchdog: True
+  roles:
+    - common
+    - ingest_watchdog

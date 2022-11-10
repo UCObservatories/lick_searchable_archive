@@ -1,9 +1,9 @@
 - name: Deploys lick searchable archive to a single node
   hosts: dbservers:appservers:ingest_servers:watchdog
+  vars:
+    remote_watchdog: False
   roles:
     - common
     - database
-    - role: ingest_watchdog
-      vars:
-        remote_watchdog: False
-    - role: django_apps
+    - ingest_watchdog
+    - django_apps

@@ -6,6 +6,7 @@ package_install_dir: "{{ venv_root }}/lib/python{{ python_version }}/site-packag
 archive_log_dir: "{{ venv_root }}/var/log"
 archive_config_dir: "{{ venv_root }}/etc"
 ingest_port: 8000
+cert_basename: lick_archive_selfsigned
 watchdog_config: ingest_watchdog.conf
 django_settings: settings.py
 django_secret_keyfile: "{{ archive_config_dir }}/secret_key"

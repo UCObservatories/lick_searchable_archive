@@ -12,9 +12,10 @@ class LickArchiveIngestClient:
     ingest_retry_max_time (int):   The maximum time to spend retrying a call.
     request_timeout (int):         The maximum time to wait for an API call to return before
                                    timing out and assuming it failed.
+    ssl_verify (str):              Optional. Path to a public key or CA bundle for SSL vberification.
     
     """
-    def __init__(self, ingest_url, ingest_retry_max_delay, ingest_retry_max_time, request_timeout):
+    def __init__(self, ingest_url, ingest_retry_max_delay, ingest_retry_max_time, request_timeout, ssl_verify=None):
     
         # The ingest URLs should have a / on it so the sync_query, or ingest_new_files part can be appended
         if ingest_url[-1] == '/':
@@ -25,6 +26,7 @@ class LickArchiveIngestClient:
         self.ingest_retry_max_delay = ingest_retry_max_delay
         self.ingest_retry_max_time = ingest_retry_max_time
         self.request_timeout = request_timeout
+        self.ssl_verify = ssl_verify
 
     def sync_query(self, date, instrument_dir):
         """
@@ -48,7 +50,7 @@ class LickArchiveIngestClient:
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.get, self.ingest_url + "sync_query/", params=query_params, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.get, self.ingest_url + "sync_query/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
         result.raise_for_status()
 
         return result.json()['count']
@@ -89,7 +91,7 @@ class LickArchiveIngestClient:
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.post, self.ingest_url + 'ingest_new_files/', json=payload, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.post, self.ingest_url + 'ingest_new_files/', json=payload, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
 
         result.raise_for_status()
 

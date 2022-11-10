@@ -37,10 +37,23 @@
     cmd: "pg_dropcluster {{postgres_version}} main --stop"
   when: lsclusters_output is not skipped and lsclusters_output.stdout.find("main") != -1
   become: yes
+# This next task is needed because we don't have a goodd way to reuse an existing database
+# with the debian cluster scripts. Although we could maybe make up a way in the future
+# by saving some of the debian /etc stuff along side the database...
 - name: Delete old archive_db data directory if it's not in lsclusters output
   ansible.builtin.file:
     name: /pg_data/archive_db
     state: absent
+  when: lsclusters_output is not skipped and lsclusters_output.stdout.find("archive_db") == -1
+  become: yes
+# /pg_data is owned by root, so pg_createcluster running as postgres can't create archive_db on its own.
+- name: Create new archive_db data directory
+  ansible.builtin.file:
+    name: /pg_data/archive_db
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: 0770
   when: lsclusters_output is not skipped and lsclusters_output.stdout.find("archive_db") == -1
   become: yes
 - name: Create new archive_db cluster

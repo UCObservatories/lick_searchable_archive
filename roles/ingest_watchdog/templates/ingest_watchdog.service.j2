@@ -8,6 +8,7 @@ ExecStart={{ venv_root }}/bin/python {{ venv_root }}/bin/ingest_watchdog.py --co
 User={{ archive_service_user }}
 Group={{ archive_service_group }}
 StandardOutput = null
+StandardError= journal
 Restart=on-failure
 RestartSec=30s
 

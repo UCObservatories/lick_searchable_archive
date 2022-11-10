@@ -36,6 +36,30 @@
     groups: "{{archive_nfs_group}}"
     append: yes
   become: yes
+- name: Read server public key (only for remote watchdog)
+  ansible.builtin.slurp: 
+    src: "{{ archive_config_dir }}/ssl/public/{{ cert_basename }}_public.pem"
+  delegate_to: "{{ groups['ingest_servers'] | first }}"
+  register: ingest_server_pub_key
+  become: yes
+  when: remote_watchdog
+- name: Create ssl certs directory
+  ansible.builtin.file:
+    mode: 0500
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    state: directory
+    dest: "{{ archive_config_dir }}/ssl/public/"
+  become: yes
+- name: Copy server public key (only for remote watchdog)
+  ansible.builtin.copy: 
+    content: "{{ ingest_server_pub_key }}"
+    dest: "{{ archive_config_dir }}/ssl/public/{{ cert_basename }}_public.pem"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0600
+  become: yes
+  when: remote_watchdog
 - name: Add systemd service
   ansible.builtin.template:
     src: templates/ingest_watchdog.service.j2

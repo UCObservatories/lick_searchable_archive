@@ -1,7 +1,11 @@
 # gunicorn settings, see https://docs.gunicorn.org/en/latest/settings.html#logging
 wsgi_app = "lick_searchable_archive.wsgi:application"
 
+{% if remote_watchdog %}
+bind = ['0.0.0.0:{{ ingest_port }}']
+{% else %}
 bind = ['127.0.0.1:{{ ingest_port }}']
+{% endif %}
 
 logconfig_dict = {
     'version':1,
@@ -39,3 +43,9 @@ logconfig_dict['root'] = {
     'level': 'WARNING',
     'handlers': ['gunicorn_file'],
 }
+
+{% if remote_watchdog %}
+# SSL certs
+keyfile="{{ archive_config_dir }}/ssl/private/{{ cert_basename }}_private.pem"
+certfile="{{ archive_config_dir }}/ssl/certs/{{ cert_basename }}.cert"
+{% endif %}

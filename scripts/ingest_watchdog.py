@@ -34,6 +34,7 @@ _CONFIG_POLLING_SEARCHES = 'polling_searches'
 _CONFIG_WRITE_DELAY = 'polling_write_delay'
 _CONFIG_INOTIFY_AGE = 'inotify_age'
 _CONFIG_INGEST_URL = 'ingest_url'
+_CONFIG_INGEST_KEY = 'ingest_key'
 _CONFIG_INST_DIRS = 'instrument_dirs'
 _CONFIG_RETRY_MAX_DELAY = 'ingest_retry_max_delay'
 _CONFIG_RETRY_MAX_TIME = 'ingest_retry_max_time'
@@ -264,7 +265,7 @@ def parse_and_validate_ingest_config(parsed_config, section):
     ValueError: Raised if one of the values wasn't set or wasn't the appropriate type.
     """
 
-    ingest_fields = [ "url", "retry_max_delay", "retry_max_time", "request_timeout" ]
+    ingest_fields = [ "url", "retry_max_delay", "retry_max_time", "request_timeout", "key"]
 
     IngestConfig = namedtuple("IngestConfig", ingest_fields)
 
@@ -273,7 +274,17 @@ def parse_and_validate_ingest_config(parsed_config, section):
     retry_max_time = validate_int(parsed_config, _CONFIG_KEY, _CONFIG_RETRY_MAX_TIME)
     request_timeout = validate_float(parsed_config, _CONFIG_KEY, _CONFIG_REQUEST_TIMEOUT)
 
-    return IngestConfig(url, retry_max_delay, retry_max_time, request_timeout)
+    # The key is optional, first check to see if it's not empty
+    try:
+        key = validate_not_empty(parsed_config, _CONFIG_KEY, _CONFIG_INGEST_KEY)
+    except ValueError:
+        key = None
+    
+    # If it succeeeds, verify it's a path that exists
+    if key is not None:
+        key = validate_path(parsed_config, _CONFIG_KEY, _CONFIG_INGEST_KEY, exists=True)
+
+    return IngestConfig(url, retry_max_delay, retry_max_time, request_timeout, key)
 
 def parse_and_validate_config(parsed_config):
     """
@@ -843,7 +854,7 @@ def main(args):
         return 1
 
     try:
-        client = LickArchiveIngestClient(config.ingest.url, config.ingest.retry_max_delay, config.ingest.retry_max_time, config.ingest.request_timeout)
+        client = LickArchiveIngestClient(config.ingest.url, config.ingest.retry_max_delay, config.ingest.retry_max_time, config.ingest.request_timeout, config.ingest.key)
         watcher = IngestWatcher(config, logger, client)
 
         current_date = datetime.date.today()
