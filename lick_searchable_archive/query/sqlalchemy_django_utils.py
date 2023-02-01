@@ -1,0 +1,366 @@
+"""Utilities for using the SQLAlchemy ORM with Django. These are specialized for the needs of the
+lick archive and do not fully support all Django ORM operations with SQLAlchemy."""
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+import enum
+from collections.abc import Mapping
+import copy
+
+from sqlalchemy import select, func
+
+from django.db.models import F
+
+from rest_framework.exceptions import APIException
+from rest_framework.serializers import ValidationError, BaseSerializer
+
+from lick_archive.db.db_utils import open_db_session, execute_db_statement
+
+
+class SQLAlchemyORMSerializer(BaseSerializer):
+    """Serializer for SQLAlchemy objects and dictionaries."""
+
+    def _convert_orm_value(self, value):
+        """Convert SQLAlchemy values into JSON suitable datatypes.
+        Currently only Python enums are supported.
+
+        Args:
+        value: The value to convert.
+
+        Return: A JSON suitable version of value.
+        """
+        if isinstance(value, enum.Enum):
+            return value.name
+        else:
+            return value
+
+    def to_representation(self, instance):
+        """ Converts an SQLAlchemy ORM instance into a dictionary of JSON suitable types.
+            None values are ommitted from the result.
+        
+        Args:
+        instance (collections.abc.Mapping):  The instance to convert. Currently only Mapping types
+                                             as returned by SQLAlchemyQuerySet are supported.
+        Return (dict):  A dict version of instance, using only JSON suitable types.
+        """
+        logger.debug(f"converting SQLAlchemy ORM instance")
+        
+        result = dict()
+
+        # A mapping, convert any python/sql alchemy types that can't be mapped to JSON to a value that can
+        if isinstance(instance, Mapping):            
+            for col_name in instance.keys():
+                value = self._convert_orm_value(instance[col_name])
+                if value is not None:
+                    # We leave empty columns out of the dict for a cleaner output and also to skip any
+                    # attributes that aren't allowed as results
+                    result[col_name]=value
+        else:
+            # To fully SQLAlchemy we should support SQLAlchemy ORM objects, but we don't need that for the 
+            # lick archive
+            logger.error(f"Failed to serialize {instance}")
+            raise ValueError("Error serializing database results.")
+
+        logger.debug(f"Result: {result}")
+        return result
+
+class SQLAlchemyQuerySet:
+    """An implementation of the Django QuerySet API for the SQLAlchemy ORM. It only supports the subset
+    of the DJango QuerySet API needed for the lick archive
+    
+    Args:
+    db_engine (sqlalchemy.engine.Engine):
+    The DB engine to use to connect to the database.
+
+    sql_alchemy_table (sqlalchemy.schema.Table):
+    The Table being queried (multiple tables are not currently supported).
+
+    result_attributes (list of sqlalchemy.schema.Column):
+    The result attributes to return from the query.
+
+    where_filters (list of sqlalchemy.sql.expression.ClauseElement):
+    SQLAlchemy expressions to filter the query on.
+
+    sort_attributes (list of sqlalchemy.schema.Column):
+    The attributes to sort the results of the query by.
+
+    """
+    def __init__(self, db_engine, sql_alchemy_table, result_attributes=[],
+                 where_filters = [], sort_attributes=[]):
+        self._db_engine = db_engine
+        self._sql_alchemy_table = sql_alchemy_table
+        
+        # The SQL Alchemy attributes to return as results
+        self.result_attributes = result_attributes
+        
+        # The SQL Alchemy expressions to use to filter the query results
+        self.where_filters = where_filters
+
+        # The SQL Alchemy attributes to sort the query results by
+        self.sort_attributes = sort_attributes
+
+    def _get_orm_attrib(self, name, error_field_name):
+        """
+        Convert a string name of an attribute into an SQL ALchemy Attribute object.
+
+        Args:
+        name (str): The name of the attribute
+        error_field_name (str): The key name to use in the dict included in any exceptions.
+
+        Return (sqlalchemy.schema.Column):  The SQL Alchemy column object for the attribute.
+
+        Raises:
+        ValidationError: Thrown for unknown attribute names.
+        """
+        if not hasattr(self._sql_alchemy_table, name):
+            raise ValidationError({error_field_name:f'Unknown field {name}.'})
+
+        return getattr(self._sql_alchemy_table, name)
+
+    def order_by(self, sort_fields=[]):
+        """Returns a new QuerySet ordered by the given sort fields.
+        
+        Args:
+        sort_fields (list of str): Optional. The fields to sort by. Defaults to an empty list.
+                                   The field can be preceeded by a "-" to indicate descending order.
+
+        Return (SQLAlchemyQuerySet): A copy of this QuerySet that sorts by sort_fields.
+        """
+
+        return_queryset = SQLAlchemyQuerySet(db_engine=self._db_engine, sql_alchemy_table=self._sql_alchemy_table,
+                                             result_attributes=self.result_attributes, 
+                                             where_filters=self.where_filters, 
+                                             sort_attributes=[])
+
+        logger.debug(f"Ordering by {sort_fields}")
+        if isinstance(sort_fields, str):
+            sort_fields = [sort_fields]
+
+        for sort_field in sort_fields:
+            # Check for a "reverse" sort aka descending
+            if sort_field.startswith("-"):
+                sort_attr = self._get_orm_attrib(sort_field[1:], "sort").desc()
+            else:
+                # Ascending sort
+                sort_attr = self._get_orm_attrib(sort_field, "sort").asc()
+
+            return_queryset.sort_attributes.append(sort_attr)
+        return return_queryset
+
+
+    def filter(self, **kwargs):
+        """Return a copy of this QuerySet with the passed in filters applied.
+        
+        Args:
+        kwargs (dict):  This method supports a subset of the Django filter keyword arguments. Specifically
+                        <field>__lt, <field>__gt, <field>__exact, <field>__startswith,
+                        and <field>__range.
+
+        Return (SQLAlchemyQuerySet): A copy of this query set with the passed in filters applied.
+
+        Raises:
+        APIException: Thrown for unsupported filter expressions or unknown fields.
+        """
+        return_queryset = SQLAlchemyQuerySet(db_engine=self._db_engine, sql_alchemy_table=self._sql_alchemy_table,
+                                             result_attributes=self.result_attributes, 
+                                             where_filters=copy.copy(self.where_filters), 
+                                             sort_attributes=self.sort_attributes)
+        for key in kwargs:
+            # Go through the keyword argument and split the field name from the operation
+            filter_expression = key.split('__')
+            if len(filter_expression) != 2:
+                logger.error(f"Unknown filter expression {key} on value {kwargs[key]}")
+                raise APIException("Failed building query.")
+            logger.debug(f"Adding filter {filter_expression[0]} {filter_expression[1]} {kwargs[key]}")
+
+            # Convert the field name to an SQLAlchemy attribute
+            field = filter_expression[0]
+            if not hasattr(self._sql_alchemy_table, field):
+                logger.error(f"Unknown filter field {field} in key {key} on value {kwargs[key]}")
+                raise APIException("Failed building query.")
+            sql_alchemy_field = self._get_orm_attrib(field, "building query")
+
+            # Convert the operation to an SQL Alchemy expression
+            op = filter_expression[1]
+            value = kwargs[key]
+            if op == "lt":
+                return_queryset.where_filters.append(sql_alchemy_field < value)
+            elif op == "gt":
+                return_queryset.where_filters.append(sql_alchemy_field > value)
+            elif op == "exact":
+                # Look for NULL entries if the value is None or an empty string
+                if kwargs[key] is None or (isinstance(value, str) and len(value.strip())==0):
+                    return_queryset.where_filters.append(sql_alchemy_field.is_(None))
+                else:
+                    return_queryset.where_filters.append(sql_alchemy_field == value)
+            elif op == "startswith":
+                return_queryset.where_filters.append(sql_alchemy_field.like(value + '%'))
+            elif op == "range":
+                return_queryset.where_filters.append(sql_alchemy_field.between(value[0], value[1]))
+            else:
+                logger.error(f"Unknown filter op {op} in key {key} on value {kwargs[key]}")
+                raise APIException("Failed building query.")
+
+        return return_queryset
+
+    def values(self, *fields, **expressions):
+        """Returns a copy of this QuerySet that only returns the specified fields and expressions.
+        The resulting queryset will return results as a dict instead of an SQLAlchemy ORM object.
+
+        Args:
+        fields:  A list of the field names to return.
+
+        expressions: A dict of the django expressions to return. Currently only F expressions are supported,
+                     which allow for aliasing a column as different name in the results.
+
+        Return (SQLAlchemyQuerySet): A copy of this QuerySet that only returns the given fields/expressions.
+
+        Raises:
+        APIException: Raised when an unsupported expression is passed in expressions.
+
+        """
+        return_queryset = SQLAlchemyQuerySet(db_engine=self._db_engine, sql_alchemy_table=self._sql_alchemy_table,
+                                             result_attributes=[], 
+                                             where_filters=self.where_filters, 
+                                             sort_attributes=self.sort_attributes)
+        for field in fields:
+            orm_attr = self._get_orm_attrib(field, "results")
+            return_queryset.result_attributes.append(orm_attr)
+        
+        # Convert any Django query expressions into SQLAlchemy expressions.
+        # This is a very limited converter that does only what is needed for the
+        # lick archive FilesAPI. Specifically it handles field references (F), constant
+        # values (Value), and a + combination of those values. This is used by
+        # the FilesAPI to build the header URL.
+        for expr_name in expressions:
+            expression = expressions[expr_name]
+            if isinstance(expression, F):                   
+                logger.debug(f"Processing django field reference {expression.name}")
+                return_queryset.result_attributes.append(self._get_orm_attrib(expression.name, "results").label(expr_name))
+            else:
+                # An expression that's too complex for us
+                logger.error(f'Expression {expr_name} not supported. Expression value is: {expression}')
+                raise APIException("Internal error processing results")
+
+        return return_queryset
+
+    def __getitem__(self, key):
+        """Implements indexing the queryset. This implementation does not cache results, 
+        and so is very inefficient. For example:
+
+        for i in range(200):
+            queryset[i]
+
+        Re-runs the query against the database 200 times. The reason I don't cache the results is that the 
+        lick archive doesn't do this.
+
+        For slicing, only a step of 1 is supported.
+
+        Args:
+        key (int or slice): The key or slice used to index the queryset
+
+        Returns:
+        Either a single item (if key is an int) or a list of items queried from the dataset.
+
+        Raises:
+        APIException: Thrown for errors building the query statement or running the query against the database.
+        """
+        limit = None
+        slicing=False
+        if isinstance(key, int):
+            slicing=False
+            logger.debug(f"Getting query results at index {key}")
+        elif isinstance(key, slice):
+            slicing=True
+
+            # Limit the number of results based on the slice "stop" value
+            if key.stop is not None:
+                limit = key.stop
+
+            if key.step is not None and key.step != 1:
+                logger.error(f"SQLAlchemyQuerySet does not implement step {slice.step} when slicing ")
+                raise APIException(detail="Failed to build query archive database.")
+
+            logger.debug(f"Getting {limit} query results starting at index {key.start if key.start is not None else 0}")
+
+        # Start building the SLQAlchemy query statement to be run against the database.
+        try:
+            # Result attributes
+            if len(self.result_attributes) > 0:
+                stmt = select(*self.result_attributes)
+            else:
+                stmt = select(self._sql_alchemy_table)
+
+            logger.debug(f"SQL Before where: {stmt.compile()}")
+            # Build up the where statement, joined by ANDs
+            for filter in self.where_filters:
+                stmt = stmt.where(filter)
+                logger.debug(f"SQL after adding where clause: {stmt.compile()}")
+
+            # Add the order by clause
+            stmt = stmt.order_by(*self.sort_attributes)
+
+            # Add a limit for pagination
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            logger.debug(f"SQL after adding limit: {stmt.compile()}")
+        except Exception as e:
+            logger.error(f"Error when building query: {e}", exc_info=True)
+            raise APIException(detail="Failed to build query.")
+        
+        # Run the statement
+        try:
+            with open_db_session(self._db_engine) as session:
+                rows = execute_db_statement(session, stmt).all()
+        except Exception as e:
+            logger.error(f"Failed to run archive database query: {e}", exc_info=True)
+            raise APIException(detail="Failed to query archive database.")
+
+        if len(self.result_attributes) == 0:
+            # Return the SQLAlchemy mapped object if there were no result attributes
+            if slicing:
+                return [row[0] for row in rows[key]]
+            else:
+                return rows[key][0]
+        else:
+            # Otherwise return as a dict as per the "values" API in QuerySet
+            if slicing:
+                return [row._mapping for row in rows[key]]
+            else:
+                return rows[key]._mapping
+
+    def count(self):
+        """Immediately execute a count on the database and return the results
+        
+        Return (int): The count returned from the database.
+
+        Raises:
+        APIException: Thrown for errors building the query statement or running the query against the database.
+        """
+        try:
+            # Build the count statement
+            stmt = select(func.count())
+            logger.debug(f"SQL Before where: {stmt.compile()}")
+
+            if len(self.where_filters) == 0:
+                # SQL Alchemy can't infer the table if there are no filters.
+                stmt = stmt.select_from(self._sql_alchemy_table)
+            else:
+                # Build up the where statement, joined by ANDs
+                for filter in self.where_filters:
+                    stmt = stmt.where(filter)
+            logger.debug(f"SQL after adding where clause: {stmt.compile()}")
+        except Exception as e:
+            logger.error(f"Error when building count query: {e}", exc_info=True)
+            raise APIException(detail="Failed to build count query.")
+
+        # Run the count statement
+        try:
+            with open_db_session(self._db_engine) as session:
+                result = execute_db_statement(session, stmt).scalar()
+                return result
+        except Exception as e:
+            logger.error(f"Failed to run archive database count query: {e}", exc_info=True)
+            raise APIException(detail="Failed to run count query on archive database.")

@@ -1,5 +1,5 @@
 - name: Install Django Applications
-  hosts: watchdog
+  hosts: archive_main_server
   roles:
     - common
     - django_apps

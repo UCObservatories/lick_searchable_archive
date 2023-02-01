@@ -15,8 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
 
 urlpatterns = [
-    path('ingest/', include('ingest.urls')),
+    path(settings.LICK_ARCHIVE_URL_PATH_PREFIX, include('query.urls')),
 #    path('admin/', admin.site.urls),
 ]
+
+if settings.LICK_ARCHIVE_ALLOW_INGEST:
+    urlpatterns.append(path(settings.LICK_ARCHIVE_URL_PATH_PREFIX, include('ingest.urls')))
+
+# TODO remove when we get a real web server in front of gunicorn
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+urlpatterns += staticfiles_urlpatterns()

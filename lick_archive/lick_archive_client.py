@@ -1,6 +1,11 @@
+import logging
+
 import requests
 
 from tenacity import Retrying, stop_after_delay, wait_exponential
+
+logger = logging.getLogger(__name__)
+
 
 class LickArchiveIngestClient:
     """Client for the Lick Searchable Archive's Ingest REST API
@@ -28,34 +33,41 @@ class LickArchiveIngestClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def sync_query(self, date, instrument_dir):
+    def sync_query(self, data_dir):
         """
         Find the number of images the archive has for a given date and instrument directory. The
         ingest_watchdog service uses this to see if the archive database is missing any files.
 
         Args;
-            date (datetime.date): A date object for the date files to count.
-            instrument_dir (str): The instrument directory name for the files to count. (e.g. AO, shane, etc.)
+            path (pathlib.Path): The data directory to sync.
         Return:
             int : The number of files found for that date in that instrument directory.
 
         Raises:
             requests.RequestException on failure contacting the archive server.
+            ValueError If an invalid result is returned from the archive server.
 
         """
         # Use a retry to run the get request. Retrying a random amount between 5s and the configured max delay
         # The retries will stop after the configured max time
         retryer = Retrying(stop=stop_after_delay(self.ingest_retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.ingest_retry_max_delay))
-        query_params = {"date": date.isoformat(), "ins_dir": instrument_dir}
+        query_params = {"filename": str(data_dir), "prefix":True, "count":True}
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.get, self.ingest_url + "sync_query/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.get, self.ingest_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
         result.raise_for_status()
 
-        return result.json()['count']
-
-    def ingest_new_files(self, file):
+        result_json = result.json()
+        if 'count' in result_json:
+            if isinstance(result_json['count'], int):
+                return result_json['count']
+            else:
+                raise ValueError("Archive server did not return an integer count value for a sync query.")
+        else:
+            raise ValueError("Archive server did not return an count value for a sync query.")
+        
+    def add_ingest_notifications(self, file):
         """
         Ingest metadata for one or more files into the archive database.
 
@@ -72,26 +84,34 @@ class LickArchiveIngestClient:
             # A list was passed in. 
             # We limit it's max size to be less than 1MB for safety, although if needed we could probably do more.
             # 1MB is approximately 16Ki files (depending on the length of file name). We use 16,0000 max.
-            if len(file) > 16000:
+            while len(file) > 16000:
                 file_list1 = file[0:16000]
                 file_list2 = file[16000:]
-                self.ingest_new_files(file_list2)
+                self._ingest_new_files(file_list1)
                 file = file_list2
-            
-            # The list could be of strings or Path-like objects
-            payload = [{"filename": str(f)} for f in file]
+
+            if len(file) > 0:
+                self._ingest_new_files(file)
+
         else:
             # Otherwise a single file
-            payload = {"filename": str(file)}
+            self._ingest_new_files([file])
 
 
+
+    def _ingest_new_files(self, files):
+
+        # Builld the payload. The list could be of strings of Path objects, so we convert to
+        # string.
+        payload = [{"filename": str(f)} for f in files]
+        logger.debug(f"Ingest payload: {payload}")
         # Use a retry to run the post request. Retrying a random amount between 5s and the configured max delay
         # The retries will stop after the configured max time
         retryer = Retrying(stop=stop_after_delay(self.ingest_retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.ingest_retry_max_delay))
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.post, self.ingest_url + 'ingest_new_files/', json=payload, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.post, self.ingest_url + 'ingest_notifications/', json=payload, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
 
         result.raise_for_status()
 

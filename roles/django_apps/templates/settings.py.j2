@@ -16,7 +16,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-{% if inventory_file.split('/')|last == "ops" %}
+{% if archive_config == "ops" %}
 
 with open('{{ django_secret_keyfile }}') as f:
     SECRET_KEY = f.read().strip()
@@ -37,7 +37,7 @@ DEBUG = True
 
 {% endif %}
 
-ALLOWED_HOSTS = ["{{ groups['ingest_servers']|first }}", 'localhost']
+ALLOWED_HOSTS = ["{{ groups['archive_main_server']|first }}", 'localhost']
 
 
 # Application definition
@@ -48,9 +48,10 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
 #    'django.contrib.sessions',
 #    'django.contrib.messages',
-#    'django.contrib.staticfiles',
+    'django.contrib.staticfiles',
     'rest_framework',
     'ingest',
+    'query'
 ]
 
 MIDDLEWARE = [
@@ -89,8 +90,10 @@ WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': '{{ venv_root }}/var/run/db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': '{{ django_db_name }}',
+        'OPTIONS': {'user': '{{ db_user }}',
+                    'port': 5432 }, 
     }
 }
 
@@ -118,7 +121,7 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'django_log': {
-{% if inventory_file.split('/')|last == "ops" %}
+{% if archive_config == "ops" %}
             'class': 'logging.handlers.TimedRotatingFileHandler',
             'filename': '{{ django_log }}',   
             'level': 'INFO',
@@ -131,11 +134,19 @@ LOGGING = {
             'filename': '{{ django_log }}',   
             'level': 'DEBUG',         
 {% endif %}
+            'formatter': 'archive_log_formatter',
+        },
+    },
+    'formatters': {
+        'archive_log_formatter': {
+            # log format used through out the lick searchable archive.
+            '()': 'lick_archive.script_utils.get_std_log_formatter',
+            'log_pid': True,  # Log the gunicorn worker pid
         },
     },
     'loggers': {
         '': {
-{% if inventory_file.split('/')|last == "ops" %}
+{% if archive_config == "ops" %}
             'level': 'INFO',         
 {% else %}
             'level': 'DEBUG',         
@@ -159,6 +170,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
+#STATIC_ROOT = '{{ venv_root }}/python{{ python_version }}/site-packages/lick_searchable_archive/static_files'
 STATIC_URL = 'static/'
 
 # Default primary key field type
@@ -169,6 +181,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Celery configuration
 CELERY_BROKER_URL = '{{ redis_url }}'
 
+
+# Lick Archive settings
+LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
+
 LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
 
 LICK_ARCHIVE_INSTRUMENT_DIRS = {{ supported_instrument_dirs }}
+
+LICK_ARCHIVE_ALLOW_INGEST = True
+LICK_ARCHIVE_HEADER_URL_FORMAT = "http://{{ groups['archive_main_server']|first }}:{{ingest_port}}/{{archive_url_path_prefix}}files/{}/header"
+LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
+LICK_ARCHIVE_INGEST_USER = '{{ db_ingest_user }}'
+LICK_ARCHIVE_DB          = '{{ db_name }}'

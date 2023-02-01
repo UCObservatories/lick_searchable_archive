@@ -43,7 +43,7 @@
   register: ingest_server_pub_key
   become: yes
   when: remote_watchdog
-- name: Create ssl certs directory
+- name: Create ssl certs directory (only for remote watchdog)
   ansible.builtin.file:
     mode: 0500
     owner: "{{ archive_service_user }}"
@@ -51,6 +51,7 @@
     state: directory
     dest: "{{ archive_config_dir }}/ssl/public/"
   become: yes
+  when: remote_watchdog
 - name: Copy server public key (only for remote watchdog)
   ansible.builtin.copy: 
     content: "{{ ingest_server_pub_key }}"

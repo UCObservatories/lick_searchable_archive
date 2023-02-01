@@ -80,30 +80,47 @@
     name: archive
     state: present
   become: yes
+  become_user: postgres  
+- name: Create archive postgres read-only user
+  community.postgresql.postgresql_user:
+    name: "{{ db_query_user }}"
+    state: present
+  become: yes
+  become_user: postgres
+- name: Create archive postgres ingest user
+  community.postgresql.postgresql_user:
+    name: "{{ db_ingest_user }}"
+    state: present
+  become: yes
   become_user: postgres
 - name: Create archive database
   community.postgresql.postgresql_db:
-    name: archive
+    name: "{{ db_name }}"
     state: present
     owner: archive
   become: yes
   become_user: postgres
 - name: Install pgsphere plugin
   community.postgresql.postgresql_ext:
-    db: archive
+    db: "{{ db_name }}"
     name: pg_sphere
     state: present
   become: yes
   become_user: postgres
+- name: Create archive django database
+  community.postgresql.postgresql_db:
+    name: "{{ django_db_name }}"
+    state: present
+    owner: archive
+  become: yes
+  become_user: postgres
 - name: Allow local users to connect to archive DB
-  ansible.builtin.blockinfile:
-    path: /etc/postgresql/{{postgres_version}}/archive_db/pg_hba.conf
-    insertafter: "# TYPE  DATABASE        USER            ADDRESS                 METHOD"
-    block: |
-      #
-      # Allow any user who can login to the local host to access the "archive" user
-      local   archive         archive                                 trust
-    backup: yes
+  ansible.builtin.template:
+    mode: 0640
+    owner: postgres
+    group: postgres
+    src:   templates/pg_hba.conf.j2
+    dest:  /etc/postgresql/{{postgres_version}}/archive_db/pg_hba.conf
   become: yes
   register: pg_hba_result
 - name: Reload postgres configuration

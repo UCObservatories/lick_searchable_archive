@@ -1,26 +1,29 @@
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from .models import Ingest
+from .models import IngestNotification
+from django.conf import settings
 
 logger=get_task_logger(__name__)
 
 from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_batch, check_exists
 from lick_archive.metadata.reader import read_row
 
+_db_engine = create_db_engine(user=settings.LICK_ARCHIVE_INGEST_USER, database=settings.LICK_ARCHIVE_DB)
+
+
 @shared_task
 def ingest_new_files(new_ingests):
 
     logger.info(f"Starting ingest of {len(new_ingests)} files.")
-    db_engine = create_db_engine()
-    session = open_db_session(db_engine)
+    session = open_db_session(_db_engine)
     rows_to_add = []
     good_files = []
     failed_files = []
     logger.info(repr(new_ingests))
     for ingest in new_ingests:
         try:
-            if not check_exists(db_engine, ingest['filename'], session=session):
+            if not check_exists(_db_engine, ingest['filename'], session=session):
                 logger.info(f"Reading metadata for {ingest['filename']}.")
                 row = read_row(ingest['filename'])      
                 rows_to_add.append(row)
@@ -46,9 +49,9 @@ def ingest_new_files(new_ingests):
 
     logger.info(f"Updating status on {len(good_files)} successful ingests and {len(failed_files)} failed ingests.")
     if len(good_files) > 0:
-        results = Ingest.objects.filter(filename__in=good_files).update(status='COMPLETE')
+        results = IngestNotification.objects.filter(filename__in=good_files).update(status='COMPLETE')
         logger.info(f"Update found {results} rows")
 
     if len(failed_files) > 0:
-        results = Ingest.objects.filter(filename__in=failed_files).update(status='FAILED')
+        results = IngestNotification.objects.filter(filename__in=failed_files).update(status='FAILED')
         logger.info(f"Update found {results} rows")

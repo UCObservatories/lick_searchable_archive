@@ -1,10 +1,38 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timezone
+import time
 from pathlib import Path
 
 
-def setup_logging(log_path, log_name, log_level, log_tid=False):
+def get_std_log_formatter(log_tid=False, log_pid=False):
+    """Return a log formatter with the "standard" for the lick searchable archive.
+    This format includes the log level, time, the thread id, line of code + the message.
+    The time is always UTC and is to the millisecond.
+
+    In Python 3.10+ this method may no longer be needed as the special '.' entry in configuration
+    dicts should be able to set the additional attributes.
+
+    Args:
+    log_pid (bool):  Whether or not to log process ids. Defaults to False.
+    log_tid (bool):  Whether or not to log thread ids. Defaults to False.
+
+    Return (logging.Formatter): A formatter for the Python built in logging facility.
+    """
+    optional_format = ""
+    if log_pid:
+        optional_format += "pid:{process} "
+    if log_tid:
+        optional_format += "tid:{thread} "
+
+    formatter = logging.Formatter(fmt="{levelname:8} {asctime} " + optional_format + "{module}:{funcName}:{lineno} {message}",                                   
+                                  style='{')
+    # If these two attributes
+    formatter.converter=time.gmtime
+    formatter.default_msec_format = "%s.%03d"
+    return formatter
+
+def setup_logging(log_path, log_name, log_level, log_tid=False, log_pid=False):
     """Setup loggers to send some information to stderr and some to a file. The logging level for stderr is
     always set to INFO, but for the log file it is configurable.
     
@@ -28,8 +56,7 @@ def setup_logging(log_path, log_name, log_level, log_tid=False):
     # Configure a file handler to write detailed information to the log file
     file_handler = logging.FileHandler(log_file)
     file_handler.setLevel(log_level)
-    tid_format = " tid:{thread}" if log_tid else ""
-    file_handler.setFormatter(logging.Formatter(fmt="{levelname:8} {asctime}" + tid_format + " {module}:{funcName}:{lineno} {message}", style='{'))
+    file_handler.setFormatter(get_std_log_formatter(log_tid))
 
     # Setup a basic formatter for output to stderr
     stream_handler = logging.StreamHandler()

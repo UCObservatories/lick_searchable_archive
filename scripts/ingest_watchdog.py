@@ -508,7 +508,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
     def __init__(self, config, logger, client):
         self.logger = logger
         self.config = config
-        self.archive_client = client
+        self.ingest_client = client
 
         self._path_info_map = dict()
         self._observer_list = []
@@ -549,7 +549,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         # any files in the current day's directory that were created before we noticed the
         # new date. This is not needed for initial startup because the startup resync handles this.
         if not startup:
-            self.resync(self, current_date, 1)
+            self.resync(current_date, 1)
 
     def _reset_polling_observers(self, current_date):
         """
@@ -689,7 +689,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         """
         try:
             if event.is_directory:
-                self.logger.debug("New directory created " + event.src_path)
+                self.logger.info("New directory created " + event.src_path)
                 resync_paths = []
                 # A new directory, is it one we're waiting for?
                 with self._lock:
@@ -698,16 +698,22 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
                     # check to see if any of the directories we want to watch now exist
                     for path_info in self._path_info_map.values():
                         self.logger.debug(f"pi.path {path_info.path} pi.watch {path_info.watch}")
-                        if path_info.watch is None and path_info.path.exists():
-                            self._watch(path_info)
-                            if path_info.is_ingest_dir:
-                                resync_paths.append(path_info.path)
+                        try:
+                            if path_info.watch is None and path_info.path.exists():
+                                self._watch(path_info)
+                                if path_info.is_ingest_dir:
+                                    resync_paths.append(path_info.path)
+                        except PermissionError as e:
+                            # Sometimes path.exists() gets a permission error
+                            # when has just been created, but eventually
+                            # that gets fixed. So treat it as not existing (yet)
+                            logger.debug(f"Permission error reading {path_info.path}, assuming it's not done being created.")
 
                 for path in resync_paths:
                     self.resync_path(path)
         except Exception as e:
-            self.logger.debug("Exception in on_created", exc_info=True)
-            raise
+            self.logger.error("Exception in on_created", exc_info=True)
+            # Don't let the exception escape, as it will cause ingest_watchdog to exit
 
     def on_closed(self, event):
         """
@@ -728,7 +734,8 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
 
         if notify:
             try:
-                self.archive_client.ingest_new_files(new_file)
+                logger.info(f"Notifying archive of '{new_file}'")
+                self.ingest_client.add_ingest_notifications(new_file)
             except RequestException as e:
                 logger.error(f"Failed to ingest {new_file} due to failure contacting archive server: {e}")
 
@@ -759,7 +766,8 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
 
             if notify:
                 try:
-                    self.archive_client.ingest_new_files(new_file)
+                    logger.info(f"Notifying archive of '{new_file}'")
+                    self.ingest_client.add_ingest_notifications(new_file)
                 except RequestException as e:
                     logger.error(f"Failed to ingest {new_file} due to failure contacting archive server: {e}")
         else:
@@ -800,13 +808,13 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         path (pathlib.Path): The path to resync.
         """
         self.logger.info(f"Resyncing {path}")
-        date = datetime.date.fromisoformat(f"{path.parent.parent.name}-{path.parent.name}")
-        instrument_dir = path.name
         archive_count = 0
         try:
-            archive_count = self.archive_client.sync_query(date, instrument_dir)
+            archive_count = self.ingest_client.sync_query(path.relative_to(self.config.data_root))
         except RequestException as e:
             logging.error(f"Failed to resync {path} due to failure querying archive server: {e}")
+        except ValueError as e:
+            logging.error(f"Failed to resync {path}: {e}")
 
 
         actual_count = 0
@@ -815,11 +823,12 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
             if child.is_file():
                 files_to_sync.append(child)
                 actual_count += 1
-
+        self.logger.info(f"Resync found {archive_count} files, {actual_count} are in the directory.")
         if actual_count > archive_count:
             # We need to resync.
             try:
-                self.archive_client.ingest_new_files(files_to_sync)
+                self.logger.info(f"Resyncing {len(files_to_sync)} files.")
+                self.ingest_client.add_ingest_notifications(files_to_sync)
             except RequestException as e:
                 logging.error(f"Failed to resync {path} due to failure ingesting into archive server: {e}")
         

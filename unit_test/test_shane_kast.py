@@ -1,6 +1,7 @@
 import pytest
 
-from astropy.io import fits
+from astropy.coordinates import IllegalSecondWarning
+from astropy.logger import AstropyUserWarning
 from pathlib import Path
 
 from lick_archive.metadata.shane_kast import ShaneKastReader
@@ -154,24 +155,25 @@ def test_red_headers():
     assert row.object == "IR arc R2"
 
     # Older, had "60" as seconds in RA
-    file = '2007-08_10_shane_r1014-hdu0.txt'
-    hdul = get_hdul_from_text([test_data_dir / file])
-    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+    with pytest.warns(IllegalSecondWarning):
+        file = '2007-08_10_shane_r1014-hdu0.txt'
+        hdul = get_hdul_from_text([test_data_dir / file])
+        path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
 
-    assert ShaneKastReader.can_read(path, hdul) is True
+        assert ShaneKastReader.can_read(path, hdul) is True
 
-    reader = ShaneKastReader()
-    row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+        reader = ShaneKastReader()
+        row = reader.read_row(path, hdul)
+        assert row.telescope == 'Shane'
+        assert row.instrument == 'Kast Red'
 
-    assert row.frame_type == FrameType.flat
-    assert row.ingest_flags == "00000000000000000000000000000001"
-    assert row.object == "flat"
-    assert row.program == 'KAST'
-    assert row.ra == "14:11:60.0"
-    assert row.dec == '+37:25:57.0'
-    assert row.coord == '(213d, 37.4325d)'
+        assert row.frame_type == FrameType.flat
+        assert row.ingest_flags == "00000000000000000000000000000001"
+        assert row.object == "flat"
+        assert row.program == 'KAST'
+        assert row.ra == "14:11:60.0"
+        assert row.dec == '+37:25:57.0'
+        assert row.coord == '(213d, 37.4325d)'
 
     # Older, had no INSTRUME but program and SPSIDE
     file = '2007-08_20_shane_r90-hdu0.txt'
@@ -299,18 +301,19 @@ def test_blue_headers():
     assert row.object == "sn2006eb uv"
 
     # Has invalid \x00 chars in header
-    file = '2008-09_16_shane_b7993-hdu0.txt'
-    hdul = get_hdul_from_text([test_data_dir / file])
-    path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
+    with pytest.warns(AstropyUserWarning):
+        file = '2008-09_16_shane_b7993-hdu0.txt'
+        hdul = get_hdul_from_text([test_data_dir / file])
+        path = Path(file.replace("_", os.sep).replace(".txt", ".ccd"))
 
-    assert ShaneKastReader.can_read(path, hdul) is True
+        assert ShaneKastReader.can_read(path, hdul) is True
 
-    reader = ShaneKastReader()
-    row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+        reader = ShaneKastReader()
+        row = reader.read_row(path, hdul)
+        assert row.telescope == 'Shane'
+        assert row.instrument == 'Kast Blue'
 
-    assert row.frame_type == FrameType.dark
-    assert row.ingest_flags == "00000000000000000000010000000001"
-    assert row.object == "KAST BLUE -108c dark ARAL s8g1"
-    assert row.header.find('\x00') == -1
+        assert row.frame_type == FrameType.dark
+        assert row.ingest_flags == "00000000000000000000010000000001"
+        assert row.object == "KAST BLUE -108c dark ARAL s8g1"
+        assert row.header.find('\x00') == -1

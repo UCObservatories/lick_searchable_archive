@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy.orm import relationship
 from sqlalchemy import Index, Enum
 from lick_archive.db.pgsphere import SPoint
+from lick_archive.db.bitstring import BitString
 
 Base = declarative_base()
 
@@ -55,7 +56,7 @@ class Main(Base):
     filename             = Column(String, unique=True, nullable = False)
     program              = Column(String)
     observer             = Column(String)
-    ingest_flags         = Column(BIT(32), nullable=False)
+    ingest_flags         = Column(BitString, nullable=False)
     header               = Column(Text)
 
     # shane kast fields

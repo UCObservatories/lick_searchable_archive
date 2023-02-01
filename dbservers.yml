@@ -1,5 +1,5 @@
 - name: DB Server playbook
-  hosts: dbservers
+  hosts: archive_main_server
   roles:
     - common
     - database

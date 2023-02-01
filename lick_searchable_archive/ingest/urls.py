@@ -2,7 +2,8 @@ from django.urls import path
 
 
 from . import views
+from django.conf import settings
+
 urlpatterns = [
-    path('ingest_new_files/', views.IngestNewFiles.as_view()),
-    path('sync_query/', views.SyncQuery.as_view()),
+    path(f'ingest_notifications/', views.IngestNotifications.as_view()),
 ]

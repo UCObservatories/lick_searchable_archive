@@ -17,5 +17,5 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lick_searchable_archive.setting
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Auto load tasks from all registered Django apps
-app.autodiscover_tasks()
+app.autodiscover_tasks(packages=['ingest'])
 
