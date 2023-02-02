@@ -20,7 +20,7 @@ Welcome to Lick Observatory Searchable Archive's documentation!
    :maxdepth: 1
    :caption: API Documentation
 
-   api/schema
+   schema
 
 .. toctree::
    :maxdepth: 1

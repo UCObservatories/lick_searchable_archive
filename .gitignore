@@ -34,3 +34,4 @@ MANIFEST
 
 # Sphinx build
 _build
+sphinx_warnings.out
