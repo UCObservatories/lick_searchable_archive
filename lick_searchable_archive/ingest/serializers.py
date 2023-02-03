@@ -22,6 +22,6 @@ class IngestNotificationSerializer(serializers.ModelSerializer):
     """Serializer for the IngestNotification model."""
     class Meta:
         model = IngestNotification        
-        filename = serializers.FilePathField(path=settings.LICK_ARCHIVE_ROOT_DIR, allow_folders=False, allow_files=True, recursive=True, html_cutoff=10)
+        filename = serializers.CharField(max_length=1024, allow_blank=False, trim_whitespace=True)
         fields = ['ingest_date', 'filename', 'status']
         list_serializer_class = IngestNotificationListSerializer

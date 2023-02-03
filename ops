@@ -1,11 +1,8 @@
-[dbservers]
-quarry.ucolick.org
+[all:vars]
+archive_config=ops
 
-[appservers]
-quarry.ucolick.org
-
-[ingest_servers]
-quarry.ucolick.org
+[archive_main_server]
+quarry.ucolick.org remote_watchdog=False
 
 [watchdog]
-quarry.ucolick.org
+quarry.ucolick.org remote_watchdog=False
