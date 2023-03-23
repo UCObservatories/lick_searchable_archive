@@ -13,7 +13,8 @@ Deployment Todo
 * Deploy rotating logging handlers for celery
 * Pull mounting the archive file system into its own role?
 * Figure out self signed keys for having the ingest_watchdog deployed on the storage host
-* Figure out proprietary requirements for initial query deployment
+* Delete code prior to copying, or sync via rsync?
+ 
 Code Quality
 ------------
 * make sure i'm consistent in os.path vs Path usage.
@@ -23,6 +24,8 @@ Code Quality
 * Reorganize code so ansible is in its own deploy directory, and source is under src?
 * Get pid into logs for searching journalctl
 * get stdout into logs?
+* Consolidate query validation so it isn't done multiple times in query_api. Can it also be shared with lick_archive_client query_page?
+* A data dictionary class usable by the db schema, api, clients and for generating docs? See field_info in archive_schema
 
 Testing Todo
 ------------
@@ -35,3 +38,4 @@ Administration Todo
 * Monitor scripts to send e-mails when something's down
 * Statistics on ingest, queries, downloads
 * Change the database back ups to record enough information to re-use the existing database device.
+* ingest_watchdog is leaving a lot of logs around, should logging be configured to delete old ones?

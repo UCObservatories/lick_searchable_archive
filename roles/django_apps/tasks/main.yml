@@ -3,6 +3,7 @@
     name: redis
     state: present
   become: yes
+  notify: "restart web services"
 - name: Install Python Packages
   ansible.builtin.pip: 
     name: Celery[redis], gunicorn, Django, djangorestframework, psycopg2-binary, astropy
@@ -10,6 +11,7 @@
     virtualenv_command: python{{ python_version }} -m venv
   become: yes
   become_user: "{{ archive_service_user }}"
+  notify: "restart web services"
 - name: Copy Django admin scripts
   ansible.builtin.copy:
     src: scripts/gen_secret_key.py
@@ -26,6 +28,7 @@
     state: directory
     dest: "{{ archive_config_dir }}"
   become: yes
+  notify: "restart web services"
 - name: Create logging directory
   ansible.builtin.file:
     mode: 0770
@@ -34,6 +37,7 @@
     state: directory
     dest: "{{ archive_log_dir }}"
   become: yes
+  notify: "restart web services"
 - name: Copy the Django project
   ansible.builtin.copy:
     src: lick_searchable_archive
@@ -42,6 +46,7 @@
     group: "{{ archive_service_group }}"
     mode: 0770
   become: yes
+  notify: "restart web services"
   # Note gen_secret_key.py creates the key with 400 access, so we run as the archive user so that
   # Django apps can read it.
 - name: Create Django secret key file
@@ -50,6 +55,7 @@
     creates: "{{ django_secret_keyfile }}"
   become: yes
   become_user: "{{ archive_service_user }}"
+  notify: "restart web services"
 - name: Copy Django settings
   ansible.builtin.template:
     mode: 0660
@@ -58,6 +64,7 @@
     src: templates/settings.py.j2
     dest: "{{ archive_config_dir }}/{{ django_settings }}"
   become: yes
+  notify: "restart web services"
 - name: Link Django settings
   ansible.builtin.file:
     owner: "{{ archive_service_user }}"
@@ -67,6 +74,7 @@
     dest: "{{ package_install_dir }}/lick_searchable_archive/lick_searchable_archive/{{ django_settings }}"
   become: yes
   become_user: "{{ archive_service_user }}"
+  notify: "restart web services"
 - name: Copy Celery environment settings
   ansible.builtin.template:
     mode: 0660
@@ -75,6 +83,7 @@
     src: templates/celery.env.j2
     dest: "{{ archive_config_dir }}/celery.env"
   become: yes
+  notify: "restart web services"
 - name: Create celery systemd service
   ansible.builtin.template:
     mode: 0660
@@ -83,6 +92,7 @@
     src: templates/celery.service.j2
     dest: /etc/systemd/system/celery.service
   become: yes
+  notify: "restart web services"
 - name: Copy gunicorn config settings
   ansible.builtin.template:
     mode: 0660
@@ -91,6 +101,7 @@
     src: templates/gunicorn.conf.py.j2
     dest: "{{ archive_config_dir }}/gunicorn.conf.py"
   become: yes
+  notify: "restart web services"
 - name: Create gunicorn systemd service
   ansible.builtin.template:
     mode: 0660
@@ -99,18 +110,4 @@
     src: templates/gunicorn.service.j2
     dest: /etc/systemd/system/gunicorn.service
   become: yes
-- name: Start celery
-  ansible.builtin.systemd:
-    name: celery.service
-    enabled: yes
-    daemon_reload: yes
-    state: started
-  become: yes
-- name: Start gunicorn
-  ansible.builtin.systemd:
-    name: gunicorn.service
-    enabled: yes
-    daemon_reload: yes
-    state: started
-  become: yes
-
+  notify: "restart web services"

@@ -4,8 +4,8 @@ wsgi_app = "lick_searchable_archive.wsgi:application"
 # Worker timeout. Set based on the timeout on retries set in dbutils. Note there is still an timeout from "graceful_timeout" default
 timeout=65
 
-{# Listen externally if there's a remote watchdog service. Eventually this will also need to be external on ops #}
-{% if remote_watchdog  %}
+{# Listen externally if there's a remote watchdog service or this is development. Eventually this will also need to be external on ops #}
+{% if remote_watchdog  or archive_config == "dev" %}
 bind = ['0.0.0.0:{{ ingest_port }}']
 {% else %}
 bind = ['127.0.0.1:{{ ingest_port }}']

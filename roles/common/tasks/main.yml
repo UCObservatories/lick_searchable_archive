@@ -1,3 +1,4 @@
+  # Perform tasks on the remote common to all types of remote nodes
 - name: Setup group for archive service (unspecified gid)
   ansible.builtin.group:
     name: "{{ archive_service_group }}"
@@ -65,3 +66,4 @@
     dest: "{{ package_install_dir }}"
   become: yes
   become_user: "{{ archive_service_user }}"
+  notify: "common config changed"

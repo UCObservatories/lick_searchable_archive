@@ -32,7 +32,7 @@ class SQLAlchemyORMSerializer(BaseSerializer):
         Return: A JSON suitable version of value.
         """
         if isinstance(value, enum.Enum):
-            return value.name
+            return value.value
         else:
             return value
 

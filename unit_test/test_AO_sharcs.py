@@ -2,7 +2,7 @@ from astropy.io import fits
 from pathlib import Path
 
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
-from lick_archive.db.archive_schema import FrameType
+from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
 from unit_test.utils import get_hdul_from_text
 import os 
 from datetime import datetime, timezone
@@ -22,8 +22,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 5, 20, 22, 49, 25, 515000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000000000000110'
     assert row.exptime == 0.9797
@@ -54,8 +54,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 5, 20, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000000000001010'
     assert row.exptime == 29.0958
@@ -72,8 +72,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 4, 16, 22, 32, 10, 4000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000000110'
     assert row.frame_type == FrameType.flat
@@ -88,8 +88,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000000000000110'
     assert row.frame_type == FrameType.flat
 
@@ -106,8 +106,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 4, 16, 22, 32, 10, 4000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000000110'
     assert row.frame_type == FrameType.arc
@@ -122,8 +122,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000001000000110'
     assert row.frame_type == FrameType.flat
 
@@ -137,8 +137,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000001000000110'
     assert row.frame_type == FrameType.arc
 
@@ -153,8 +153,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000000000000000'
     assert row.frame_type == FrameType.dark
 
@@ -168,8 +168,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000000000000000'
     assert row.frame_type == FrameType.science
 
@@ -183,8 +183,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000000000000000'
     assert row.frame_type == FrameType.dark
 
@@ -198,8 +198,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 5, 20, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000011011'
     assert row.exptime == None
@@ -228,8 +228,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 5, 20, 23, 15, 39, 78000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000010111'
     assert row.exptime == (0.09797 * 2)
@@ -245,8 +245,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2018, 11, 21, 7, 56, 19, 755000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000000000000000'
     assert row.ra == 41.843781
@@ -267,8 +267,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.ingest_flags == '00000000000000000000000000010000'
     assert row.object == ''
     assert row.frame_type == FrameType.unknown
@@ -282,8 +282,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2019, 7, 18, 22, 52, 14, 273000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000010001'
     assert row.object is None
@@ -298,8 +298,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 7, 16, 21, 55, 15, 624000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000010111'
     assert row.frame_type == FrameType.unknown
@@ -313,8 +313,8 @@ def test_ao_sharcs():
 
     reader = ShaneAO_ShARCS()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'ShaneAO/ShARCS'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.SHARCS
     assert row.obs_date == datetime(2014, 7, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000001000011011'
     assert row.frame_type == FrameType.unknown

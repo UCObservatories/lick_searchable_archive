@@ -9,7 +9,7 @@ from sqlalchemy import cast
 
 from lick_archive.metadata.abstract_reader import AbstractReader
 from lick_archive.metadata.metadata_utils import safe_header, parse_file_date, get_shane_lamp_status, get_ra_dec
-from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags
+from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags, Telescope, Instrument
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +116,8 @@ class ShaneAO_ShARCS(AbstractReader):
 
         header = hdul[0].header
         m = Main()
-        m.telescope = 'Shane'
-        m.instrument = 'ShaneAO/ShARCS'
+        m.telescope = Telescope.SHANE
+        m.instrument = Instrument.SHARCS
 
         # Parse the observation date as an iso date, adding +00:00 to make it UTC
         

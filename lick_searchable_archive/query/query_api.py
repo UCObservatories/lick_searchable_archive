@@ -123,17 +123,17 @@ class QueryAPIPagination(CursorPagination):
         count queries are not paginated.
         
         Args:
-        queryset (django.db.models.query.QuerySet): 
-        The QuerySet to get results from.
-        
-        request (rest_framework.request.Request):   
-        The request specifying the query.
-        
-        view    (QueryAPIView)):                    
-        The view running the query. It should have an allowed_result_attributes attribute.
+            queryset (django.db.models.query.QuerySet): 
+            The QuerySet to get results from.
+            
+            request (rest_framework.request.Request):   
+            The request specifying the query.
+            
+            view    (QueryAPIView)):                    
+            The view running the query. It should have an allowed_result_attributes attribute.
 
-        Return (Mapping): 
-        The page the resultsA filtered and sorted QuerySet returning the requested page.
+            Return (Mapping): 
+            The page the resultsA filtered and sorted QuerySet returning the requested page.
         """
 
         # Validate the request. TODO: Can I do this only once instead of three times?
@@ -275,12 +275,16 @@ class QueryAPIFilterBackend:
         # These are the fields that are indexed in the database.
         for field in view.indexed_attributes:
             if field in serializer.validated_data:
-                required_field = field
-                required_search_value = serializer.validated_data[field]
-                break
+                if required_field is None:
+                    required_field = field
+                    required_search_value = serializer.validated_data[field]
+                else:
+                    # We don't allow duplicates of these fields, at least for now.
+                    raise ValidationError({"query": f"Only one field of: ({', '.join(view.indexed_attributes)}) may be queried on."})
+
 
         if required_field is None:
-            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({','.join(view.indexed_attributes)})"})
+            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.indexed_attributes)})"})
 
         logger.info(f"Building {required_field} query on '{required_search_value}'")
         filters = self._build_where(required_field, required_search_value, prefix)

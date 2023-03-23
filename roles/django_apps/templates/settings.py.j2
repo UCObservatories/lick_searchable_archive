@@ -190,7 +190,7 @@ LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
 LICK_ARCHIVE_INSTRUMENT_DIRS = {{ supported_instrument_dirs }}
 
 LICK_ARCHIVE_ALLOW_INGEST = True
-LICK_ARCHIVE_HEADER_URL_FORMAT = "http://{{ groups['archive_main_server']|first }}:{{ingest_port}}/{{archive_url_path_prefix}}files/{}/header"
+LICK_ARCHIVE_HEADER_URL_FORMAT = "http://{{ groups['archive_main_server']|first }}:{{ingest_port}}/{{archive_url_path_prefix}}data/{}/header"
 LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
 LICK_ARCHIVE_INGEST_USER = '{{ db_ingest_user }}'
 LICK_ARCHIVE_DB          = '{{ db_name }}'

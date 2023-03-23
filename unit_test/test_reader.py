@@ -5,7 +5,7 @@ from astropy.io.fits.verify import VerifyWarning
 from pathlib import Path
 
 from lick_archive.metadata.reader import open_fits_file, read_row
-from lick_archive.db.archive_schema import IngestFlags
+from lick_archive.db.archive_schema import IngestFlags,Instrument
 
 
 def test_open_fits_file():
@@ -69,4 +69,4 @@ def test_read_row():
         row = read_row(test_data_dir / 'i_do_not_exist.fits')
 
     row = read_row(test_data_dir / '2012-01' / '18' / 'shane' / 'good_2012_01_18_r1002.fits')
-    assert row.instrument == 'Kast Red'
+    assert row.instrument ==  Instrument.KAST_RED

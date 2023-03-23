@@ -1,3 +1,9 @@
+- name: Local init
+  hosts: 127.0.0.1
+  connection: local
+  roles:
+    - local_init
+
 - name: Deploys lick searchable archive to a single node
   hosts: archive_main_server:watchdog
   roles:
@@ -5,3 +11,37 @@
     - database
     - django_apps
     - ingest_watchdog
+
+  handlers:
+    - name: Retart celery
+      ansible.builtin.systemd:
+        name: celery.service
+        enabled: yes
+        daemon_reload: yes
+        state: restarted
+      become: yes
+      listen:
+        - "restart web services"
+        - "common config changed"
+
+    - name: Restart gunicorn
+      ansible.builtin.systemd:
+        name: gunicorn.service
+        enabled: yes
+        daemon_reload: no
+        state: restarted
+      become: yes
+      listen: 
+        - "restart web services"
+        - "common config changed"
+
+    - name: Restart Ingest Service
+      ansible.builtin.systemd:
+        name: ingest_watchdog.service
+        enabled: yes
+        daemon_reload: yes
+        state: restarted
+      become: yes
+      listen: 
+        - "restart watchdog"
+        - "common config changed"

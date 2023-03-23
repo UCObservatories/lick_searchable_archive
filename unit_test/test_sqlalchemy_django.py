@@ -12,7 +12,7 @@ from django.db.models import F, Value
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
-from lick_archive.db.archive_schema import Base, Main, FrameType
+from lick_archive.db.archive_schema import Base, Main, FrameType, Telescope, Instrument
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
 from unit_test.utils import get_hdul_from_text, MockDatabase
 
@@ -33,7 +33,7 @@ def test_sqlalchemy_orm_serializer():
     serializer = SQLAlchemyORMSerializer()
     result = serializer.to_representation(row_mapping)
     # Test an SQL Alchemy enum
-    assert result['telescope'] == 'Shane'
+    assert result['telescope'] == Telescope.SHANE.value
     # Test datetime
     assert result['obs_date'] == datetime(2014, 5, 20, 22, 49, 25, 515000, tzinfo=timezone.utc)
     # Test float
@@ -62,13 +62,13 @@ def test_queryset_get_orm_attrib():
 
 def test_queryset_filter():
 
-    test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object=None, filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 1", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 2", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 3", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
@@ -115,13 +115,13 @@ def test_queryset_filter():
 
 def test_queryset_order_by():
 
-    test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
@@ -146,13 +146,13 @@ def test_queryset_order_by():
 
 def test_queryset_values():
 
-    test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
@@ -179,13 +179,13 @@ def test_queryset_values():
 
 
 def test_queryset_slicing():
-    test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
@@ -276,13 +276,13 @@ def test_queryset_slicing():
             queryset_sorted = queryset.order_by("object")[1:3:2]
 
 def test_queryset_count():
-    test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 

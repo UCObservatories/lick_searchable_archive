@@ -7,7 +7,7 @@ import logging
 
 from lick_archive.metadata.abstract_reader import AbstractReader
 from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_date, get_shane_lamp_status, get_ra_dec
-from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags
+from lick_archive.db.archive_schema import  Main, FrameType, IngestFlags, Instrument, Telescope
 
 logger = logging.getLogger(__name__)
 
@@ -130,15 +130,15 @@ class ShaneKastReader(AbstractReader):
         header = hdul[0].header
        
         m = Main()
-        m.telescope = 'Shane'
+        m.telescope = Telescope.SHANE
 
         # The newer shane kast examples I've seen have 
         # VERSION set to kastr or kastb
         instrument = safe_header(header, 'VERSION')
         if instrument == "kastb":
-            m.instrument = "Kast Blue"
+            m.instrument = Instrument.KAST_BLUE
         elif instrument == "kastr":
-            m.instrument = "Kast Red"
+            m.instrument = Instrument.KAST_RED
 
         # The older examples have INSTRUME set to KAST and
         # use SPSIDE to indicate red/blue
@@ -152,9 +152,9 @@ class ShaneKastReader(AbstractReader):
                 if side is None:
                     raise ValueError("Could not ingest older Kast data because it did not have SPSIDE set.")
                 if side.strip().lower() == "red":
-                    m.instrument = 'Kast Red'
+                    m.instrument = Instrument.KAST_RED
                 elif side.strip().lower() == 'blue':
-                    m.instrument = 'Kast Blue'
+                    m.instrument = Instrument.KAST_BLUE
                 else:
                     raise ValueError(f"Could not ingest older Kast data because the SPSIDE value {side} was not red or blue.")
             else:

@@ -5,7 +5,7 @@ from astropy.logger import AstropyUserWarning
 from pathlib import Path
 
 from lick_archive.metadata.shane_kast import ShaneKastReader
-from lick_archive.db.archive_schema import FrameType
+from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
 from unit_test.utils import get_hdul_from_text
 import os 
 from datetime import datetime, timezone
@@ -38,8 +38,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
     assert row.obs_date == datetime(2012, 1, 3, 6, 12, 31, 110000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000000000000001'
     assert row.exptime == 1.0
@@ -69,8 +69,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
     # This image uses WCS to store coordinates, so its in decimal degrees
     # instead of hms
     assert row.ra == 343.1081542969
@@ -87,8 +87,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.unknown
     assert row.ingest_flags == "00000000000000000000001000011001"
@@ -103,8 +103,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.bias
     assert row.ingest_flags == "00000000000000000000000000000000"
@@ -117,8 +117,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.science
     assert row.ingest_flags == "00000000000000000000000000000000"
@@ -131,8 +131,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.unknown
     assert row.ingest_flags == "00000000000000000000000000010001"
@@ -147,8 +147,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.arc
     assert row.ingest_flags == "00000000000000000000000000000001"
@@ -164,8 +164,8 @@ def test_red_headers():
 
         reader = ShaneKastReader()
         row = reader.read_row(path, hdul)
-        assert row.telescope == 'Shane'
-        assert row.instrument == 'Kast Red'
+        assert row.telescope == Telescope.SHANE
+        assert row.instrument == Instrument.KAST_RED
 
         assert row.frame_type == FrameType.flat
         assert row.ingest_flags == "00000000000000000000000000000001"
@@ -184,8 +184,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.flat
     assert row.ingest_flags == "00000000000000000000000000000001"
@@ -201,8 +201,8 @@ def test_red_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Red'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_RED
 
     assert row.frame_type == FrameType.science
     assert row.ingest_flags == "00000000000000000000001000000001"
@@ -222,8 +222,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
     assert row.ingest_flags == '00000000000000000000000000000001'
     assert row.frame_type == FrameType.science
 
@@ -235,8 +235,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
     assert row.frame_type == FrameType.arc
 
     assert row.ingest_flags == "00000000000000000000000000000000"
@@ -249,8 +249,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
 
     assert row.frame_type == FrameType.unknown
     assert row.ingest_flags == "00000000000000000000001000011001"
@@ -265,8 +265,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
 
     assert row.frame_type == FrameType.flat
     assert row.ingest_flags == "00000000000000000000000000000000"
@@ -279,8 +279,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
 
     assert row.frame_type == FrameType.bias
     assert row.ingest_flags == "00000000000000000000000000000001"
@@ -293,8 +293,8 @@ def test_blue_headers():
 
     reader = ShaneKastReader()
     row = reader.read_row(path, hdul)
-    assert row.telescope == 'Shane'
-    assert row.instrument == 'Kast Blue'
+    assert row.telescope == Telescope.SHANE
+    assert row.instrument == Instrument.KAST_BLUE
 
     assert row.frame_type == FrameType.science
     assert row.ingest_flags == "00000000000000000000000000000001"
@@ -310,8 +310,8 @@ def test_blue_headers():
 
         reader = ShaneKastReader()
         row = reader.read_row(path, hdul)
-        assert row.telescope == 'Shane'
-        assert row.instrument == 'Kast Blue'
+        assert row.telescope == Telescope.SHANE
+        assert row.instrument == Instrument.KAST_BLUE
 
         assert row.frame_type == FrameType.dark
         assert row.ingest_flags == "00000000000000000000010000000001"

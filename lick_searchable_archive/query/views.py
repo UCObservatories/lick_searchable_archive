@@ -13,7 +13,7 @@ from rest_framework import status
 
 
 from lick_archive.db.db_utils import create_db_engine
-from lick_archive.db.archive_schema import Main
+from lick_archive.db import archive_schema
 
 from .query_api import QuerySerializer, QueryAPIView
 from .sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
@@ -24,13 +24,13 @@ _db_engine = create_db_engine(user=settings.LICK_ARCHIVE_QUERY_USER, database=se
 class QueryView(QueryAPIView):
     """View that integrates the archive Query API with SQL Alchemy"""
     serializer_class = SQLAlchemyORMSerializer
-    indexed_attributes = ['filename', 'date', 'date_range', 'object']
-    allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.name not in ['coord', 'header', 'ingest_flags']]
-    allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']]
+    indexed_attributes = archive_schema.indexed_attributes
+    allowed_sort_attributes = archive_schema.allowed_sort_attributes
+    allowed_result_attributes = archive_schema.allowed_result_attributes
 
 
     def get_queryset(self):
-        return SQLAlchemyQuerySet(_db_engine, Main)
+        return SQLAlchemyQuerySet(_db_engine, archive_schema.Main)
 
 class PlainTextRenderer(BaseRenderer):
     """A renderer for rendering FITS headers in plain text."""
@@ -62,7 +62,7 @@ class HeaderView(APIView):
         logger.info(f"Getting header info for file: {full_path}")
 
         try:
-            queryset = SQLAlchemyQuerySet(_db_engine,Main)
+            queryset = SQLAlchemyQuerySet(_db_engine,archive_schema.Main)
             queryset = queryset.filter(filename__exact=str(full_path))
             queryset = queryset.values("header")
             results = list(queryset)
