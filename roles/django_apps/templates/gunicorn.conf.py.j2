@@ -1,6 +1,10 @@
 # gunicorn settings, see https://docs.gunicorn.org/en/latest/settings.html#logging
 wsgi_app = "lick_searchable_archive.wsgi:application"
 
+# Number of workers. Currently the front end runs on the same gunicorn server 
+# as the backend, so each query request requires 2 workers.
+workers=4
+
 # Worker timeout. Set based on the timeout on retries set in dbutils. Note there is still an timeout from "graceful_timeout" default
 timeout=65
 

@@ -25,6 +25,8 @@ urlpatterns = [
 if settings.LICK_ARCHIVE_ALLOW_INGEST:
     urlpatterns.append(path(settings.LICK_ARCHIVE_URL_PATH_PREFIX, include('ingest.urls')))
 
+urlpatterns.append(path(settings.LICK_ARCHIVE_URL_PATH_PREFIX, include('frontend.urls')))
+
 # TODO remove when we get a real web server in front of gunicorn
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 urlpatterns += staticfiles_urlpatterns()

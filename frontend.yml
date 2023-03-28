@@ -1,0 +1,33 @@
+- name: Local init
+  hosts: 127.0.0.1
+  connection: local
+  roles:
+    - local_init
+
+- name: Install frontend
+  hosts: frontend
+  roles:
+    - common
+  tasks:
+  - name: Copy the Frontend
+    ansible.builtin.copy:
+      src: lick_searchable_archive/frontend
+      dest: "{{ package_install_dir }}/lick_searchable_archive/"
+      owner: "{{ archive_service_user }}"
+      group: "{{ archive_service_group }}"
+      mode: 0770
+    become: yes
+    notify: "restart web services"
+
+  handlers:
+  - name: Restart gunicorn
+    ansible.builtin.systemd:
+      name: gunicorn.service
+      enabled: yes
+      daemon_reload: no
+      state: restarted
+    become: yes
+    listen: 
+      - "restart web services"
+      - "common config changed"
+

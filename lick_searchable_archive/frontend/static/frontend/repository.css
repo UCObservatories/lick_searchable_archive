@@ -1,0 +1,246 @@
+body {
+    background-color: #fff;
+    margin: 10px;
+    font-family: sans-serif;
+    max-width: 750px;
+  }
+  
+  a {
+    /* color: #000; */
+    color: blue;
+    text-decoration: none;
+  }
+  
+  a:hover {
+    color: #f70;
+  }
+  
+  a:hover span.thumbnail {
+    color: #000;
+  }
+  
+  h1 {
+    font-family: serif ;
+    font-size: 150% ;
+  }
+  
+  h2 {
+    font-family: serif ;
+    font-size: 125% ;
+  }
+  
+  img {
+    border: none;
+  }
+  
+  
+  p {
+    line-spacing: 1.0em;
+    /* text-indent: -10px; */
+  }
+  
+  p.text {
+    font-family: serif;
+    font-size: 100%;
+    font-weight: normal;
+    text-indent: 0px;
+    width: 640px;
+  }
+  
+  p.sans {
+    font-family: sans-serif;
+    font-size: 100%;
+    font-weight: bold;
+    text-indent: 20px;
+  }
+  
+  p.question {
+    font-family: serif;
+    font-size: 100%;
+    font-weight: bold;
+    text-indent: 0px;
+  }
+  
+  p.answer {
+    font-family: serif;
+    font-size: 100%;
+    font-weight: normal;
+    text-indent: 0px;
+  }
+  
+  span.thumbnail {
+    display: block;
+    text-align: center;
+    border: 1px solid #aaa;
+    padding-top: 3px;
+    margin: 0 4em 0 4em;
+    font-family: monospace;
+    font-size: 0.5em;
+  }
+  
+  table {
+    /* border-spacing: 1pt; */
+  }
+  
+  td {
+    /* padding-bottom: 1em; */
+    /* padding-right: 1em; */
+    /* text-align: left; */
+    vertical-align: bottom;
+    border: solid 1pt;
+    border-spacing: 0pt;
+    border-color: #ccc;
+    border-right: hidden;
+    border-left: hidden;
+    background-color: #eeb;
+    /* width: 75px; */
+  }
+  
+  th {
+    border: solid 1pt;
+    border-color: #ccc;
+    background-color: #eeb;
+    color: blue;
+    font-family: sans-serif;
+    font-weight: normal;
+    text-align: left;
+  }
+  
+  main {
+    background-color: #eeb;    
+  }
+
+  .search_terms_option {
+    border: none;
+  }
+
+  .search_terms_grid {
+    border: none;
+    display: grid;
+    grid-template-columns: max-content 8em 7em 10em 10em;
+    column-gap: 1em;
+    /*align-items: center;*/
+    grid-template-areas: "a b c d e"
+                         ". b . f f";
+  }
+
+  .search_terms_radio {
+    grid-area: a;
+    vertical-align: middle;
+    padding: 0px;
+  }
+
+  .search_terms_label {
+    grid-area: b;
+    display: inline-block;
+    vertical-align: middle;
+    width: 8em;
+    height: min-content;
+  }
+
+  .search_terms_operator {
+    grid-area: c;
+    width: 7em;
+    vertical-align: middle;
+    justify-self: center;
+    text-align: center;
+    height: min-content;
+
+  }
+
+  .search_terms_value_0 {
+    grid-area: d;
+    justify-self: center;
+    box-sizing: border-box;
+    width: 100%;
+    vertical-align: middle;
+    height: min-content;
+  }
+  .search_terms_value_1 {
+    grid-area: e;
+    justify-self: center;
+    box-sizing: border-box;
+    width: 100%;
+    vertical-align: middle;
+    height: min-content;
+  }
+  /*
+  .search_terms_date_range {
+    grid-area: d;
+    vertical-align: middle;
+    height: min-content;
+  }*/
+  .search_terms_help {
+    grid-area: f;
+    font-size: smaller;
+  }
+
+  .search_terms_value {
+    vertical-align: middle;
+    height: min-content;
+  }
+
+  /*  .search_form_terms {
+    list-style-type: none;
+    display: grid;
+    grid-template-columns: 1fr 4fr 2fr 4fr 4fr;
+    grid-template-areas: "r l o v ."
+                         "r l o v v"
+                         "r l o v .";
+  }
+
+.search_terms_radio {
+  grid-area: r;
+}
+
+.search_terms_label {
+  grid-area: l;
+}
+
+.search_terms_operator {
+  grid-area: o;
+}
+
+.search_terms_value {
+  grid-area: v;
+}
+*/
+  /*
+  .search_form_fields {
+    border: none;
+    display: grid;
+    grid-template-columns: 7em 33%;
+    column-gap: 1em;
+    row-gap: 1ex;
+  }
+  .search_form_fields > label {
+    text-align: right;
+  }
+*/
+
+  .search_form_fields {
+    border: none;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-around;
+  }
+
+  .search_form_list {
+    list-style-type: none;
+  }
+
+  .field_select_box {
+    display:flex;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    column-gap: 1em;
+  }
+
+  .field_select_box > label {
+    text-align: right;
+    width: 6em
+  }
+
+  .field_select_box > select {
+    width: 15em
+  }
