@@ -193,7 +193,7 @@ class QueryForm(forms.Form):
 
         return cleaned_data
 
-archive_client = LickArchiveClient("http://localhost:8000/archive/", 1, 30, 5)
+archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5)
 
 
 def get_user_facing_result_fields(fields):
@@ -253,8 +253,14 @@ def index(request):
                'result_fields': [],
                'result_list': None,
                'error_list': [],
+               'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL,
                'previous_link': "",
                'next_link': ""}
+
+    if logger.isEnabledFor(logging.DEBUG):
+        for key in request.META.keys():
+            if key.startswith("HTTP_"):
+                logger.debug(f"Header key '{key[5:]}' value: {request.META[key]}")
 
     if request.method == 'POST':
         form = QueryForm(request.POST)

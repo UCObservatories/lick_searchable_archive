@@ -51,10 +51,9 @@ INSTALLED_APPS = [
 #    'django.contrib.sessions',
 #    'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'ingest',
-    'query',
-    'frontend',
+{% for app in archive_apps %}
+    '{{ app }}',
+{% endfor %}
 ]
 
 MIDDLEWARE = [
@@ -181,19 +180,36 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# SSL configuration for operating behind a proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+# Lick Archive global settings
+LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
+LICK_ARCHIVE_APPS = {{ archive_apps }}
+LICK_ARCHIVE_API_URL ="http://localhost:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
+{# Now include only the settings needed for the apps being installed #}
+
+{% if "frontend" in archive_apps %}
+LICK_ARCHIVE_FRONTEND_URL="{{ frontend_url }}"
+{% endif %}
+
+{% if "ingest" or "query" in archive_apps %}
+LICK_ARCHIVE_DB          = '{{ db_name }}'
+{% endif %}
+
+{% if "ingest" in archive_apps %}
+{# Celery is currently only used by ingest #}
 # Celery configuration
 CELERY_BROKER_URL = '{{ redis_url }}'
 
-
-# Lick Archive settings
-LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
-
-LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
-
-LICK_ARCHIVE_INSTRUMENT_DIRS = {{ supported_instrument_dirs }}
-
-LICK_ARCHIVE_ALLOW_INGEST = True
-LICK_ARCHIVE_HEADER_URL_FORMAT = "http://{{ groups['archive_main_server']|first }}:{{ingest_port}}/{{archive_url_path_prefix}}data/{}/header"
-LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
+# Ingest specific configuration
 LICK_ARCHIVE_INGEST_USER = '{{ db_ingest_user }}'
-LICK_ARCHIVE_DB          = '{{ db_name }}'
+{% endif %}
+
+{% if "query" in archive_apps %}
+# Query specific configuration
+LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
+LICK_ARCHIVE_HEADER_URL_FORMAT = LICK_ARCHIVE_API_URL + "data/{}/header"
+LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
+{% endif %}

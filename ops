@@ -2,7 +2,14 @@
 archive_config=ops
 
 [archive_main_server]
-quarry.ucolick.org remote_watchdog=False
+quarry.ucolick.org
+
+[archive_main_server:vars]
+remote_watchdog=False 
+archive_apps=['rest_framework', 'ingest', 'query', 'frontend']
 
 [watchdog]
+quarry.ucolick.org remote_watchdog=False
+
+[frontend]
 quarry.ucolick.org remote_watchdog=False

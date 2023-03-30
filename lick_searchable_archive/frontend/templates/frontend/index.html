@@ -10,7 +10,7 @@
 <h1>Mt. Hamilton Data Repository Search - Beta</h1>
 </header>
 <main>
-<form id="archive_query" class="search_form" method="POST" enctype="application/x-www-form-urlencoded" action="http://192.168.122.236:8000/archive/index.html">
+<form id="archive_query" class="search_form" method="POST" enctype="application/x-www-form-urlencoded" action="{{ archive_url }}">
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
         <legend>Search</legend>

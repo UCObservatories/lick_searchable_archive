@@ -7,3 +7,4 @@ archive_data_root: /data/data
 archive_data_mount: /data
 archive_nfs_name: mhadmin
 archive_nfs_group: mhdata
+frontend_url: "https://quarry.ucolick.org/archive/index.html"

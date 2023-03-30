@@ -14,6 +14,7 @@ Deployment Todo
 * Pull mounting the archive file system into its own role?
 * Figure out self signed keys for having the ingest_watchdog deployed on the storage host
 * Delete code prior to copying, or sync via rsync?
+* Auto deploy django/metadata dbs fs the tables aren't there?
  
 Code Quality
 ------------

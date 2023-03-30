@@ -90,8 +90,7 @@ Ansible will install a PostgreSQL, create a database cluster, a database, and a 
 but will not create the database scheme in case the admin wants to restore from an existing backup.
 To create the tables, indexes, etc for a blank new database run the following as an admin user::
 
-   $ python scripts/create_schema.py
-
+   $ python scripts/create_schema.py --read_only_user archive_query --read_write_user archive_ingest archive archive
 
 Restore database
 ^^^^^^^^^^^^^^^^
