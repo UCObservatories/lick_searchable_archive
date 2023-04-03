@@ -13,7 +13,7 @@
     - ingest_watchdog
 
   handlers:
-    - name: Retart celery
+    - name: Restart celery
       ansible.builtin.systemd:
         name: celery.service
         enabled: yes
