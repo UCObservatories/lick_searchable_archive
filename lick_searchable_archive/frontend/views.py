@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 import os
 import urllib.parse
 import logging
@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.shortcuts import render
 from django import forms
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.forms.renderers import TemplatesSetting
 from django.utils.html import format_html
+from django.utils.dateparse import parse_datetime
 from lick_archive.lick_archive_client import LickArchiveClient
 from lick_archive.db import archive_schema
 
@@ -73,8 +74,11 @@ class QueryWithOperator(forms.MultiValueField):
     def compress(self, data_list):
         if len(data_list) == 2:
             value = {"operator": data_list[0], "value": data_list[1]}
-        else:
+        elif len(data_list) > 2:
             value = {"operator": data_list[0], "value": tuple(data_list[1:])}
+        else:
+            # Emtpy list
+            return {"operator": None, "value": None}
 
         return value
 
@@ -154,8 +158,10 @@ class QueryForm(forms.Form):
             query_field = cleaned_data.get(query_type, None)
             if query_field is None or not isinstance(query_field, dict):
                 query_value = None
+                query_operator = None
             else:
                 query_value = cleaned_data[query_type].get("value", None)
+                query_operator = cleaned_data[query_type].get("operator", "exact")
 
             if query_type == "filename":
                 if query_value is None or len(query_value) == 0:
@@ -166,12 +172,10 @@ class QueryForm(forms.Form):
                     self.add_error("object_name", f"Cannot query by empty object.")
 
             elif query_type == "date":
-                query_operator = cleaned_data[query_type].get("operator", "exact")
-
                 if query_value is None:
                     self.add_error("date", f"Cannot query by empty date.")
                 elif query_operator == 'exact':
-                    if query_value[0] is None:
+                    if not isinstance(query_value,tuple) or query_value[0] is None:
                         self.add_error("date", f"Cannot query by empty date.")
                 else:
                     if query_value[0] is None:
@@ -237,13 +241,27 @@ def process_results(api_fields, result_list):
     for result in result_list:
         row =[]
         for api_field in api_fields:
-            if api_field not in result:
-                row.append("")
-            elif api_field == "header":
-                # Convert header to a link
-                row.append(format_html('<a href="{}">plain-text header</a>',result[api_field]))
-            else:
-                row.append(result[api_field])
+            try:
+                if api_field not in result:
+                    row.append("")
+                elif api_field == "header":
+                    # Convert header to a link
+                    row.append(format_html('<a href="{}">header</a>',result[api_field]))
+                elif api_field == "obs_date":
+                    # Format date only out to seconds
+                    value=parse_datetime(result[api_field])
+                    if value is None:
+                        raise ValueError(f"Invalid date time value.")
+                    row.append(value.isoformat(timespec='seconds'))
+                elif isinstance(result[api_field], float):
+                    # Only show 3 digits for floating point values
+                    row.append(str(round(result[api_field], 3)))
+                else:
+                    row.append(result[api_field])
+            except Exception as e:
+                logger.error(f"Failed to parse api value for field '{api_field}'. Problem row: '{result}'", exc_info=True)                
+                raise
+
         processed_results.append(row)
     return processed_results
 
@@ -252,7 +270,6 @@ def index(request):
     context = {'result_count': None,
                'result_fields': [],
                'result_list': None,
-               'error_list': [],
                'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL,
                'previous_link': "",
                'next_link': ""}
@@ -263,6 +280,7 @@ def index(request):
                 logger.debug(f"Header key '{key[5:]}' value: {request.META[key]}")
 
     if request.method == 'POST':
+        logger.debug(f"Unvalidated Form contents: {request.POST}")
         form = QueryForm(request.POST)
         if form.is_valid():
             logger.info("Query Form is valid.") 
@@ -355,10 +373,12 @@ def index(request):
                     # facing names
                     user_fields, api_fields = get_user_facing_result_fields(result_fields)
 
-                    # Process NULL and URL results
-                    context['result_list'] = process_results(api_fields, result)
-                    context['result_fields'] = user_fields
-                    context['result_count'] = None
+                    # Post process results
+                    try:
+                        context['result_list'] = process_results(api_fields, result)
+                        context['result_fields'] = user_fields
+                    except Exception as e:
+                        form.add_error(None, "Failed to process results from archive.")
 
         for key in form.errors:
             logger.error(f"Form error {key} : '{form.errors[key]}")

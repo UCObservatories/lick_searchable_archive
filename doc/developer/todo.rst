@@ -27,6 +27,7 @@ Code Quality
 * get stdout into logs?
 * Consolidate query validation so it isn't done multiple times in query_api. Can it also be shared with lick_archive_client query_page?
 * A data dictionary class usable by the db schema, api, clients and for generating docs? See field_info in archive_schema
+* Make date format returned by api consistent, easy to parse and document.
 
 Testing Todo
 ------------

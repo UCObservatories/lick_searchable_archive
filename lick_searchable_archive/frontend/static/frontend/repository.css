@@ -2,13 +2,13 @@ body {
     background-color: #fff;
     margin: 10px;
     font-family: sans-serif;
-    max-width: 750px;
+    max-width: 750px
   }
   
   a {
     /* color: #000; */
     color: blue;
-    text-decoration: none;
+    text-decoration: underline;
   }
   
   a:hover {
@@ -84,14 +84,15 @@ body {
   
   td {
     /* padding-bottom: 1em; */
-    /* padding-right: 1em; */
+    padding-right: .5em;
+    padding-left: .5em;
     /* text-align: left; */
     vertical-align: bottom;
     border: solid 1pt;
     border-spacing: 0pt;
     border-color: #ccc;
-    border-right: hidden;
-    border-left: hidden;
+    /*border-right: hidden;
+    border-left: hidden;*/
     background-color: #eeb;
     /* width: 75px; */
   }

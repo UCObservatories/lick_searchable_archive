@@ -22,7 +22,7 @@ urlpatterns = [
 ]
 
 for app in settings.LICK_ARCHIVE_APPS:
-    urlpatterns.append(path(settings.LICK_ARCHIVE_URL_PATH_PREFIX, include(f'{app}.urls')))
+    urlpatterns.append(path(f"{settings.LICK_ARCHIVE_URL_PATH_PREFIX}/", include(f'{app}.urls')))
 
 
 # TODO remove when we get a real web server in front of gunicorn
