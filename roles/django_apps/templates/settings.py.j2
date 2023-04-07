@@ -183,12 +183,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
-# Django REST framework settings
-REST_FRAMEWORK = {  # Stop DRF from adding a "Z" for UTC, which datetime.fromisoformat doesn't like.
-                    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S.%f%z"
-                 }
-
-
 # Lick Archive global settings
 LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
 LICK_ARCHIVE_APPS = {{ archive_apps }}
