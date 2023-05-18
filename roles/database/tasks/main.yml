@@ -2,7 +2,7 @@
 # a "main" cluster, and a postgres user
 - name: Install PostgreSQL and plugins
   ansible.builtin.apt:
-    name: postgresql-{{postgres_version}}, postgresql-pgsphere
+    name: postgresql-{{postgres_version}}, postgresql-{{postgres_version}}-pgsphere
     state: present
   become: yes
 - name: Create DB data file system
