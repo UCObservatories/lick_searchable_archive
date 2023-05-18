@@ -51,6 +51,7 @@
                     </fieldset>
                 </label>
             </li>
+            <button id="reset_fields" type="button">Use Default Fields</button>
         </ul>
     </fieldset>
 
@@ -103,12 +104,27 @@ Footer text?
 
     const filenameOperator = document.getElementById("id_filename_0")
     const filenameText = document.getElementById("id_filename_1")
+    const resetFieldsButton = document.getElementById("reset_fields")
+
+    const resultFields = document.getElementById("id_result_fields")
+    const sortFields = document.getElementById("id_sort_fields")
 
     objectRadioInput.addEventListener("change", enableAndDisableFields)
     dateRadioInput.addEventListener("change", enableAndDisableFields)
     filenameRadioInput.addEventListener("change", enableAndDisableFields)
+    resetFieldsButton.addEventListener("click", resetResultAndSortFields)
 
     document.addEventListener("DOMContentLoaded", enableAndDisableFields)
+
+
+    function resetResultAndSortFields(value) {
+        for (var i = 0; i < resultFields.options.length; i++) {
+            resultFields.options[i].selected = resultFields.options[i].defaultSelected
+        }
+        for (var i = 0; i < sortFields.options.length; i++) {
+            sortFields.options[i].selected = sortFields.options[i].defaultSelected
+        }
+    }
 
     function setObjectQueryDisabled(value) {
         objectOperator.disabled=value

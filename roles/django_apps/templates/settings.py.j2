@@ -44,13 +44,14 @@ ALLOWED_HOSTS = ["{{ groups['archive_main_server']|first }}", 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
-#    'django.contrib.admin',
+    # 'django.forms', # Think I had it for custom form widget templates, which I don't use anymore
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    # For the admin page
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.forms',
-#    'django.contrib.sessions',
-#    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.admin',
 {% for app in archive_apps %}
     '{{ app }}',
 {% endfor %}
@@ -58,12 +59,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-#    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-#    'django.contrib.auth.middleware.AuthenticationMiddleware',
-#    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # For the admin page
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 
 ROOT_URLCONF = 'lick_searchable_archive.urls'
@@ -76,8 +78,9 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
-                'django.template.context_processors.request',
+                # For admin page and authentication
                 'django.contrib.auth.context_processors.auth',
+                'django.template.context_processors.request',
                 'django.contrib.messages.context_processors.messages',
             ],
         },
@@ -186,7 +189,7 @@ USE_X_FORWARDED_HOST = True
 # Lick Archive global settings
 LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
 LICK_ARCHIVE_APPS = {{ archive_apps }}
-LICK_ARCHIVE_API_URL ="http://localhost:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
+LICK_ARCHIVE_API_URL ="http://{{ api_proxy_server }}:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
 {# Now include only the settings needed for the apps being installed #}
 
 {% if "frontend" in archive_apps %}

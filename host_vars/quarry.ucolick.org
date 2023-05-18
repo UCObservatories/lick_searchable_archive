@@ -7,6 +7,3 @@ archive_data_root: /data/data
 archive_data_mount: /data
 archive_nfs_name: mhadmin
 archive_nfs_group: mhdata
-frontend_scheme: "https"
-frontend_host: "quarry.ucolick.org"
-frontend_url: "{{ frontend_scheme }}://{{ frontend_host }}/{{ archive_url_path_prefix }}/index.html"

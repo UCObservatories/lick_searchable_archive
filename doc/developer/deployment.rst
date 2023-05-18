@@ -287,4 +287,9 @@ See :ref:`Database Administration <db_admin>` for how to do this.
 The Django environment will also need to be created. Use these commands to do so::
 
     $ cd /opt/lick_archive/lib/python3.9/site-packages/lick_searchable_archive
+
+    # For new database only
+    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations ingest
+
+    # For both new and updated
     $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate

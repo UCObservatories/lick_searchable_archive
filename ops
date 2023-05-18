@@ -13,3 +13,10 @@ quarry.ucolick.org remote_watchdog=False
 
 [frontend]
 quarry.ucolick.org remote_watchdog=False
+
+[webserver]
+quarry.ucolick.org
+
+[webserver:vars]
+frontend_scheme: "https"
+frontend_host: "quarry.ucolick.org"

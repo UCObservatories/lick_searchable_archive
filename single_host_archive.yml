@@ -5,12 +5,15 @@
     - local_init
 
 - name: Deploys lick searchable archive to a single node
-  hosts: archive_main_server:watchdog
+  hosts: archive_main_server, webserver
   roles:
     - common
+    - admin_tools
     - database
+    - archive_mount_nfs
     - django_apps
     - ingest_watchdog
+    - webserver
 
   handlers:
     - name: Restart celery
@@ -44,4 +47,15 @@
       become: yes
       listen: 
         - "restart watchdog"
+        - "common config changed"
+
+    - name: Restart Apache2
+      ansible.builtin.systemd:
+        name: celery.service
+        enabled: yes
+        daemon_reload: yes
+        state: restarted
+      become: yes
+      listen:
+        - "restart web server"
         - "common config changed"

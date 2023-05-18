@@ -392,10 +392,10 @@ class QueryAPIView(ListAPIView):
         access a plaintext version of the header.
         
         Args:
-        request (rest_framework.requests.Request): The request specifying the query.        
-        args (list):     Additional arguments to the view.
-        **kwargs (dict): Additional keyword arguments to the view.
-        
+            request (rest_framework.requests.Request): The request specifying the query.        
+            args (list):     Additional arguments to the view.
+            **kwargs (dict): Additional keyword arguments to the view.
+            
         Return (rest_framework.response.Response): The processed response from the query.
         """
         response = super().list(request, *args, **kwargs)

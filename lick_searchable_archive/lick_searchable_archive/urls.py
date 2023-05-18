@@ -18,13 +18,13 @@ from django.urls import path, include
 from django.conf import settings
 
 urlpatterns = [
-#    path('admin/', admin.site.urls),
+    path(f'{settings.LICK_ARCHIVE_URL_PATH_PREFIX}/admin/', admin.site.urls),
 ]
 
 for app in settings.LICK_ARCHIVE_APPS:
     urlpatterns.append(path(f"{settings.LICK_ARCHIVE_URL_PATH_PREFIX}/", include(f'{app}.urls')))
 
 
-# TODO remove when we get a real web server in front of gunicorn
+# TODO remove when we get deployment of a real web server in front of gunicorn finished
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 urlpatterns += staticfiles_urlpatterns()

@@ -1,3 +1,5 @@
+"""Frontend web interface for querying lick archive."""
+
 from datetime import date, datetime
 import os
 import urllib.parse
@@ -19,7 +21,20 @@ from lick_archive.db import archive_schema
 
 
 class OperatorWidget(forms.MultiWidget):
+    """
+    Web widget for an operator form control that let's the user select between a given set of operators
+    and provide a value for that operator. For example a numeric field might allow "<", "=", or ">" with
+    one NumberInput widget. A date field might allow ">", "<", "=", or "between" and two DateInput widgets,
+    with the second widget only being used for "between".
 
+    Args:
+        operators (list of str): The list of operator choices.
+        subwidgets (list of djang.forms.Widget): The list of widgets used to enter values for the operator.
+        names (list of str): Name suffixes to use in the HTML redering of subwidgets.
+        class_prefix (str): Prefix to use for the "class" attribute in the HTML rendering of the subwidget.
+                            The widget will have class `<class\_prefix>operator` and `<class\_prefix>value\_<n>`
+        attrs (dict, Optional): Additional HTML attributes to include when rendering the widget.     
+    """
     def __init__(self, operators, subwidgets, names, class_prefix, attrs=None):
 
         widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
@@ -83,7 +98,7 @@ class QueryWithOperator(forms.MultiValueField):
         return value
 
 DEFAULT_SORT = None
-DEFAULT_RESULTS = ["filename", "frame_type", "object", "exptime", "obs_date"]  
+DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]  
 
 def get_field_groups(fields, exclude):
     
@@ -276,8 +291,9 @@ def index(request):
 
     if logger.isEnabledFor(logging.DEBUG):
         for key in request.META.keys():
-            if key.startswith("HTTP_"):
-                logger.debug(f"Header key '{key[5:]}' value: {request.META[key]}")
+            logger.debug(f"Header key '{key}' value: {request.META[key]}")
+        for key in os.environ:
+            logger.debug(f"Environment variable '{key}' value: '{os.environ[key]}'")
 
     if request.method == 'POST':
         logger.debug(f"Unvalidated Form contents: {request.POST}")
