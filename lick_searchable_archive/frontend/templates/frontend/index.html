@@ -10,7 +10,7 @@
 <h1>Mt. Hamilton Data Repository Search - Beta</h1>
 </header>
 <main>
-<form id="archive_query" class="search_form" method="POST" enctype="application/x-www-form-urlencoded" action="{{ archive_url }}">
+<form id="archive_query" class="search_form" method="POST" action="{{ archive_url }}">
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
         <legend>Search</legend>
@@ -55,29 +55,29 @@
         </ul>
     </fieldset>
 
-    <button name="submit">Submit Query</button>
+    <button type="submit" name="page" value="1">Submit Query</button>
 </form>
-{% if result_count is not None %}
+{% if result_list is None or result_list|length == 0 %}
     Number of results: {{ result_count }}
-{% elif result_list is not None %}
-    {% if result_list|length > 1 %}
-        {{ previous_link }} {{ next_link}}
-        <table>
+{% else %}
+    Showing results {{ start_result }} - {{ start_result|add:"1" }} of {{ result_count }} results.
+    <br>{{ form.page }}
+    
+    <table>
+        <tr>
+            {% for result_field, units in result_fields  %}
+                <th scope="col">{{ result_field }}{% if units is not None %}<br><span class="page_units">({{units}})</span>{% endif %}</th>
+            {% endfor %}
+        </tr>
+        {% for result in result_list %}
             <tr>
-                {% for result_field in result_fields  %}
-                    <th scope="col">{{ result_field }}</th>
+                {% for value in result %}    
+                    <td>{{ value }}</td>
                 {% endfor %}
             </tr>
-            {% for result in result_list %}
-                <tr>
-                    {% for value in result %}    
-                        <td>{{ value }}</td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </table>
-        {{ previous_link }} {{ next_link}}
-    {% endif %}
+        {% endfor %}
+    </table>
+    {{ form.page }}<br>
     Number of results in page: {{ result_list|length }}
 {% endif %}
 {% if form.errors|length > 0 %}

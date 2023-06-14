@@ -1,9 +1,11 @@
 """Frontend web interface for querying lick archive."""
 
-from datetime import date, datetime
 import os
-import urllib.parse
 import logging
+import math
+from datetime import datetime, time, timezone, timedelta
+import zoneinfo
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +15,14 @@ from django.shortcuts import render
 from django import forms
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.forms.renderers import TemplatesSetting
-from django.utils.html import format_html
+from django.utils.html import format_html, escape
+from django.utils.safestring import mark_safe
 from django.utils.dateparse import parse_datetime
 from lick_archive.lick_archive_client import LickArchiveClient
 from lick_archive.db import archive_schema
 
+# The lick observatory uses Pacific Standard Time regardless of dst
+_LICK_TIMEZONE = timezone(timedelta(hours=-8))
 
 
 class OperatorWidget(forms.MultiWidget):
@@ -58,7 +63,104 @@ class OperatorWidget(forms.MultiWidget):
         logger.debug(f"Returning: {return_value}")
         return return_value
 
+class PageNavigationWidget(forms.Widget):
 
+    def __init__(self, attrs, form_id, max_controls, num_surrounding_controls=2):
+        super().__init__(attrs)
+        self.template_name = "widgets/page_navigation.html"
+        self.max_controls = max_controls
+        self.num_surrounding_controls=num_surrounding_controls
+        self.total_pages=1
+        self.form_id = form_id
+
+    def determine_pages(self, current_page):
+        need_start_ellipses = False
+        need_end_ellipses = False
+
+        if not isinstance(current_page, int):
+            current_page = int(current_page)
+
+        # The page list always starts with the previous page and the first page. A negative previous page is allowed, and
+        # renders to a disabled HTML control.
+        page_list=[(current_page - 1, "<"), (1, "1")]
+
+        if self.total_pages <= self.max_controls -2 :
+            # There are enough controls to show all the pages
+            page_list += list(zip(range(2,self.total_pages),[str(n) for n in range(2,self.total_pages)]))
+        else:
+            # All of the page numbers won't fit within the desired number of controls, some ellipses will be needed.
+
+            # At low pages numbers the ellipses will be before the last page. 
+            # For example with max_controls = 12, total_pages=100, current_page = 2, surrounding = 2 
+            #     <<  1 <2> 3  4  5  6  7  8  ...100 >>
+            # This will continue to be the case until there aren't enough controls to hold the surrounding pages. This is the change over
+            # point. In this example the change over is between pages 6 and 7
+            #     <<  1  2  3  4  5 <6> 7  8  ...100 >>
+            #     <<  1 ... 4  5  6 <7> 8  9  ...100 >>
+            
+            # To find the change over point, find the last page that could be displayed without elipses after the 1 (max_controls -4)
+            # and subtract the number of surrounding pages. The 4 includes the previous page and next page controls, the last page control,
+            # and the ellipses before the last page.
+            change_over = self.max_controls-(4+self.num_surrounding_controls)
+
+            if current_page <= change_over:
+                # The current page is before the change over, only one ellipses is needed, at the end
+                need_end_ellipses = True
+                
+                # The range of numbers up to but not included the ellipses before the last page
+                start_range=2
+                end_range=self.max_controls-4
+            else:
+                # After the change over, there will be one ellipses at the start, and potentially one at the end
+                need_start_ellipses = True
+
+                if current_page+self.num_surrounding_controls < self.total_pages-2:
+                    # The current page is far enough away from the last page to require ellipses at the end
+                    need_end_ellipses = True
+
+                    # End the range with the last of the surrounding pages around the current_page
+                    end_range=current_page+self.num_surrounding_controls
+
+                    # Start the range with enough pages to fill up the maximum number of controls 
+                    # (-6 to exclude for the two ellipses, previous and next page, and first and last page)
+                    start_range = (end_range-(self.max_controls-6))+1
+                else:
+                    # The current page is close enough to the final page that no ellipses are needed at the end
+                    # End the range just before the final page
+                    end_range=self.total_pages-1
+                    # Start the range with enough pages to fill up the maximum allowed controls (-5 for one ellipses, the previous and next page,
+                    # and the first and last page)
+                    start_range=(end_range-(self.max_controls-5))+1
+
+            # Build the pages between the first and last page, adding ellipses if needed
+            if need_start_ellipses:
+                page_list.append(("...","..."))
+
+            page_list += list(zip(range(start_range,end_range+1),[str(n) for n in range(start_range,end_range+1)]))
+
+            if need_end_ellipses:
+                page_list.append(("...","..."))
+
+        # The page list ends with the last page and the previous page
+        if self.total_pages > 1:
+            page_list.append((self.total_pages, str(self.total_pages)))
+
+        page_list.append((current_page+1, ">"))
+
+        return page_list
+
+    def format_value(self, value):
+        return int(value)
+
+    def get_context(self, name, value, attrs):
+        default_context = super().get_context(name, value, attrs)
+        # Set the total pages from our choices value
+        default_context['widget']['total_pages'] = self.total_pages
+        default_context['widget']['page_list'] = self.determine_pages(value)
+        default_context['widget']['form_id'] = self.form_id
+
+        logger.debug(f"Returning: {default_context['widget']}")
+        return default_context
 
 class QueryWithOperator(forms.MultiValueField):
 
@@ -97,7 +199,7 @@ class QueryWithOperator(forms.MultiValueField):
 
         return value
 
-DEFAULT_SORT = None
+DEFAULT_SORT = ["obs_date"]
 DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]  
 
 def get_field_groups(fields, exclude):
@@ -131,34 +233,20 @@ class QueryForm(forms.Form):
     date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
                                fields=[forms.DateField(),forms.DateField()], names=["start", "end"],
-                               initial={"operator": "exact", "value": None},  help_text='e.g. "2006-08-17". Date ranges are inclusive.', required=False)
-         
+                               initial={"operator": "exact", "value": None},  help_text='e.g. "2006-08-17". All dates are noon to noon PST (UTC-8). Date ranges are inclusive.', required=False)
     count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], initial="no", required=True, widget=forms.RadioSelect)
     result_fields = forms.MultipleChoiceField(initial = DEFAULT_RESULTS,
                                               choices = get_field_groups(archive_schema.allowed_result_attributes, exclude=["id"]),        
                                               required=False)
-    sort_fields = forms.MultipleChoiceField(choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
+    sort_fields = forms.MultipleChoiceField(initial = DEFAULT_SORT, choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
                                             required=False)
-    
+    page=forms.IntegerField(min_value=1, widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['result_fields'].widget.attrs.update(size="10")
         self.fields['sort_fields'].widget.attrs.update(size="10")
 
-    def _validate_page_url(self, page_url):
-        # We dont' do much validation because that's the REST API's and lick_archive_client's job, but we do verify the
-        # URL can be parsed.
-        try:
-            parsed_url = urllib.parse.urlparse(page_url,allow_fragments=False)
-            query_string = parsed_url.query
-            query_dict = urllib.parse.parse_qs(query_string, strict_parsing=True)
-            return query_dict
-        except ValueError as e:
-            logger.error(f"Invalid page URL: {e}", exc_info=True)
-            self.add_error(None, "Failed to navigate to page")
-
-        return None
 
     def clean(self):
         cleaned_data = super().clean()
@@ -200,15 +288,6 @@ class QueryForm(forms.Form):
             else:
                 self.add_error("which_query", f"Unknown query type {query_type}.")
 
-        if "next" in self.data:
-            cleaned_data["page"] = "Next"
-            cleaned_data["page_params"] = self._validate_page_url(self.data["next"])            
-        elif "previous" in self.data:
-            cleaned_data["page"] = "Previous"
-            cleaned_data["page_params"] = self._validate_page_url(self.data["previous"])
-        else:
-            cleaned_data["page"] = "initial"
-            cleaned_data["page_params"] = None
 
         return cleaned_data
 
@@ -223,12 +302,18 @@ def get_user_facing_result_fields(fields):
         fields (list of str): Validated list of sort fields using API names
     Return:
         list of str: Sorted list of fields with user facing names.
+        list of str: List of api field names sorted to match the user facing names.        
+        list of str: List of unit descriptions sorted to match the user facing names. None is used
+                     for fields without unit descriptions.
+
     """
     # Common field ordering
     field_ordering = ["filename", "telescope", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "airmass", "object", "program", "observer", "header"]
 
     common_fields = []
     instrument_fields = {}
+    units = { "obs_date": "UTC-8",
+              "exptime": "seconds"}
 
     # Separate common fields from instrument specific fields
     for field in fields:
@@ -242,14 +327,17 @@ def get_user_facing_result_fields(fields):
     common_fields.sort(key=lambda x: field_ordering.index(x[0]))
 
     api_fields = [f[0] for f in common_fields]
+    field_units = [units.get(f[0]) for f in common_fields]
     user_fields = [f[1].user_name for f in common_fields]
+
     # Sort instrument fields by instrument name, then by user facing field name
     for instrument in sorted(instrument_fields.keys()):        
         instrument_fields[instrument].sort(key = lambda x: x[1].user_name)
         api_fields +=  [f[0] for f in instrument_fields[instrument]]
+        field_units += [units.get(f[0]) for f in instrument_fields]
         user_fields += [f[1].user_name for f in instrument_fields[instrument]]
 
-    return user_fields, api_fields
+    return user_fields, api_fields, field_units
 
 def process_results(api_fields, result_list):
     processed_results = []
@@ -267,7 +355,10 @@ def process_results(api_fields, result_list):
                     value=parse_datetime(result[api_field])
                     if value is None:
                         raise ValueError(f"Invalid date time value.")
-                    row.append(value.isoformat(timespec='seconds'))
+                    # Convert to lick timezone, and remove the tz info so it won't be
+                    # in the output string. (The column label gives the timezone)
+                    value = value.astimezone(_LICK_TIMEZONE).replace(tzinfo=None)
+                    row.append(value.isoformat(sep=' ', timespec='milliseconds'))
                 elif isinstance(result[api_field], float):
                     # Only show 3 digits for floating point values
                     row.append(str(round(result[api_field], 3)))
@@ -280,14 +371,27 @@ def process_results(api_fields, result_list):
         processed_results.append(row)
     return processed_results
 
+def test_determine_pages():
+    w = PageNavigationWidget({}, "form", 12, 2)
+    for total_pages in range(1,16):
+        w.total_pages = total_pages
+        for page in range(1, total_pages+1):
+            l = w.determine_pages(page)
+            print(f"{page:-2} of {total_pages:-2} length({len(l):-2}) {l}")
+
 
 def index(request):
-    context = {'result_count': None,
+    context = {'result_count': 0,
                'result_fields': [],
+               'result_units': [],
                'result_list': None,
                'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL,
-               'previous_link': "",
-               'next_link': ""}
+               'total_pages': 0,
+               'current_page': 1,
+               'start_result': 1,
+               'end_result': 1,}
+
+    page_size = 50
 
     if logger.isEnabledFor(logging.DEBUG):
         for key in request.META.keys():
@@ -303,42 +407,48 @@ def index(request):
             logger.debug(f"Form contents: {form.cleaned_data}")
             result_fields = DEFAULT_RESULTS if form.cleaned_data["result_fields"] == [] else form.cleaned_data["result_fields"]
             sort = DEFAULT_SORT if form.cleaned_data["sort_fields"] == [] else form.cleaned_data["sort_fields"]
-            
-            query_page = form.cleaned_data["page"]
-            if query_page == "initial":
-                # For the "initial" query (or query submitted with submit button), use the form fields for the query values
-                logger.info("Running query")
 
-                # Run the appropriate query type
-                query_type = form.cleaned_data["which_query"]
-                query_operator = form.cleaned_data[query_type]["operator"]
-                query_value = form.cleaned_data[query_type]["value"]
-                count_query = form.cleaned_data["count"] == "yes"
-                prefix = None
+            # Run the appropriate query type
+            query_type = form.cleaned_data["which_query"]
 
+            query_operator = form.cleaned_data[query_type]["operator"]
+            query_value = form.cleaned_data[query_type]["value"]
+            count_query = form.cleaned_data["count"] == "yes"
+            page = form.cleaned_data["page"]
+            prefix = None
 
-                # We can't use "object" for the form field because it conflicts with the python "object"
-                # type. So we use object_name and rename it here.  The other form field's are named after
-                # the query field sent in the API to the archive
-                if query_type == "object_name":
-                    query_field = "object"
+            # We can't use "object" for the form field because it conflicts with the python "object"
+            # type. So we use object_name and rename it here.  The other form field's are named after
+            # the query field sent in the API to the archive
+            if query_type == "object_name":
+                query_field = "object"
+
+            elif query_type == "date":
+                # Convert dates to noon to noon datetimes in the lick observatory timezone
+                query_field="datetime"
+
+                query_value = [datetime.combine(d, time(hour=12, minute=0, second=0, tzinfo=_LICK_TIMEZONE)) for d in query_value if d is not None]
+
+                if len(query_value) == 1:
+                    # An exact date query needs to be a datetime range ending at the next day at noon
+                    query_value.append(query_value[0] + timedelta(days=1))
+                elif len(query_value) == 2:
+                    # The last date in a range should go to the next day at noon as the end date/time
+                    query_value[1] = query_value[1] + timedelta(days=1)
                 else:
-                    query_field = query_type
+                    # The form validation should prevent this, but if it didn't....
+                    form.add_error("date","Invalid date or date range.")
 
-                if query_type=='date':
-                    if query_operator == "exact":
-                        # The query form always has a list of values even if only one is needed
-                        query_value = query_value[0]
-                    else:
-                        # The API distinguishes between a single date and date range
-                        # The list of values in the form is correct for a range
-                        query_field = "date_range"                        
+            else:
+                query_field = query_type
 
-                # Set prefix for the string fields
-                if query_field == "filename" or query_field == "object":
-                    prefix = query_operator == "prefix"
+            # Set prefix for the string fields
+            if query_field == "filename" or query_field == "object":
+                prefix = query_operator == "prefix"
 
+            if len(form.errors) == 0:
                 try:
+                    logger.info("Running query")
                     logger.info(f"Query Field: {query_field}")
                     logger.info(f"Query Value: {query_value}")
                     logger.info(f"Count: {count_query}")
@@ -346,54 +456,46 @@ def index(request):
                     logger.info(f"Sort: {sort}")
                     logger.info(f"Prefix: {prefix}")
 
-                    result,prev_page, next_page = archive_client.query(field=query_field,
+                    total_count, result, prev, next = archive_client.query(field=query_field,
                                                                         value = query_value,
                                                                         prefix = prefix,
                                                                         count= count_query,
                                                                         results = result_fields,
-                                                                        sort = sort)
-
+                                                                        sort = sort,
+                                                                        page_size=page_size,
+                                                                        page = page)
                 except Exception as e:
                     logger.error(f"Exception querying archive {e}", exc_info=True)
                     form.add_error(None,"Failed to run query against archive.")
-            else:
-                # When navigating to a page, use the URL from the link provided by the form button, which came from
-                # REST API on the initial query
-                page_params = form.cleaned_data['page_params']
-                count_query = False
-                logger.info(f"Going to {query_page} page link: {page_params}")
-                try:
-                    result,prev_page, next_page = archive_client.query_page(page_params)
-                except Exception as e:
-                    logger.error(f"Exception querying page url {page_params} {e}", exc_info=True)
-                    form.add_error(None, f"Failed to retrieve {query_page} page.")
 
-            # Process the 
+            # Process the results of the query
             if len(form.errors) == 0:
-                if count_query:
-                    context['result_count'] = result
-                else:
-
-                    # Set the previous/next page links
-                    if prev_page is None:
-                        context['previous_link'] = format_html('<button name="previous" disabled form="archive_query">Previous Page</button>')
-                    else:
-                        context['previous_link'] = format_html('<button name="previous" value="{}" form="archive_query">Previous Page</button>', prev_page)
-
-                    if next_page is None:
-                        context['next_link'] = format_html('<button name="next" disabled form="archive_query">Next Page</button>')
-                    else:
-                        context['next_link'] = format_html('<button name="next" value="{}" form="archive_query">Next Page</button>', next_page)
-
-                    # Sort the result fields in the order they should appear to the user, and get the user
-                    # facing names
-                    user_fields, api_fields = get_user_facing_result_fields(result_fields)
+                context['result_count'] = total_count
+                if not count_query:
 
                     # Post process results
                     try:
+                        # Sort the result fields in the order they should appear to the user, and get the user
+                        # facing names
+                        user_fields, api_fields, field_units = get_user_facing_result_fields(result_fields)
+
                         context['result_list'] = process_results(api_fields, result)
-                        context['result_fields'] = user_fields
+                        context['result_fields'] = list(zip(user_fields, field_units))
+
+                        # Set page information
+                        total_pages = math.ceil(total_count/page_size)
+
+                        # If the requested page is too big, the REST API will have returned an error,
+                        # leave the page and other context values at their defaults
+                        if page <= total_pages:
+                            form.fields["page"].widget.total_pages = total_pages
+                            context['total_pages'] = total_pages
+                            context['current_page'] = page
+                            context['start_result'] = ((page - 1) * page_size) + 1
+                            context['end_result'] = context['start_result'] + len(context['result_list']) -1
+
                     except Exception as e:
+                        logger.error(f"Exception processing results from archive {e}", exc_info=True)
                         form.add_error(None, "Failed to process results from archive.")
 
         for key in form.errors:
