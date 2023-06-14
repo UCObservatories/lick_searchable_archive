@@ -8,8 +8,9 @@ from pathlib import Path
 import os
 
 from django.db.models import F
-from rest_framework.pagination import CursorPagination
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.serializers import ValidationError
+from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.generics import ListAPIView
@@ -47,10 +48,13 @@ class QuerySerializer(serializers.Serializer):
     """A Serializer class used to validate the query string.
     """
     filename = serializers.CharField(max_length=256, required=False)
-    date = serializers.DateField(required=False)
-    date_range = ListWithSeperator(sep_char=",", child=serializers.DateField(), 
-                                               min_length=2, max_length=2,
-                                               allow_empty=False, required=False)
+    date = ListWithSeperator(sep_char=",", child=serializers.DateField(), 
+                             min_length=1, max_length=2,
+                             allow_empty=False, required=False)
+    datetime=ListWithSeperator(sep_char=",", 
+                               child=serializers.DateTimeField(format='iso-8601', input_formats=['iso-8601'], default_timezone=datetime.timezone.utc), 
+                               min_length=1, max_length=2,
+                               allow_empty=False, required=False)
     object = serializers.CharField(max_length=256, required=False)    
     count = serializers.BooleanField(default=False, required=False)
     prefix = serializers.BooleanField(default=False)
@@ -102,16 +106,13 @@ class QuerySerializer(serializers.Serializer):
             raise serializers.ValidationError(errors)
         return value
 
-class QueryAPIPagination(CursorPagination):
-    """Paginate the results of the archive Query API. Uses the Django Rest Framework CursorPagination
+class QueryAPIPagination(PageNumberPagination):
+    """Paginate the results of the archive Query API. Uses the Django Rest Framework PageNumberPagination
     class to do most of the work.
     """
 
     # Define the strings used in the URL to paginate.
-    cursor_query_param = "page_token"
-    cursor_query_description = "Token allowing a query to start where a previous left off."
     page_size_query_param = "page_size"
-    ordering = ["+id"]
     page_size=50
     max_page_size=1000
 
@@ -136,29 +137,31 @@ class QueryAPIPagination(CursorPagination):
             The page the resultsA filtered and sorted QuerySet returning the requested page.
         """
 
-        # Validate the request. TODO: Can I do this only once instead of three times?
-        serializer = QuerySerializer(data=request.query_params, view=view)
+        # Make sure the request has been validated
+        if not hasattr(request, "validated_query"):
+            logger.error(f"Unvalidated request passed to paginate_queryset.")
+            raise APIException("Unvalidated request passed to paginate_queryset.")
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error(f"QueryParams {request.query_params}", exc_info=True)
-            raise
 
-        if serializer.validated_data['count'] is True:
+        if request.validated_query['count'] is True:
             # Don't paginate, it's a count query
             # The queryset was already filtered by the view, so just run the count
             self.is_count=True
             return [{"count": queryset.count()}]
         else:
             # Set the result attributes
-            logger.info(f"QueryParams {serializer.validated_data} results: {serializer.validated_data['results']}")
+            logger.info(f"QueryParams {request.validated_query} results: {request.validated_query['results']}")
 
-            if len(serializer.validated_data['results']) == 0:                
+            if len(request.validated_query['results']) == 0:                
                 # Use all allowed result attributes if none are set
                 requested_attributes = view.allowed_result_attributes
             else:
-                requested_attributes =  serializer.validated_data['results']
+                requested_attributes =  request.validated_query['results']
+
+                # Make sure all sort attributes are included in the results
+                for sort_attribute in request.validated_query['sort']:
+                    if sort_attribute not in requested_attributes:
+                        requested_attributes.append(sort_attribute)
 
             # Make sure "id" is always in the result attributes
             if "id" not in requested_attributes:
@@ -223,16 +226,12 @@ class QueryAPIFilterBackend:
         rest_framework.serializers.ValidationError: Thrown if the query is not valid.
         """
 
-        # Validate the query
-        serializer = QuerySerializer(data=request.query_params, view=view)
-        logger.debug(f"QueryParams {request.query_params}")
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error(f"QueryParams {request.query_params}", exc_info=True)
-            raise
-        # Return the sort fields
-        return serializer.validated_data['sort']
+        # Make sure the request has been validated
+        if not hasattr(request, "validated_query"):
+            logger.error(f"Unvalidated request passed to get_ordering.")
+            raise APIException("Unvalidated request passed to get_ordering.")
+
+        return request.validated_query['sort']
 
     def filter_queryset(self, request, queryset, view):
         """Filter a query set based on a request.
@@ -255,18 +254,14 @@ class QueryAPIFilterBackend:
         rest_framework.serializers.ValidationError: Thrown if the query is not valid.
         """
 
-        # Validate query parameters with serailizer
-        serializer = QuerySerializer(data=request.query_params, view=view)
-        logger.debug(f"QueryParams {request.query_params}")
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error(f"QueryParams {request.query_params}", exc_info=True)
-            raise
+        # Make sure the request has been validated
+        if not hasattr(request, "validated_query"):
+            logger.error(f"Unvalidated request passed to filter_queryset.")
+            raise APIException("Unvalidated request passed to filter_queryset.")
 
         # The prefix parameter indicates whether the query on the required field is for a prefix
         # i.e. whether a % is appended at the end of the search value
-        prefix = serializer.validated_data['prefix']
+        prefix = request.validated_query['prefix']
 
         required_field = None
         required_search_value = None
@@ -274,10 +269,10 @@ class QueryAPIFilterBackend:
         # Make sure at least one of the required fields is being queried.
         # These are the fields that are indexed in the database.
         for field in view.indexed_attributes:
-            if field in serializer.validated_data:
+            if field in request.validated_query:
                 if required_field is None:
                     required_field = field
-                    required_search_value = serializer.validated_data[field]
+                    required_search_value = request.validated_query[field]
                 else:
                     # We don't allow duplicates of these fields, at least for now.
                     raise ValidationError({"query": f"Only one field of: ({', '.join(view.indexed_attributes)}) may be queried on."})
@@ -288,7 +283,13 @@ class QueryAPIFilterBackend:
 
         logger.info(f"Building {required_field} query on '{required_search_value}'")
         filters = self._build_where(required_field, required_search_value, prefix)
-        return queryset.filter(**filters)
+        queryset = queryset.filter(**filters)
+
+        # Add sort attributes if needed
+        if request.validated_query['count'] is False and len(request.validated_query['sort']) > 0:
+            return queryset.order_by(request.validated_query['sort'])
+        else:
+            return queryset
             
     def _build_where(self, field, value, prefix):
         """Build the Django keyword arguments to filter a queryset.
@@ -317,13 +318,21 @@ class QueryAPIFilterBackend:
         elif field == 'object':
             self._build_string_filter(filters, field, value, prefix)
         elif field == 'date':
-            start_date_time = datetime.datetime.combine(value, datetime.time(hour=0, minute=0, second=0))
-            end_date_time = datetime.datetime.combine(value+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
-            self._build_range_filter(filters, "obs_date", start_date_time, end_date_time)
-        elif field == 'date_range':
             start_date_time = datetime.datetime.combine(value[0], datetime.time(hour=0, minute=0, second=0))
-            end_date_time = datetime.datetime.combine(value[1]+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
+            if len(value) > 1:
+                end_date_time = datetime.datetime.combine(value[1]+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
+            else:
+                end_date_time = datetime.datetime.combine(value[0]+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
+    
             self._build_range_filter(filters, "obs_date", start_date_time, end_date_time)
+        elif field == 'datetime':
+            start_date_time = value[0]
+            if len(value) > 1:
+                end_date_time = value[1]
+                # If a date range was given, we add a millisecond so the results are inclusive
+                self._build_range_filter(filters, "obs_date", start_date_time, end_date_time+ datetime.timedelta(milliseconds=1))
+            else:
+                self._build_exact_filter(filters, "obs_date", value[0])
         return filters
 
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
@@ -365,6 +374,19 @@ class QueryAPIFilterBackend:
         else:
             filters[orm_field_name + "__exact"] = value
 
+    def _build_exact_filter(self, filters, orm_field_name, value):
+        """Build a filter for a field that will exactly match a value
+        
+        Args:
+        filters (dict):       A filter dictionary to add the filter to.
+        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                              in the query string.
+        value (str):          The value to filter by.
+        """
+        logger.debug(f"exact filter value {value}")
+        filters[orm_field_name + "__exact"] = value
+
+
 class QueryAPIView(ListAPIView):
     """
     A custom DRF view for implementing the archive query api. It should be subclassed
@@ -398,6 +420,20 @@ class QueryAPIView(ListAPIView):
         
         Return (rest_framework.response.Response): The processed response from the query.
         """
+
+        # Validate the query using a serializer
+        serializer = QuerySerializer(data=request.query_params, view=self)
+        logger.debug(f"QueryParams {request.query_params}")
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            logger.error(f"QueryParams {request.query_params}", exc_info=True)
+            raise
+
+        # Store the validated results in the request to be passed to paginators and filters
+        request.validated_query = serializer.validated_data
+
+        # Use the superclass method to utilize the DRF's infrastructure
         response = super().list(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
             # A count query doesn't have a results entry

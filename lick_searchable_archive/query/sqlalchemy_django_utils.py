@@ -149,6 +149,13 @@ class SQLAlchemyQuerySet:
             return_queryset.sort_attributes.append(sort_attr)
         return return_queryset
 
+    @property
+    def ordered(self):
+        """bool: Whether the query sort is ordered, i.e. whether it has sort attributes."""
+        if len(self.sort_attributes) > 0:
+            return True
+        else:
+            return False
 
     def filter(self, **kwargs):
         """Return a copy of this QuerySet with the passed in filters applied.

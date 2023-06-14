@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, date
 
 import requests
 
@@ -33,15 +34,15 @@ class LickArchiveClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def query(self, field, value, prefix=None, count=False, results=["filename"], sort=None, page_size=50):
+    def query(self, field, value, prefix=None, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
-            field (str): The field to query on. "filename", "object", "date", and "date_range" are the only accepted fields currently.
+            field (str): The field to query on. "filename", "object", "date", and "datetime" are the only accepted fields currently.
             value (Any): The value being queried on. This depends on the field being queried:
                          "filename", "object": A string 
-                         "date": A datetime.datetime
-                         "date_range": A tuple of two datetimes for the start and end of the range.
+                         "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
+                         "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
             prefix (bool): Whether a string query should query for the prefix or an exact match. Defaults to False. Has no effect for date queries.
             count (int): Whether to return a count of how many files match the query instead of the metadata from the files. Defaults to False.
             results (list of str): The list of metadata attributes to return. Defaults to ["filename"]. This is ignored
@@ -56,21 +57,23 @@ class LickArchiveClient:
                 list: A list of dict objects containing the resulting metadata. The keys are the attributes provided in results.
                 str: The URL to the previous page of results. None if there is no previous page.
                 str: The URL to the next page of results. None if there is no next page.
+                int: The total number of results the query matches.
 
         Raises:
             requests.RequestException on failure contacting the archive server.
             ValueError If an invalid result is returned from the archive server.
         """
         # Validate the field being queried on 
-        if field not in ["filename", "object", "date", "date_range"]:
+        if field not in ["filename", "object", "date", "datetime"]:
             raise ValueError(f"Unknown query field '{field}'")
 
         # Build query parameters
-        if field == "date_range":
+        if field == "date" or field=="datetime":
             # Convert the date range tuple to a comma separated list
-            query_params = {field: ",".join([str(date_value) for date_value in value])}
-        else:
-            query_params = {field: str(value)}
+            if isinstance(value, datetime) or isinstance(value,date):
+                query_params = {field: str(value)}
+            else:
+                query_params = {field: ",".join([str(date_value) for date_value in value])}
 
         if prefix is not None:
             query_params["prefix"] = bool(prefix)
@@ -80,7 +83,7 @@ class LickArchiveClient:
         else:
             query_params["results"] = ",".join(results)
             query_params["page_size"] = page_size
-
+            query_params["page"]=page
             if sort is not None:
                 if not isinstance(sort, list):
                     sort = [sort]
@@ -112,12 +115,16 @@ class LickArchiveClient:
 
     def _process_results(self, result_json, count=False):
         logger.debug(f"Results from archive: {result_json}")
+
+        # Get the number of results from the query as an integer
+        if 'count' in result_json:
+            query_count = int(result_json['count'])
+        else:
+            raise ValueError("Archive server did not return an count value for a query requesting a count.")
+        
         if count:
-            # Return an integer for a count query
-            if 'count' in result_json:
-                return int(result_json['count']), None, None
-            else:
-                raise ValueError("Archive server did not return an count value for a query requesting a count.")
+            # The count was all that was requested
+            return query_count, None, None, None
         else:
             # Return a list of results for non-count queries
             if 'results' in result_json:
@@ -132,11 +139,7 @@ class LickArchiveClient:
                 else:
                     prev_page = None
 
-                return result_json['results'], prev_page, next_page
+                return query_count, result_json['results'], prev_page, next_page
             else:
                 raise ValueError("Archive server did not return results for a query.")
         
-    def query_page(self, page_params):
-        # TODO validate this? The API already does but it might be nice to prevent users from sending
-        # arbitrary urls to our API. But maybe our API will end up public anyway?
-        return self._process_results(self._run_query(page_params))
