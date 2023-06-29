@@ -24,7 +24,7 @@
         </fieldset> 
         
         <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />                
+            <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />
             <label class="search_terms_label" for="query_by_date">{{ form.date.label }}</label>         
             {{ form.date }}
             <span class="search_terms_help">{{ form.date.help_text }}</span>

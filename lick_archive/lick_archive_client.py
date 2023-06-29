@@ -34,7 +34,7 @@ class LickArchiveClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def query(self, field, value, prefix=None, count=False, results=["filename"], sort=None, page=1, page_size=50):
+    def query(self, field, value, contains=False, match_case=True, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
@@ -43,6 +43,8 @@ class LickArchiveClient:
                          "filename", "object": A string 
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
+            contains (bool): Whether a string query should query for a substring or an exact match. Defaults to False. Has no effect for date queries.
+            match_case (bool): Whether a string query should be case sensitive. Defaults to True.
             prefix (bool): Whether a string query should query for the prefix or an exact match. Defaults to False. Has no effect for date queries.
             count (int): Whether to return a count of how many files match the query instead of the metadata from the files. Defaults to False.
             results (list of str): The list of metadata attributes to return. Defaults to ["filename"]. This is ignored
@@ -74,9 +76,16 @@ class LickArchiveClient:
                 query_params = {field: str(value)}
             else:
                 query_params = {field: ",".join([str(date_value) for date_value in value])}
+        else:
+            query_params = {field: str(value)}
 
-        if prefix is not None:
-            query_params["prefix"] = bool(prefix)
+        if prefix is True:
+            query_params["prefix"] = True
+        elif contains is True:
+            query_params["contains"] = True
+        
+        if match_case is False:
+            query_params["match_case"] = False
 
         if count is True:
             query_params["count"] = True

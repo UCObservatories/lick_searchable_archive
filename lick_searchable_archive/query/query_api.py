@@ -58,6 +58,8 @@ class QuerySerializer(serializers.Serializer):
     object = serializers.CharField(max_length=256, required=False)    
     count = serializers.BooleanField(default=False, required=False)
     prefix = serializers.BooleanField(default=False)
+    contains = serializers.BooleanField(default=False)
+    match_case = serializers.BooleanField(default=True)
     results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='[A-Za-z][A-Za-z0-9_]*', max_length=30, allow_blank=False), default=[], max_length=128)
     sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='-?[A-Za-z][A-Za-z0-9_]*', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)
 
@@ -105,6 +107,17 @@ class QuerySerializer(serializers.Serializer):
         if len(errors) > 0:
             raise serializers.ValidationError(errors)
         return value
+    
+    def validate(self, data):
+        """Validates relationships between fields in the query"""
+
+        # Make sure prefix and contains are not both true
+        if "prefix" in data and "contains" in data:
+            if data["prefix"] and data["contains"]:
+                raise serializers.ValidationError([{'prefix': "'prefix' and 'contains' cannot both be true."}])
+        return data
+
+
 
 class QueryAPIPagination(PageNumberPagination):
     """Paginate the results of the archive Query API. Uses the Django Rest Framework PageNumberPagination
@@ -261,7 +274,12 @@ class QueryAPIFilterBackend:
 
         # The prefix parameter indicates whether the query on the required field is for a prefix
         # i.e. whether a % is appended at the end of the search value
-        prefix = request.validated_query['prefix']
+        if request.validated_query['prefix']:
+            string_match = "startswith"
+        elif request.validated_query['contains']:
+            string_match = "contains"
+        else:
+            string_match = "exact"
 
         required_field = None
         required_search_value = None
@@ -282,7 +300,7 @@ class QueryAPIFilterBackend:
             raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.indexed_attributes)})"})
 
         logger.info(f"Building {required_field} query on '{required_search_value}'")
-        filters = self._build_where(required_field, required_search_value, prefix)
+        filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'])
         queryset = queryset.filter(**filters)
 
         # Add sort attributes if needed
@@ -291,19 +309,19 @@ class QueryAPIFilterBackend:
         else:
             return queryset
             
-    def _build_where(self, field, value, prefix):
+    def _build_where(self, field, value, string_match, match_case):
         """Build the Django keyword arguments to filter a queryset.
         
         Args:
-        field (str):
-        The field name to filter on
-        
-        value (str, or datetime.date):
-        The value to filter by.
-        
-        prefix (bool): 
-        Whether or not to filter treating the value as a prefix. If False an exact match is performed,
-        if True a "startswith" match is performed.
+            field (str): The field name to filter on
+            
+            value (str, or datetime.date): The value to filter by.
+            
+            string_match (str): 
+                How to compare strings. Either "exact", "startswith", or "contains".
+
+            match_case (bool):
+                Whether or not to to perform case sensitive string filtering.
 
         Returns (dict): The keyword arguments needed to filter the QuerySet.
         """
@@ -314,9 +332,9 @@ class QueryAPIFilterBackend:
             # os.path.join will ignore the first path if the second path is an absolute path.
             full_filename = os.path.join(settings.LICK_ARCHIVE_ROOT_DIR, value)
             logger.debug(f"rootdir {settings.LICK_ARCHIVE_ROOT_DIR}, value {value} Full filename {full_filename}")
-            self._build_string_filter(filters, field, full_filename, prefix)
+            self._build_string_filter(filters, field, full_filename, string_match, match_case)
         elif field == 'object':
-            self._build_string_filter(filters, field, value, prefix)
+            self._build_string_filter(filters, field, value, string_match, match_case)
         elif field == 'date':
             start_date_time = datetime.datetime.combine(value[0], datetime.time(hour=0, minute=0, second=0))
             if len(value) > 1:
@@ -357,7 +375,7 @@ class QueryAPIFilterBackend:
         logger.debug(f"Using range {start_value}, {end_value}")        
         filters[orm_field_name + "__range"] = (start_value, end_value)
 
-    def _build_string_filter(self, filters, orm_field_name, value, prefix):
+    def _build_string_filter(self, filters, orm_field_name, value, string_match, match_case):
         """Build a string filter for a field.
         
         Args:
@@ -365,14 +383,16 @@ class QueryAPIFilterBackend:
         orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
                               in the query string.
         value (str):          The value to filter by.
-        prefix (bool):        If true, a "value" only needs to be a prefix of the string, if false,
-                              an exact match is needed.
+        string_match (str):     Either "exact", "startswith" or "contains"
+        match_case (bool):    If true, a case sensitive search is performed. If false, it is case insensitive.
         """
         logger.debug(f"String filter value {value}")
-        if prefix:
-            filters[orm_field_name + "__startswith" ] = value
+        if match_case:
+            sensitivity = ""
         else:
-            filters[orm_field_name + "__exact"] = value
+            sensitivity = "i"
+
+        filters[f"{orm_field_name}__{sensitivity}{string_match}" ] = value
 
     def _build_exact_filter(self, filters, orm_field_name, value):
         """Build a filter for a field that will exactly match a value
