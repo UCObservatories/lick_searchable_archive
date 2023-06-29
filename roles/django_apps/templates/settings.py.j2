@@ -186,12 +186,10 @@ USE_X_FORWARDED_HOST = True
 # Lick Archive global settings
 LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
 LICK_ARCHIVE_APPS = {{ archive_apps }}
-LICK_ARCHIVE_API_URL ="http://localhost:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
-{# Now include only the settings needed for the apps being installed #}
-
-{% if "frontend" in archive_apps %}
+LICK_ARCHIVE_API_URL ="http://{{ api_proxy_server }}:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
 LICK_ARCHIVE_FRONTEND_URL="{{ frontend_url }}"
-{% endif %}
+
+{# Now include only the settings needed for the apps being installed #}
 
 {% if "ingest" or "query" in archive_apps %}
 LICK_ARCHIVE_DB          = '{{ db_name }}'

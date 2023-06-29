@@ -192,18 +192,27 @@ class SQLAlchemyQuerySet:
             # Convert the operation to an SQL Alchemy expression
             op = filter_expression[1]
             value = kwargs[key]
+
             if op == "lt":
                 return_queryset.where_filters.append(sql_alchemy_field < value)
             elif op == "gt":
                 return_queryset.where_filters.append(sql_alchemy_field > value)
-            elif op == "exact":
+            elif op == "exact" or op == "iexact":
                 # Look for NULL entries if the value is None or an empty string
                 if kwargs[key] is None or (isinstance(value, str) and len(value.strip())==0):
-                    return_queryset.where_filters.append(sql_alchemy_field.is_(None))
+                    return_queryset.where_filters.append(sql_alchemy_field.is_(None))                
+                elif op == "iexact":
+                    return_queryset.where_filters.append(func.lower(sql_alchemy_field) == func.lower(value))
                 else:
                     return_queryset.where_filters.append(sql_alchemy_field == value)
             elif op == "startswith":
-                return_queryset.where_filters.append(sql_alchemy_field.like(value + '%'))
+                return_queryset.where_filters.append(sql_alchemy_field.startswith(value, autoescape=True))
+            elif op == "istartswith":
+                return_queryset.where_filters.append(sql_alchemy_field.istartswith(value, autoescape=True))
+            elif op == "contains":
+                return_queryset.where_filters.append(sql_alchemy_field.contains(value, autoescape=True))
+            elif op == "icontains":
+                return_queryset.where_filters.append(sql_alchemy_field.icontains(value, autoescape=True))
             elif op == "range":
                 return_queryset.where_filters.append(sql_alchemy_field.between(value[0], value[1]))
             else:

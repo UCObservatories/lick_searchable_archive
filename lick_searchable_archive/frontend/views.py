@@ -213,10 +213,11 @@ class QueryForm(forms.Form):
                                    class_prefix="search_terms_",
                                    fields=[forms.CharField(max_length=1024, strip=True, empty_value="")],
                                    initial={"operator": "exact", "value": ""},  help_text='e.g. "2014-04/08/AO/m140409_0040.fits"',required=False)
-    object_name = QueryWithOperator(label="By Object", operators= [("exact", "="), ("prefix", "starts with")],
+    object_name = QueryWithOperator(label="By Object", operators= [("exact", "="), ("prefix", "starts with"), ("contains", "contains")],
                                     class_prefix="search_terms_",
                                     fields=[forms.CharField(max_length=80, empty_value="", strip=True)],
                                     initial={"operator": "exact", "value": ""},  help_text='e.g. "K6021275"', required=False) 
+    object_case = forms.BooleanField(label="Case Insensitive Object Search", initial=True, required=False)
     date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
                                fields=[forms.DateField(),forms.DateField()], names=["start", "end"],
@@ -260,6 +261,8 @@ class QueryForm(forms.Form):
             elif query_type == "object_name":
                 if query_value is None or len(query_value) == 0:
                     self.add_error("object_name", f"Cannot query by empty object.")
+                if cleaned_data.get("object_case") is None:
+                    self.add_error("object_case", f"Must specify whether an object query is case insensitive.")
 
             elif query_type == "date":
                 if query_value is None:
@@ -401,13 +404,15 @@ def index(request):
             query_value = form.cleaned_data[query_type]["value"]
             count_query = form.cleaned_data["count"] == "yes"
             page = form.cleaned_data["page"]
-            prefix = None
-
+            prefix = False
+            contains = False
+            match_case = True
             # We can't use "object" for the form field because it conflicts with the python "object"
             # type. So we use object_name and rename it here.  The other form field's are named after
             # the query field sent in the API to the archive
             if query_type == "object_name":
                 query_field = "object"
+                match_case = not form.cleaned_data["object_case"]
 
             elif query_type == "date":
                 # Convert dates to noon to noon datetimes in the lick observatory timezone
@@ -431,6 +436,7 @@ def index(request):
             # Set prefix for the string fields
             if query_field == "filename" or query_field == "object":
                 prefix = query_operator == "prefix"
+                contains = query_operator == "contains"
 
             if len(form.errors) == 0:
                 try:
@@ -445,6 +451,8 @@ def index(request):
                     total_count, result, prev, next = archive_client.query(field=query_field,
                                                                         value = query_value,
                                                                         prefix = prefix,
+                                                                        contains = contains,
+                                                                        match_case=match_case,
                                                                         count= count_query,
                                                                         results = result_fields,
                                                                         sort = sort,
