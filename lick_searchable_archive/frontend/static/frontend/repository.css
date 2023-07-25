@@ -122,13 +122,13 @@ body {
     column-gap: 1em;
     /*align-items: center;*/
     grid-template-areas: "a b c d e"
-                         ". b . f f";
+                         ". b g f f";
   }
 
   .search_terms_radio {
     grid-area: a;
     vertical-align: middle;
-    padding: 0px;
+    /*padding: 0px;*/
   }
 
   .search_terms_label {
@@ -141,13 +141,26 @@ body {
 
   .search_terms_operator {
     grid-area: c;
-    width: 7em;
+    width: 8em;
     vertical-align: middle;
     justify-self: center;
     text-align: center;
     height: min-content;
 
   }
+
+
+  .search_terms_modifier_label {
+    grid-area: g;
+    width: 8em;
+    vertical-align: middle;
+    justify-self: center;
+    text-align: center;
+    height: min-content;
+    font-size: smaller;
+
+  }
+
 
   .search_terms_value_0 {
     grid-area: d;
@@ -219,29 +232,43 @@ body {
   }
 */
 
-  .search_form_fields {
+  /*.search_form_fields {
     border: none;
-    display: flex;
-    flex-flow: row wrap;
+    display: block;
     justify-content: space-around;
-  }
+  }*/
 
   .search_form_list {
     list-style-type: none;
+    padding-left: 0;
+  }
+  .search_field_list {
+    list-style-type: none;
+    padding-left: 1em;
   }
 
-  .field_select_box {
-    display:flex;
-    flex-flow: row wrap;
-    align-items: flex-start;
-    column-gap: 1em;
+  .search_form_fields {
+    border: none;
+    margin-left: 2em;
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: max-content 12em max-content;
+    column-gap: 0.5em;
+    row-gap: 1ex;
+    /*align-items: center;*/
+    /*grid-template-areas: "a b c d e"
+                         ". b g f f"; */
   }
 
-  .field_select_box > label {
-    text-align: right;
+  .search_fields_radio {
+    margin-right: 1em;
+  }
+  .search_form_fields > label {
+    text-align: left;
     width: 6em
   }
-
+  /*
   .field_select_box > select {
     width: 15em
   }
+  */

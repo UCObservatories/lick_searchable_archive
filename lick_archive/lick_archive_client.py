@@ -34,7 +34,7 @@ class LickArchiveClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def query(self, field, value, contains=False, match_case=True, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
+    def query(self, field, value, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
@@ -44,7 +44,7 @@ class LickArchiveClient:
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
             contains (bool): Whether a string query should query for a substring or an exact match. Defaults to False. Has no effect for date queries.
-            match_case (bool): Whether a string query should be case sensitive. Defaults to True.
+            match_case (bool): Whether a string query should be case sensitive. Only applicable to object searches.
             prefix (bool): Whether a string query should query for the prefix or an exact match. Defaults to False. Has no effect for date queries.
             count (int): Whether to return a count of how many files match the query instead of the metadata from the files. Defaults to False.
             results (list of str): The list of metadata attributes to return. Defaults to ["filename"]. This is ignored
@@ -84,8 +84,8 @@ class LickArchiveClient:
         elif contains is True:
             query_params["contains"] = True
         
-        if match_case is False:
-            query_params["match_case"] = False
+        if match_case is not None:
+            query_params["match_case"] = match_case
 
         if count is True:
             query_params["count"] = True

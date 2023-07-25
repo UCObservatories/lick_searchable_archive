@@ -27,28 +27,57 @@ _LICK_TIMEZONE = timezone(timedelta(hours=-8))
 
 class OperatorWidget(forms.MultiWidget):
 
-    def __init__(self, operators, subwidgets, names, class_prefix, attrs=None):
+    def __init__(self, operators, subwidgets, names, class_prefix, attrs=None, modifier=None):
 
-        widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
+        #widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
+        self.class_prefix = class_prefix
+        self.modifier=modifier
 
         if len(names) != len(subwidgets):
             raise ValueError("Length of names must match length of subwidgets")        
-
+        widgets = dict()
         for i, subwidget in enumerate(subwidgets):
-            subwidget.attrs["class"] = class_prefix + "value_" + str(i)
+            if len(names[i]) == 0:
+                subwidget.attrs["class"] = class_prefix + "value"
+            else:
+                subwidget.attrs["class"] = class_prefix + names[i]
             widgets[names[i]] = subwidget
 
         super().__init__(widgets,attrs)
+        logger.debug(f"my name: all subwidgets: {subwidgets} widgets: {widgets}")
+        self.template_name = "widgets/operator_widget.html"
 
     def decompress(self, value):
         return_value = []
         if isinstance(value,dict):
             logger.debug("Decompressing dict")
-            return_value = [value["operator"], value["value"]]
+            if "modifier" in value:
+                return_value = [value["operator"], value["modifier"], value["value"]]
+            else:
+                return_value = [value["operator"], value["value"]]
         else:
-            return_value = ['','']
+            return_value = ['','','']
         logger.debug(f"Returning: {return_value}")
         return return_value
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        for w in self.widgets:
+            if hasattr(w, 'attrs'):
+                widget_attrs = w.attrs
+            else:
+                widget_attrs = "nope"
+            if hasattr(w, 'label'):
+                widget_label = w.label
+            else:
+                widget_label = 'nope'
+            logger.debug(f"Name {name} Widget class: {w.__class__.__name__} Widget attrs: {widget_attrs} Widget label {widget_label}")
+        for subwidget in context["widget"]["subwidgets"]:
+            if self.modifier is not None and subwidget["name"] == name + "_modifier":
+                subwidget["wrap_label"] = True
+                subwidget["label"] = self.modifier 
+            logger.debug(f"subwidget context {subwidget}")
+        return context
 
 class PageNavigationWidget(forms.Widget):
 
@@ -151,42 +180,47 @@ class PageNavigationWidget(forms.Widget):
 
 class QueryWithOperator(forms.MultiValueField):
 
-    #@staticmethod
-    #def validate(value):
-    ##    if not isinstance(value, dict):
-    ##        raise ValidationError("Value not dict.", code="required" )
-    #    if len(value) < 1:
-    #        raise ValidationError("One search field must be entered.", code="required" )
-    #    elif len(value) > 1:
-    #        raise ValidationError("Only one search field can be entered.", code="required:")
-
-    #    value_key = value.keys()[0]
-    #    if  value_key not in ["date", "filename", "object"]:
-    #        raise ValidationError("Unrecognized search field %(value)s", parans = {"value": value_key}, code="required:")
-
-    def __init__(self, operators, fields, names=[''], class_prefix='', **kwargs):
+    def __init__(self, operators, fields, modifier=None, names=[''], class_prefix='', **kwargs):
         error_messages = {"incomplete": "Enter an operator and value"}
-
-        all_fields = (forms.ChoiceField(choices=operators),
+        self.modifier=modifier
+        operator_fields = [forms.ChoiceField(choices=operators, required=True)]
+        all_names = ['operator']
+        if modifier is not None:
+            operator_fields.append(forms.BooleanField(initial=False, required=False, label=modifier))
+            all_names.append("modifier")
+        all_names += names
+        all_fields = (*operator_fields,
                       *fields)
+        logger.debug(f"all_fields: {all_fields}")
 
-
-        super().__init__(fields=all_fields, require_all_fields=True, 
-                         widget=OperatorWidget(operators=operators, class_prefix=class_prefix, subwidgets=[field.widget for field in fields],names=names),
+        super().__init__(fields=all_fields, require_all_fields=False, 
+                         widget=OperatorWidget(operators=operators, modifier=modifier, class_prefix=class_prefix, subwidgets=[field.widget for field in all_fields],names=all_names),
                          error_messages=error_messages, **kwargs)
 
     def compress(self, data_list):
-        if len(data_list) == 2:
-            value = {"operator": data_list[0], "value": data_list[1]}
-        elif len(data_list) > 2:
-            value = {"operator": data_list[0], "value": tuple(data_list[1:])}
-        else:
-            # Emtpy list
-            return {"operator": None, "value": None}
+
+        value = {"operator": None, "modifier": None, "value": None}
+
+        data_length = len(data_list)
+
+        if data_length >= 2:
+            value["operator"] = data_list[0]    
+
+            if self.modifier is not None:
+                values_start = 2
+                value["modifier"] = data_list[1]
+            else:
+                values_start = 1
+
+            if len(data_list) == values_start + 1:
+                value["value"] =  data_list[values_start]
+            elif len(data_list) > values_start + 1:
+                value["value"] = tuple(data_list[1:])
+            
 
         return value
 
-DEFAULT_SORT = ["obs_date"]
+DEFAULT_SORT = "obs_date"
 DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]  
 
 def get_field_groups(fields, exclude):
@@ -207,34 +241,34 @@ def get_field_groups(fields, exclude):
 
 # Create your models here.
 class QueryForm(forms.Form):
-    #start_date = forms.DateField(label="Observation Date End", required=False)
     which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date","")], initial="object_name", required=True, widget=forms.RadioSelect)
     filename =   QueryWithOperator(label="By Path and Filename", operators=[("exact", "="), ("prefix", "starts with")],
                                    class_prefix="search_terms_",
                                    fields=[forms.CharField(max_length=1024, strip=True, empty_value="")],
                                    initial={"operator": "exact", "value": ""},  help_text='e.g. "2014-04/08/AO/m140409_0040.fits"',required=False)
     object_name = QueryWithOperator(label="By Object", operators= [("exact", "="), ("prefix", "starts with"), ("contains", "contains")],
+                                    modifier="Match Case",
                                     class_prefix="search_terms_",
                                     fields=[forms.CharField(max_length=80, empty_value="", strip=True)],
                                     initial={"operator": "exact", "value": ""},  help_text='e.g. "K6021275"', required=False) 
-    object_case = forms.BooleanField(label="Case Insensitive Object Search", initial=True, required=False)
+    #match_case = forms.BooleanField(label="Case Sensitive Object Search", initial=False, required=False)
     date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
                                fields=[forms.DateField(),forms.DateField()], names=["start", "end"],
                                initial={"operator": "exact", "value": None},  help_text='e.g. "2006-08-17". All dates are noon to noon PST (UTC-8). Date ranges are inclusive.', required=False)
-    count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], initial="no", required=True, widget=forms.RadioSelect)
+    count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], 
+                              initial="no", required=True, widget=forms.RadioSelect(attrs = {"class": "search_fields_radio"}))
+    sort_fields = forms.ChoiceField(label="Sorting", initial = DEFAULT_SORT, choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
+                                    required=False)
+    sort_dir = forms.ChoiceField(choices=[("+", "Low to high (Ascending)"), ("-", "High to low (Descending)")], initial="+", required=False)
     result_fields = forms.MultipleChoiceField(initial = DEFAULT_RESULTS,
                                               choices = get_field_groups(archive_schema.allowed_result_attributes, exclude=["id"]),        
                                               required=False)
-    sort_fields = forms.MultipleChoiceField(initial = DEFAULT_SORT, choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
-                                            required=False)
     page=forms.IntegerField(min_value=1, widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['result_fields'].widget.attrs.update(size="10")
-        self.fields['sort_fields'].widget.attrs.update(size="10")
-
 
     def clean(self):
         cleaned_data = super().clean()
@@ -261,8 +295,8 @@ class QueryForm(forms.Form):
             elif query_type == "object_name":
                 if query_value is None or len(query_value) == 0:
                     self.add_error("object_name", f"Cannot query by empty object.")
-                if cleaned_data.get("object_case") is None:
-                    self.add_error("object_case", f"Must specify whether an object query is case insensitive.")
+                #if cleaned_data.get("match_case") is None:
+                #    self.add_error("match_case", f"Must specify whether an object query is case sensitive.")
 
             elif query_type == "date":
                 if query_value is None:
@@ -396,6 +430,8 @@ def index(request):
             logger.debug(f"Form contents: {form.cleaned_data}")
             result_fields = DEFAULT_RESULTS if form.cleaned_data["result_fields"] == [] else form.cleaned_data["result_fields"]
             sort = DEFAULT_SORT if form.cleaned_data["sort_fields"] == [] else form.cleaned_data["sort_fields"]
+            if form.cleaned_data["reverse_sort"] is True:
+                sort = "-" + sort
 
             # Run the appropriate query type
             query_type = form.cleaned_data["which_query"]
@@ -406,13 +442,13 @@ def index(request):
             page = form.cleaned_data["page"]
             prefix = False
             contains = False
-            match_case = True
+            match_case = None
             # We can't use "object" for the form field because it conflicts with the python "object"
             # type. So we use object_name and rename it here.  The other form field's are named after
             # the query field sent in the API to the archive
             if query_type == "object_name":
                 query_field = "object"
-                match_case = not form.cleaned_data["object_case"]
+                match_case = form.cleaned_data[query_type]["modifier"]
 
             elif query_type == "date":
                 # Convert dates to noon to noon datetimes in the lick observatory timezone
@@ -446,7 +482,9 @@ def index(request):
                     logger.info(f"Count: {count_query}")
                     logger.info(f"Results: {result_fields}")
                     logger.info(f"Sort: {sort}")
+                    logger.info(f"Match Case: {match_case}")
                     logger.info(f"Prefix: {prefix}")
+                    logger.info(f"Contains: {contains}")
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
                                                                         value = query_value,

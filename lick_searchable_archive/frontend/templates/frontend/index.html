@@ -14,42 +14,42 @@
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
         <legend>Search</legend>
-
-
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_object" name="which_query" value="object_name" {% if form.which_query.value == "object_name" %}checked {% endif %} />
-            <label class="search_terms_label" for="query_by_object">{{ form.object_name.label }}</label>        
-            {{ form.object_name }}
-            <span class="search_terms_help">{{ form.object_name.help_text }}</span>
-        </fieldset> 
-        
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />
-            <label class="search_terms_label" for="query_by_date">{{ form.date.label }}</label>         
-            {{ form.date }}
-            <span class="search_terms_help">{{ form.date.help_text }}</span>
-        </fieldset> 
-        
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_file" name="which_query" value="filename" {% if form.which_query.value == "filename" %}checked {% endif %} />                
-            <label class="search_terms_label" for="query_by_file">{{ form.filename.label }}</label>        
-            {{ form.filename }}
-            <span class="search_terms_help">{{ form.filename.help_text }}</span>
-    
-        </fieldset> 
-        
+        <ul role="list" class="search_form_list">
+            <li>
+                <fieldset class="search_terms_grid">                                                
+                    <input class="search_terms_radio" type="radio" id="query_by_object" name="which_query" value="object_name" {% if form.which_query.value == "object_name" %}checked {% endif %} />
+                    <label class="search_terms_label" for="query_by_object">{{ form.object_name.label }}</label>                    
+                    {{ form.object_name }}
+                    <span class="search_terms_help">{{ form.object_name.help_text }}</span>
+                </fieldset> 
+            </li>
+            <li>
+                <fieldset class="search_terms_grid">
+                    <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />
+                    <label class="search_terms_label" for="query_by_date">{{ form.date.label }}</label>         
+                    {{ form.date }}
+                    <span class="search_terms_help">{{ form.date.help_text }}</span>
+                </fieldset> 
+            </li>        
+            <li>
+                <fieldset class="search_terms_grid">
+                    <input class="search_terms_radio" type="radio" id="query_by_file" name="which_query" value="filename" {% if form.which_query.value == "filename" %}checked {% endif %} />                
+                    <label class="search_terms_label" for="query_by_file">{{ form.filename.label }}</label>        
+                    {{ form.filename }}
+                    <span class="search_terms_help">{{ form.filename.help_text }}</span>    
+                </fieldset> 
+            </li>
+        </ul>      
     </fieldset>
     <fieldset id="results">
         <legend>Search Results</legend>
-        <ul class="search_form_list">
-            <li><label for="{{ form.count.0.id_for_label }}"> {{ form.count.0.tag }} {{ form.count.0.choice_label }}</label></li>
-            <li>
-                <label for="{{ form.count.1.id_for_label }}>"> {{ form.count.1.tag }} {{ form.count.1.choice_label }}
-                    <fieldset id="fields" class="search_form_fields">
-                        <span class="field_select_box"><label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}</span>
-                        <span class="field_select_box"><label for="id_sort_fields">{{ form.sort_fields.label }}</label>{{ form.sort_fields }}</span>
-                    </fieldset>
-                </label>
+        <ul role="list" class="search_field_list">
+            <li>{{ form.count.0.tag }}<label for="{{ form.count.0.id_for_label }}">{{ form.count.0.choice_label }}</label></li>
+            <li>{{ form.count.1.tag }}<label for="{{ form.count.1.id_for_label }}>">{{ form.count.1.choice_label }}</label>
+                <fieldset id="fields" class="search_form_fields">
+                    <label for="id_sort_fields">{{ form.sort_fields.label }}</label>{{ form.sort_fields }}{{ form.sort_dir }}
+                    <label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}
+                </fieldset>
             </li>
         </ul>
     </fieldset>
