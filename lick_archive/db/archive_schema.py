@@ -122,7 +122,9 @@ class VersionHistory(Base):
 
 Index('index_vh_install_date', VersionHistory.install_date)
 
+all_attributes = [col.name for col in Main.__table__.columns]
 indexed_attributes = ['filename', 'date', 'datetime', 'object']
 allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.name not in ['coord', 'header', 'ingest_flags']]
 allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']]
+
 field_info = {col.name: col.info for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']}

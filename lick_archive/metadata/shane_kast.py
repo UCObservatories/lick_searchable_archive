@@ -166,7 +166,8 @@ class ShaneKastReader(AbstractReader):
         if date_obs is None:
             logger.debug(f"Used file path for date for file {file_path}.")
             filename_date = parse_file_date(file_path)
-            m.obs_date = datetime.strptime(f"{filename_date}T00:00:00+00:00", '%Y-%m-%dT%H:%M:%S%z')
+            # Use noon Lick time (aka UTC-8)
+            m.obs_date = datetime.strptime(f"{filename_date}T12:00:00-08:00", '%Y-%m-%dT%H:%M:%S%z')
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
         else:
             # Parse the observation date as an iso date, adding +00:00 to make it UTC

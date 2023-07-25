@@ -1,7 +1,7 @@
 """
 Helper functions for connecting the archive database with SQL Alchemy
 """
-from sqlalchemy import create_engine, select, func
+from sqlalchemy import create_engine, select, func, inspect, update
 from sqlalchemy.orm import sessionmaker
 import psycopg2
 from tenacity import retry, stop_after_delay, wait_exponential, retry_if_not_exception_type, after_log
@@ -55,6 +55,29 @@ def insert_batch(session, batch):
     session.commit()
     logger.debug("Batch inserted.")
 
+@retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError) & retry_if_not_exception_type(AttributeError),
+       reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), 
+       after=after_log(logger, logging.DEBUG))
+def update_batch(session, batch, attributes):
+    """Update a batch of metadata using a database session. This function uses exponential backoff
+    retries for deailing with database issues. We do not retry exceptions that will never succeed.
+    
+    Args:
+        session (:obj:`sql.alchemy.orm.session.Session`): The database session to use.
+        batch (list of Any): List of mapped SQL Alchemy objects to update
+        attributes (list of str): The attribute names to update. The primary key must be in this list.
+
+    """
+    logger.info(f"Updating batch of length {len(batch)}")
+
+    if len(batch) > 0:
+        # We need to convert each object to a dict
+        batch_for_update = [{attr: getattr(metadata, attr) for attr in attributes} for metadata in batch]
+        session.execute(update(batch[0].__class__), batch_for_update)
+        session.commit()
+        logger.debug("Batch updated.")
+
+
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
 def check_exists(engine, filename, session = None):
     """
@@ -101,4 +124,14 @@ def execute_db_statement(session, stmt):
 
     logger.debug(f"SQL complete.")
     return result
+
+def convert_object_to_dict(mapped_object):
+    """Convert an SQLAlchemy ORM object instance to a dict.
+    Args:
+        mapped_object (Any): The SQLAlchemy mapped object instance.
+    Return:
+        dict: A dictionary of the mapped attributes and their values.    
+    """
+    i = inspect(mapped_object)
+    return {key: getattr(mapped_object, key) for key in i.attrs.keys()}
 

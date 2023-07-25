@@ -3,6 +3,8 @@ Common utility functions for reading metadata from fits files
 """
 
 from lick_archive.db.pgsphere import SPoint
+from astropy.io import fits
+
 
 def safe_header(header, key):
     """Read a keyword from a header, returning None if it's not there."""
@@ -98,3 +100,31 @@ def get_ra_dec(header):
         dec = dec.strip()
     return (ra, dec, coord)
 
+class _MockHDU:
+    """Mock HDU object for unit testing. 
+    If any of our code starts touching data, a real HDU object may be needed
+    """
+    def __init__(self, header):
+        self.header = header
+
+def get_hdul_from_text(text_files):
+    """
+    Build a simulated HDU list from headers written to text files
+    """
+
+    hdul = [] 
+    for file in text_files:
+        hdul.append(_MockHDU(fits.Header.fromfile(file, sep='\n', endcard=False, padding=False)))
+
+    return hdul
+
+def get_hdul_from_string(string_list):
+    """
+    Build a simulated HDU list from headers written to text files
+    """
+
+    hdul = [] 
+    for header_string in string_list:
+        hdul.append(_MockHDU(fits.Header.fromstring(header_string, sep='\n')))
+
+    return hdul

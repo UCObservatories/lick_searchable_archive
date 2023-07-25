@@ -3,23 +3,18 @@
 import pytest
 from collections import namedtuple
 import os
-from datetime import datetime, date
+from datetime import datetime
 
-# Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
 
 import django
 from django.http import QueryDict
 
-from rest_framework.test import APIRequestFactory
-from rest_framework.request import Request
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
 from lick_archive.db.archive_schema import Base, Main, FrameType
-from unit_test.utils import MockDatabase
-from lick_searchable_archive.query.query_api import QueryAPIView, QueryAPIPagination,QueryAPIFilterBackend
-from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
+from unit_test.utils import MockDatabase, MockView, create_test_request, setup_django_environment
+
 
 # Test rows shared between most tests
 test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
@@ -32,31 +27,15 @@ test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetim
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
 ]
 
-class MockView(QueryAPIView):
-    """A test view for testing FilesAPIView"""
-    allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
-    allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
-    indexed_attributes = ['filename', 'date', 'date_range', 'object']
-    serializer_class = SQLAlchemyORMSerializer
-    def __init__(self, engine, request):
-        self.engine=engine
-        self.request=request
-        self.format_kwarg = "json"
-
-    def get_queryset(self):
-        return SQLAlchemyQuerySet(self.engine, Main)
-
 
 
 def test_no_filters(tmp_path):
     """Test a query with no filters, which should fail"""
 
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict("results=filename")))
+    request = create_test_request(path="files/", data=QueryDict("results=filename"))
 
     with MockDatabase(Base) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -68,12 +47,9 @@ def test_no_filters(tmp_path):
 def test_filename_filter(tmp_path):
     """Test filtering on filename"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("filename=testfile1.fits&results=filename")))
+    request = create_test_request("files/", data=QueryDict("filename=testfile1.fits&results=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -89,12 +65,9 @@ def test_filename_filter(tmp_path):
 def test_object_filter(tmp_path):
     """Test an exact object filter"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename")))
+    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -111,12 +84,9 @@ def test_object_filter(tmp_path):
 def test_prefix_filter(tmp_path):
     """Test filtering with a string prefix"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("object=object&prefix=t&results=filename,object&sort=filename")))
+    request = create_test_request("files/", data=QueryDict("object=object&prefix=t&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -134,12 +104,9 @@ def test_prefix_filter(tmp_path):
 def test_date_filter(tmp_path):
     """Test a date filter"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("date=2018-12-1&results=filename,obs_date")))
+    request = create_test_request("files/", data=QueryDict("date=2018-12-1&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -161,12 +128,9 @@ def test_date_filter(tmp_path):
 def test_date_range_filter(tmp_path):
     """Test a date range filter"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("date_range=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename")))
+    request = create_test_request("files/", data=QueryDict("date=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -187,12 +151,9 @@ def test_date_range_filter(tmp_path):
 def test_reverse_date_range_filter(tmp_path):
     """Test that a reversed date range is handled correctly"""
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("date_range=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename")))
+    request = create_test_request("files/", data=QueryDict("date=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -214,11 +175,9 @@ def test_no_sort_attributes(tmp_path):
     """ Test a query with no specified sort attributes. The results should be sorted by id"""
 
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict("filename=testfile&prefix=t&results=filename,obs_date")))
+    request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -240,11 +199,9 @@ def test_no_result_attributes(tmp_path):
     """
 
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict("filename=testfile&prefix=t&sort=filename")))
+    request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -271,11 +228,9 @@ def test_no_result_attributes(tmp_path):
 def test_count(tmp_path):
     """Test a count query """
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict("date=2019-06-01&count=t")))
+    request = create_test_request("files/", data=QueryDict("date=2019-06-01&count=t"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -284,12 +239,9 @@ def test_count(tmp_path):
 
 def test_invalid_query(tmp_path):
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-
-    request = Request(request_factory.get("files/", data=QueryDict("filename=file.fits&results=invalid_field")))
+    request = create_test_request("files/", data=QueryDict("filename=file.fits&results=invalid_field"))
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
 

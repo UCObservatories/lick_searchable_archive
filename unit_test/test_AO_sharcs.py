@@ -3,9 +3,9 @@ from pathlib import Path
 
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
 from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
-from unit_test.utils import get_hdul_from_text
+from lick_archive.metadata.metadata_utils import get_hdul_from_text
 import os 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 
 def test_ao_sharcs():
@@ -56,7 +56,7 @@ def test_ao_sharcs():
     row = reader.read_row(path, hdul)
     assert row.telescope == Telescope.SHANE
     assert row.instrument == Instrument.SHARCS
-    assert row.obs_date == datetime(2014, 5, 20, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.obs_date == datetime(2014, 5, 20, 12, 0, 0, 0, tzinfo=timezone(timedelta(hours=-8)))
     assert row.ingest_flags == '00000000000000000000000000001010'
     assert row.exptime == 29.0958
     assert row.frame_type == FrameType.flat
@@ -200,7 +200,7 @@ def test_ao_sharcs():
     row = reader.read_row(path, hdul)
     assert row.telescope == Telescope.SHANE
     assert row.instrument == Instrument.SHARCS
-    assert row.obs_date == datetime(2014, 5, 20, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.obs_date == datetime(2014, 5, 20, 12, 0, 0, 0, tzinfo=timezone(offset=timedelta(hours=-8)))
     assert row.ingest_flags == '00000000000000000000001000011011'
     assert row.exptime == None
     assert row.ra == None
@@ -315,6 +315,6 @@ def test_ao_sharcs():
     row = reader.read_row(path, hdul)
     assert row.telescope == Telescope.SHANE
     assert row.instrument == Instrument.SHARCS
-    assert row.obs_date == datetime(2014, 7, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.obs_date == datetime(2014, 7, 16, 12, 0, 0, 0, tzinfo=timezone(offset=timedelta(hours=-8)))
     assert row.ingest_flags == '00000000000000000000001000011011'
     assert row.frame_type == FrameType.unknown
