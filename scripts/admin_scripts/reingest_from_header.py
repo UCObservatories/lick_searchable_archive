@@ -22,7 +22,9 @@ def get_parser():
     """
     Parse command line arguments with argparse.
     """
-    parser = argparse.ArgumentParser(description='Re-ingest metadata for archive files using the header data already in the database.', exit_on_error=True)
+    parser = argparse.ArgumentParser(description='Re-ingest metadata for files using the header data already in the database.',
+                                     epilog="Example:\n    $ echo \"select id from main where filename like '/data/data/2019-05/14%';\" | psql -U -f - > id_file.txt\n    $ reingest_from_header.py id_file.txt\n", 
+                                     formatter_class=argparse.RawDescriptionHelpFormatter, exit_on_error=True)
     parser.add_argument("id_file", type=str, help="File name of a file with the database ids to update.")
     parser.add_argument("--db_name", default="archive", type=str, help = 'Name of the database to update. Defaults to "archive"')
     parser.add_argument("--db_user", default="archive", type=str, help = 'Name of the database user. Defaults to "archive"')
@@ -47,8 +49,9 @@ def rebuild_metadata_batch(db_engine, batch):
 
     session=open_db_session(db_engine)
     query = select(Main.id, Main.filename, Main.ingest_flags, Main.header).where(Main.id.in_(batch))
-    result = execute_db_statement(session, query)
-    for row in result:
+    results = execute_db_statement(session, query).all()
+    logger.info(f"Regenerating metadata for {len(results)}")
+    for row in results:
         try:
             hdul = get_hdul_from_string([row.header])
         except Exception as e:
@@ -103,14 +106,14 @@ def update_metadata_batch(db_engine, metadata_batch):
 
 def main(args):
 
-    setup_logging(args.log_path, "bulk_ingest", args.log_level)
+    setup_logging(args.log_path, "reingest_from_headers", args.log_level)
         
     # Read the id list
     id_list = []
     line = 1
     with open(args.id_file, "r") as f:
         for line in f:
-            for id in line.split():
+            for id in line.strip().split():
                 try:
                     id_list.append(int(id))
                 except ValueError as e:
@@ -131,7 +134,7 @@ def main(args):
 
     batch = []
     for i in range(len(id_list)):
-        batch.append(i)
+        batch.append(id_list[i])
         if len(batch) == args.batch_size or i == len(id_list)-1:
             metadata_batch = rebuild_metadata_batch(db_engine, batch)
             update_metadata_batch(db_engine, metadata_batch)            
