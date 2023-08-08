@@ -253,7 +253,6 @@ class QueryForm(forms.Form):
                                     class_prefix="search_terms_",
                                     fields=[forms.CharField(max_length=80, empty_value="", strip=True)],
                                     initial={"operator": "exact", "value": ""},  help_text='e.g. "K6021275"', required=False) 
-    #match_case = forms.BooleanField(label="Case Sensitive Object Search", initial=False, required=False)
     date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
                                fields=[forms.DateField(),forms.DateField()], names=["start", "end"],
@@ -301,8 +300,6 @@ class QueryForm(forms.Form):
             elif query_type == "object_name":
                 if query_value is None or len(query_value) == 0:
                     self.add_error("object_name", f"Cannot query by empty object.")
-                if cleaned_data.get("match_case") is None:
-                    self.add_error("match_case", f"Must specify whether an object query is case sensitive.")
 
             elif query_type == "date":
                 if query_value is None:

@@ -56,7 +56,7 @@
             <li>
                 <fieldset class="search_terms_grid">                                                
                     <input class="search_terms_radio" type="radio" id="query_by_object" name="which_query" value="object_name" {% if form.which_query.value == "object_name" %}checked {% endif %} />
-                    <label class="search_terms_label" for="query_by_object">{{ form.object_name.label }}</label>                    
+                    <label class="search_terms_label" for="query_by_object">{{ form.object_name.label }}</label>
                     {{ form.object_name }}
                     <span class="search_terms_help">{{ form.object_name.help_text }}</span>
                 </fieldset> 
