@@ -7,8 +7,46 @@
 </head>
 <body>
 <header>
-<h1>Mt. Hamilton Data Repository Search - Beta</h1>
+    <!--Taken from prior repository page-->
+    <map name="home">
+        <area shape="rect" coords="2,30,62,86" href="{{ archive_url }}">
+        <area shape="rect" coords="497,30,566,86" href="/">
+        <area shape="rect" coords="571,30,640,86" href="https://www.ucobservatories.org/">
+    </map>
+    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home">
+
 </header>
+<nav class="nav_sidebar">
+    <section class="nav_section">
+        <H1>Links</H1>
+        <ul class="nav_links_list">
+            <li>
+                <span class = "nav_link_current_page">Query the repository</span>
+            </li>
+            <li>
+                <span class = "nav_link_tbd">Browse the repository by date</span>                
+            </li>            
+            <li><a href="/">Mt Hamilton Home Page</a></li>
+            <li><a href="https://www.ucobservatories.org/">UC Observatories Home Page</a></li>
+        </ul>
+    </section>
+    <section class = "nav_section">
+        <H1>Documentation</H1>
+        <ul class="nav_links_list">
+            <li>
+                <a href="https://mthamilton.ucolick.org/data/help/">About the repository</a>
+            </li>
+            <li>            
+                <span class="nav_tbd_link">How to use the repository</span>
+            </li>
+            <li>
+                <span class="nav_tbd_link">Description of all fields</span>
+            </li>
+            <li><span class="nav_tbd_link">API Documentation (TBD)</span></li>
+        </ul>
+
+    </section>
+</nav>
 <main>
 <form id="archive_query" class="search_form" method="POST" action="{{ archive_url }}">
     {% csrf_token %}
@@ -41,16 +79,24 @@
             </li>
         </ul>      
     </fieldset>
+    <fieldset id="instrument" class="search_form_instr">
+        <legend>Instruments</legend>
+        {{ form.instruments }}
+        <button id="instrument_all" type="button">Select All</button>
+        <button id="instrument_none" type="button">Deselect All</button>
+    </fieldset>
     <fieldset id="results">
         <legend>Search Results</legend>
         <ul role="list" class="search_field_list">
-            <li>{{ form.count.0.tag }}<label for="{{ form.count.0.id_for_label }}">{{ form.count.0.choice_label }}</label></li>
             <li>{{ form.count.1.tag }}<label for="{{ form.count.1.id_for_label }}>">{{ form.count.1.choice_label }}</label>
                 <fieldset id="fields" class="search_form_fields">
-                    <label for="id_sort_fields">{{ form.sort_fields.label }}</label>{{ form.sort_fields }}{{ form.sort_dir }}
+                    <label for="id_page_size">Results per page</label>{{ form.page_size }}
+                    <label for="id_coord_format">RA/DEC format</label>{{ form.coord_format }}
+                    <label for="id_sort_fields">{{ form.sort_fields.label }}</label><span>{{ form.sort_fields }}{{ form.sort_dir }}</span>
                     <label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}
-                </fieldset>
+                </fieldset>  
             </li>
+            <li>{{ form.count.0.tag }}<label for="{{ form.count.0.id_for_label }}">{{ form.count.0.choice_label }}</label></li>
         </ul>
     </fieldset>
 

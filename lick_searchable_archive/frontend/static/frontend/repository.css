@@ -1,8 +1,7 @@
 body {
-    background-color: #fff;
-    margin: 10px;
+    background-color: white;
+    margin: 0;
     font-family: sans-serif;
-    max-width: 750px
   }
   
   a {
@@ -15,9 +14,6 @@ body {
     color: #f70;
   }
   
-  a:hover span.thumbnail {
-    color: #000;
-  }
   
   h1 {
     font-family: serif ;
@@ -29,22 +25,51 @@ body {
     font-size: 125% ;
   }
   
-  img {
+  header {
+    background-color: white;
+    
+    width: 100vw;
+    height: 89px;
+    position: fixed;
+    top: 0;
+
+  }
+ 
+  header > img {
     border: none;
+    padding-left: 19em;
+    
+    width: 640px;
+    height: 89px;
+    object-fit: contain;
+    /* center image
+    display: block;
+    margin: auto; */
   }
   
-  
-  p {
-    line-spacing: 1.0em;
-    /* text-indent: -10px; */
+  .nav_sidebar {
+    position: fixed;
+    top: 100px;
+    margin-top: 0;
+    padding-left: 1em;
+    margin-right: 1em;
+    width: 18em;
+    height: 100vh;
+    background-color: rgb(100, 234,100);
   }
+  main {
+    background-color: #eeb;
+    margin-left: 19em;
+    margin-top: 100px;
+    width: 50em;
+  }
+
   
   p.text {
     font-family: serif;
     font-size: 100%;
     font-weight: normal;
     text-indent: 0px;
-    width: 640px;
   }
   
   p.sans {
@@ -54,29 +79,6 @@ body {
     text-indent: 20px;
   }
   
-  p.question {
-    font-family: serif;
-    font-size: 100%;
-    font-weight: bold;
-    text-indent: 0px;
-  }
-  
-  p.answer {
-    font-family: serif;
-    font-size: 100%;
-    font-weight: normal;
-    text-indent: 0px;
-  }
-  
-  span.thumbnail {
-    display: block;
-    text-align: center;
-    border: 1px solid #aaa;
-    padding-top: 3px;
-    margin: 0 4em 0 4em;
-    font-family: monospace;
-    font-size: 0.5em;
-  }
   
   table {
     /* border-spacing: 1pt; */
@@ -107,10 +109,6 @@ body {
     text-align: left;
   }
   
-  main {
-    background-color: #eeb;    
-  }
-
   .search_terms_option {
     border: none;
   }
@@ -252,20 +250,27 @@ body {
     margin-left: 2em;
     display: grid;
     grid-auto-flow: row;
-    grid-template-columns: max-content 12em max-content;
+    grid-template-columns: 9em max-content;
     column-gap: 0.5em;
     row-gap: 1ex;
+    justify-items: left;
     /*align-items: center;*/
     /*grid-template-areas: "a b c d e"
                          ". b g f f"; */
   }
-
-  .search_fields_radio {
+  
+  .search_fields_input_small {
+    width: 4em;
+  }
+  .search_fields_input_big {
+    width: 13em;
+  }
+  .search_fields_check {
     margin-right: 1em;
   }
   .search_form_fields > label {
     text-align: left;
-    width: 6em
+    width: 8em
   }
   /*
   .field_select_box > select {

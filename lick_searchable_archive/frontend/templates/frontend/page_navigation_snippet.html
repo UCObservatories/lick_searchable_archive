@@ -1,0 +1,72 @@
+
+{% comment %}
+This snippet creates a series of buttons for navigating through the pages of a query results.
+
+Arguments:
+    formid : The formid to attach the buttons to
+
+CSS classes:
+    page_navigation: The containing "div" for the page navigation controls
+    page_link : A button that links to a page. The button may be disabled if the page doesn't make sense
+                (i.e. a previous page from page 1)
+    current_page_link: The button for the current page.  This will be disabled.
+
+{% endcomment %}
+
+{% with prev_page=current_page|add:'-1' next_page=current_page|add:'1' first_five_pages="12345"|make_list surrounding_pages=[prev_page, current_page, next_page] %}
+    <div class="page_navigation">
+        {# The "previous" page button and first page button #}
+        {% if current_page == 1 %}
+            <button form="{{ formid }}" disabled type="submit" class="page_link">&x20AC;</button>
+        {% else %}
+            <button form="{{ formid }}" name="page" value="{{ prev_page }}" type="submit" class="page_link">&x20AC;</button>
+        {% endif %}
+
+
+        {% if current_page <= 5 %}
+            {# Show the first five pages if we're in the beginning of the results (and there are five pages) #}
+            {% for page_num in first_five_pages %}
+                {% if page_num < total_pages %}
+                    {% if page_num == current_page %}
+                        <button form="{{ formid }}" disabled type="submit" class="current_page_link">1</button>
+                    {% else %}
+                        <button form="{{ formid }}" name="page" value="{{ page_num }}" type="submit" class="page_link">{{ page_num }}</button>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if total_pages > 6 %}
+                ... 
+            {% endif %}
+        {% elif %}
+            {# When not in the beginning of the results, show page 1, elipses, and the surrounding pages ,
+            then more elipses if needed#}
+            <button form="{{ formid }}" name="page" value="1" type="submit" class="page_link">1</button>
+            ...
+            {% for page_num in surrounding_pages %}
+                {% if page_num < total_pages %}
+                    {% if page_num == current_page %}
+                        <button form="{{ formid }}" disabled type="submit" class="current_page_link">{{ page_num }}</button>
+                    {% else %}
+                        <button form="{{ formid }}" name="page" value="{{ page_num }}" type="submit" class="page_link">{{ page_num }}</button>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+
+            {% if total_pages > surrounding_pages|last %}
+            ...
+            {% endif %}
+        {% endif %}
+
+        {# Show the last page, followed by the next page link #}
+        {% if total_pages == current_page %}
+            <button form="{{ formid }}" disabled type="submit" class="current_page_link">{{ current_page }}</button>
+            <button form="{{ formid }}" disabled type="submit" class="page_link">&x20AC;</button>        
+        {% else %}
+            <button form="{{ formid }}" name="page" value="{{ total_pages }}" type="submit" class="page_link">{{ total_pages }}</button>
+            <button form="{{ formid }}" name="page" value="{{ next_page }}" type="submit" class="page_link">&x20AC;</button>
+        {% endif %}
+    </div>
+{% endwith %}
+
+

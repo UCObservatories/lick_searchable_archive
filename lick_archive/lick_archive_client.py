@@ -7,6 +7,7 @@ from tenacity import Retrying, stop_after_delay, wait_exponential
 
 logger = logging.getLogger(__name__)
 
+from lick_archive.db import archive_schema
 
 class LickArchiveClient:
     """Client for the Lick Searchable Archive's REST API
@@ -34,7 +35,7 @@ class LickArchiveClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def query(self, field, value, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
+    def query(self, field, value, filters={}, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
@@ -43,6 +44,7 @@ class LickArchiveClient:
                          "filename", "object": A string 
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
+            filters (dict): Additional filters to apply to the query. The key is the name of the field to filter on, the value is one or more values to query for.
             contains (bool): Whether a string query should query for a substring or an exact match. Defaults to False. Has no effect for date queries.
             match_case (bool): Whether a string query should be case sensitive. Only applicable to object searches.
             prefix (bool): Whether a string query should query for the prefix or an exact match. Defaults to False. Has no effect for date queries.
@@ -86,6 +88,17 @@ class LickArchiveClient:
         
         if match_case is not None:
             query_params["match_case"] = match_case
+
+        for field, value in filters.items():
+            # TODO need to make separate "reserved words" list somewhere
+            if field in ["filename", "object", "date", "datetime", "prefix", "contains", "match_case", "count", "results", "page_size", "page", "sort"]:
+                raise ValueError(f"Cannot filter by reserved field named {field}")
+            if field not in archive_schema.allowed_result_attributes:
+                raise ValueError(f"Unknown filter field {field}")
+            if isinstance(value, str):
+                query_params[field] = value
+            else:
+                query_params[field] = ",".join([str(x) for x in value])
 
         if count is True:
             query_params["count"] = True

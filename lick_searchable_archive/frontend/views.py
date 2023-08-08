@@ -9,6 +9,8 @@ import functools
 
 logger = logging.getLogger(__name__)
 
+from astropy.coordinates import Angle
+import astropy.units
 
 from django.conf import settings
 from django.shortcuts import render
@@ -263,8 +265,12 @@ class QueryForm(forms.Form):
     sort_dir = forms.ChoiceField(choices=[("+", "Low to high (Ascending)"), ("-", "High to low (Descending)")], initial="+", required=False)
     result_fields = forms.MultipleChoiceField(initial = DEFAULT_RESULTS,
                                               choices = get_field_groups(archive_schema.allowed_result_attributes, exclude=["id"]),        
-                                              required=False)
-    page=forms.IntegerField(min_value=1, widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
+                                              required=False,
+                                              widget=forms.SelectMultiple(attrs={"class": "search_fields_input_big"}))
+    instruments = forms.MultipleChoiceField(initial = [x.name for x in archive_schema.Instrument], choices=[(x.name, x.value) for x in archive_schema.Instrument], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
+    page=forms.IntegerField(min_value=1,  initial=1,widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
+    page_size=forms.IntegerField(min_value=1, max_value=1000, initial=50, required=True, widget=forms.NumberInput(attrs={"class": "search_fields_input_small"}))
+    coord_format=forms.ChoiceField(initial="sexigesimal", required=True, choices=[("sexigesimal", "sexigesimal"), ("decimal", "decimal degrees")])    
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -295,8 +301,8 @@ class QueryForm(forms.Form):
             elif query_type == "object_name":
                 if query_value is None or len(query_value) == 0:
                     self.add_error("object_name", f"Cannot query by empty object.")
-                #if cleaned_data.get("match_case") is None:
-                #    self.add_error("match_case", f"Must specify whether an object query is case sensitive.")
+                if cleaned_data.get("match_case") is None:
+                    self.add_error("match_case", f"Must specify whether an object query is case sensitive.")
 
             elif query_type == "date":
                 if query_value is None:
@@ -363,7 +369,7 @@ def get_user_facing_result_fields(fields):
 
     return user_fields, api_fields, field_units
 
-def process_results(api_fields, result_list):
+def process_results(api_fields, result_list, coord_format):
     processed_results = []
     for result in result_list:
         row =[]
@@ -383,6 +389,38 @@ def process_results(api_fields, result_list):
                     # in the output string. (The column label gives the timezone)
                     value = value.astimezone(_LICK_TIMEZONE).replace(tzinfo=None)
                     row.append(value.isoformat(sep=' ', timespec='milliseconds'))
+                elif api_field == "ra":
+                    if ":" in result[api_field] or "h" in result[api_field] or "m" in result[api_field] or "s" in result[api_field]:
+                        try:
+                            # Use astropy to parse and validate angles. It needs to be specifically told to expect hms
+                            ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=(coord_format=="decimal"))
+                        except Exception as e:
+                            logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
+                            ra_angle = "invalid"
+                    elif len(result[api_field].strip()) > 0:
+                        try:
+                            # Use astropy to parse and validate angles
+                            ra_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=(coord_format=="decimal"))
+                        except Exception as e:
+                            logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
+                            ra_angle = "invalid"
+                    else:
+                        ra_angle = ""
+                    result[api_field] = ra_angle
+
+                elif api_field == "dec":
+                    if len(result[api_field].strip()) > 0:
+                        try:
+                            # Use astropy to parse and validate angles
+                            # It will automatically handle dms vs decimal degrees
+                            dec_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=(coord_format=="decimal"))
+                        except Exception as e:
+                            logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
+                            dec_angle = "invalid"
+                    else:
+                        dec_angle = ""
+                    result[api_field] = dec_angle
+
                 elif isinstance(result[api_field], float):
                     # Only show 3 digits for floating point values
                     row.append(str(round(result[api_field], 3)))
@@ -415,8 +453,6 @@ def index(request):
                'start_result': 1,
                'end_result': 1,}
 
-    page_size = 50
-
     if logger.isEnabledFor(logging.DEBUG):
         for key in request.META.keys():
             if key.startswith("HTTP_"):
@@ -430,8 +466,9 @@ def index(request):
             logger.debug(f"Form contents: {form.cleaned_data}")
             result_fields = DEFAULT_RESULTS if form.cleaned_data["result_fields"] == [] else form.cleaned_data["result_fields"]
             sort = DEFAULT_SORT if form.cleaned_data["sort_fields"] == [] else form.cleaned_data["sort_fields"]
-            if form.cleaned_data["reverse_sort"] is True:
-                sort = "-" + sort
+            
+            sort_dir = form.cleaned_data.get("sort_dir", "+")
+            sort =  sort_dir + sort
 
             # Run the appropriate query type
             query_type = form.cleaned_data["which_query"]
@@ -440,6 +477,7 @@ def index(request):
             query_value = form.cleaned_data[query_type]["value"]
             count_query = form.cleaned_data["count"] == "yes"
             page = form.cleaned_data["page"]
+            page_size = form.cleaned_data["page_size"]
             prefix = False
             contains = False
             match_case = None
@@ -474,6 +512,15 @@ def index(request):
                 prefix = query_operator == "prefix"
                 contains = query_operator == "contains"
 
+            # Look for a filter by instrument
+            instruments = form.cleaned_data.get("instruments", None)
+            filters = {}
+            if instruments is not None:
+                all_instruments = [x.name for x in archive_schema.Instrument]
+                # If all the instruments are specified no filter is needed
+                if len(instruments) != all_instruments:
+                    filters["instrument"] = instruments
+
             if len(form.errors) == 0:
                 try:
                     logger.info("Running query")
@@ -487,15 +534,16 @@ def index(request):
                     logger.info(f"Contains: {contains}")
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
-                                                                        value = query_value,
-                                                                        prefix = prefix,
-                                                                        contains = contains,
-                                                                        match_case=match_case,
-                                                                        count= count_query,
-                                                                        results = result_fields,
-                                                                        sort = sort,
-                                                                        page_size=page_size,
-                                                                        page = page)
+                                                                           value = query_value,
+                                                                           filters=filters,
+                                                                           prefix = prefix,
+                                                                           contains = contains,
+                                                                           match_case=match_case,
+                                                                           count= count_query,
+                                                                           results = result_fields,
+                                                                           sort = sort,
+                                                                           page_size=page_size,
+                                                                           page = page)
                 except Exception as e:
                     logger.error(f"Exception querying archive {e}", exc_info=True)
                     form.add_error(None,"Failed to run query against archive.")
@@ -510,8 +558,14 @@ def index(request):
                         # Sort the result fields in the order they should appear to the user, and get the user
                         # facing names
                         user_fields, api_fields, field_units = get_user_facing_result_fields(result_fields)
+                        if form.cleaned_data['coord_format'] == "sexigesimal":
+                            field_units['ra'] = "hms"
+                            field_units['dec'] = "dms"
+                        else:
+                            field_units['ra'] = "degrees"
+                            field_units['dec'] = "degrees"
 
-                        context['result_list'] = process_results(api_fields, result)
+                        context['result_list'] = process_results(api_fields, result, form.cleaned_data['coord_format'])
                         context['result_fields'] = list(zip(user_fields, field_units))
 
                         # Set page information
