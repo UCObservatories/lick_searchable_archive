@@ -48,6 +48,7 @@ body {
   .nav_sidebar {
     position: fixed;
     top: 0;
+    z-index: 1;
     padding-top: 100px;
     padding-left: 1em;
     margin-right: 1em;
@@ -109,6 +110,8 @@ body {
     font-family: sans-serif;
     font-weight: normal;
     text-align: left;
+    position: sticky;
+    top: 100px;
   }
 
   .search_form_list {
