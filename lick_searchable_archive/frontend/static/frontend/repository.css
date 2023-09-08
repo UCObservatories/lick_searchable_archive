@@ -71,7 +71,8 @@ body {
     background-color: #eeb;
     margin-left: 19em;
     padding-top: 100px;
-    width: 45em;
+    /*width: 45em;*/
+    width: 640px;
   }
 
   
@@ -116,6 +117,7 @@ body {
 
   .search_form_list {
     list-style-type: none;
+    padding-left: 2em;
   }
 
   .search_terms_option {
@@ -215,7 +217,7 @@ body {
   }
   .search_field_list {
     list-style-type: none;
-    padding-left: 1em;
+    padding-left: 0;
   }
 
   .search_form_fields {
