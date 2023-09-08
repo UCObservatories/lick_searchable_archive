@@ -12,6 +12,8 @@ from django.http import QueryDict
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
+from lick_searchable_archive.query.query_api import QuerySerializer
+
 from lick_archive.db.archive_schema import Base, Main, FrameType
 from unit_test.utils import MockDatabase, MockView, create_test_request, setup_django_environment
 
@@ -25,6 +27,8 @@ test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetim
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
+              Main(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
+                   frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000'),                       
 ]
 
 
@@ -73,7 +77,7 @@ def test_object_filter(tmp_path):
         view = MockView(mock_db.engine, request)
         response = view.list(request)
 
-        assert len(response.data["results"]) == 2
+        assert len(response.data["results"]) == 3
 
         for i in range(2,len(test_rows)):
             assert len(response.data["results"][i-2].keys()) == 3
@@ -92,7 +96,7 @@ def test_prefix_filter(tmp_path):
         view = MockView(mock_db.engine, request)
         response = view.list(request)
 
-        assert len(response.data["results"]) == 3
+        assert len(response.data["results"]) == 4
 
         for i in range(1,len(test_rows)):
             assert len(response.data["results"][i-1].keys()) == 3
@@ -100,6 +104,76 @@ def test_prefix_filter(tmp_path):
             assert response.data["results"][i-1]["filename"]  == os.path.basename(test_rows[i].filename)
             assert response.data["results"][i-1]["object"]  == test_rows[i].object
 
+def test_instrument_filter(tmp_path):
+    """Test adding an instrument filter"""
+    # Setup django environment
+    setup_django_environment(tmp_path)
+
+    request = create_test_request("files/", data=QueryDict("object=object 2&filters=instrument,SHARCS&results=filename,object&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = MockView(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 1
+
+        assert len(response.data["results"][0].keys()) == 3
+        assert "id" in response.data["results"][0]
+        assert response.data["results"][0]["filename"]  == os.path.basename(test_rows[4].filename)
+        assert response.data["results"][0]["object"]  == test_rows[4].object
+
+def test_ra_dec_filter(tmp_path):
+    """Test a ra_dec filter"""
+    # This cannot actually run the query, because the mock sqllite database doesn't handle coordiante searches. We can still
+    # test that the filter is added
+
+
+    # Setup django environment
+    setup_django_environment(tmp_path)
+
+    from astropy.coordinates import Angle
+    from django.conf import settings
+
+    # Test with specific radius
+    request = create_test_request("files/", data=QueryDict("ra_dec=349.99,-5.1656,0.1"))
+    
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = MockView(mock_db.engine, request)
+        filter_backend = view.filter_backends[0]()
+        queryset = view.get_queryset()
+
+        # Build validated_query field in request expected by QueryAPIFilterBackend
+        serializer = QuerySerializer(data=request.query_params, view=view)
+        serializer.is_valid(raise_exception=True)
+        request.validated_query = serializer.validated_data
+
+        queryset = filter_backend.filter_queryset(request=request, queryset=queryset, view=view)
+        # Dig into the SQLAlchemy stuff to validate the filter
+        assert queryset.where_filters[0].left.name == "coord"
+        queryset.where_filters[0].operator.opstring == "<@"
+        assert queryset.where_filters[0].right.value.center.ra == 349.99
+        assert queryset.where_filters[0].right.value.center.dec == -5.1656
+        assert queryset.where_filters[0].right.value.radius  == Angle("0.1 deg")
+
+    # Test with default radius
+    request = create_test_request("files/", data=QueryDict("ra_dec=349.99,-5.1656"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = MockView(mock_db.engine, request)
+        filter_backend = view.filter_backends[0]()
+        queryset = view.get_queryset()
+
+        # Build validated_query field in request expected by QueryAPIFilterBackend
+        serializer = QuerySerializer(data=request.query_params, view=view)
+        serializer.is_valid(raise_exception=True)
+        request.validated_query = serializer.validated_data
+
+        queryset = filter_backend.filter_queryset(request=request, queryset=queryset, view=view)
+        assert queryset.where_filters[0].left.name == "coord"
+        queryset.where_filters[0].operator.opstring == "<@"
+        assert queryset.where_filters[0].right.value.center.ra == 349.99
+        assert queryset.where_filters[0].right.value.center.dec == -5.1656
+        assert queryset.where_filters[0].right.value.radius  == Angle(settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS)
 
 def test_date_filter(tmp_path):
     """Test a date filter"""

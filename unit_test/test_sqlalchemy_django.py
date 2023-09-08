@@ -7,14 +7,19 @@ from pathlib import Path
 import os
 from datetime import datetime, timezone
 
+from astropy.coordinates import SkyCoord, Angle
+
 from django.db.models import F, Value
 
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
 from lick_archive.db.archive_schema import Base, Main, FrameType, Telescope, Instrument
+from lick_archive.db.pgsphere import SCircle, SPoint
+
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
-from unit_test.utils import get_hdul_from_text, MockDatabase
+from lick_archive.metadata.metadata_utils import get_hdul_from_text
+from unit_test.utils import MockDatabase
 
 from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyORMSerializer, SQLAlchemyQuerySet
 
@@ -99,6 +104,9 @@ def test_queryset_filter():
         filtered_queryset = queryset.filter(object__exact="Not a real object")
         with pytest.raises(IndexError):
             filtered_queryset[0].object == "Not a real object"
+
+        # Test coord search, but we can't actually run this query against sqllite
+        filtered_queryset = queryset.filter(coord__contained_in=SCircle(SkyCoord(ra="20 deg", dec="20 deg"), Angle("0.5 deg")))
 
         # Test error cases
         with pytest.raises(APIException, match="Failed building query."):

@@ -23,17 +23,19 @@ from django.utils.dateparse import parse_datetime
 from lick_archive.lick_archive_client import LickArchiveClient
 from lick_archive.db import archive_schema
 
+from .fields import AngleField
+
 # The lick observatory uses Pacific Standard Time regardless of dst
 _LICK_TIMEZONE = timezone(timedelta(hours=-8))
 
 
 class OperatorWidget(forms.MultiWidget):
 
-    def __init__(self, operators, subwidgets, names, class_prefix, attrs=None, modifier=None):
+    def __init__(self, subwidgets, names, class_prefix, attrs=None, labels=[], modifier=None):
 
         #widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
         self.class_prefix = class_prefix
-        self.modifier=modifier
+        self.labels=labels
 
         if len(names) != len(subwidgets):
             raise ValueError("Length of names must match length of subwidgets")        
@@ -64,20 +66,10 @@ class OperatorWidget(forms.MultiWidget):
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
-        for w in self.widgets:
-            if hasattr(w, 'attrs'):
-                widget_attrs = w.attrs
-            else:
-                widget_attrs = "nope"
-            if hasattr(w, 'label'):
-                widget_label = w.label
-            else:
-                widget_label = 'nope'
-            logger.debug(f"Name {name} Widget class: {w.__class__.__name__} Widget attrs: {widget_attrs} Widget label {widget_label}")
-        for subwidget in context["widget"]["subwidgets"]:
-            if self.modifier is not None and subwidget["name"] == name + "_modifier":
-                subwidget["wrap_label"] = True
-                subwidget["label"] = self.modifier 
+        for i, subwidget in enumerate(context["widget"]["subwidgets"]):
+            if i < len(self.labels) and self.labels[i] is not None:
+                subwidget["wrap_label"] = True                
+                subwidget["label"] = self.labels[i]
             logger.debug(f"subwidget context {subwidget}")
         return context
 
@@ -180,23 +172,40 @@ class PageNavigationWidget(forms.Widget):
         logger.debug(f"Returning: {default_context['widget']}")
         return default_context
 
+
+
 class QueryWithOperator(forms.MultiValueField):
 
     def __init__(self, operators, fields, modifier=None, names=[''], class_prefix='', **kwargs):
         error_messages = {"incomplete": "Enter an operator and value"}
         self.modifier=modifier
-        operator_fields = [forms.ChoiceField(choices=operators, required=True)]
-        all_names = ['operator']
+        all_names =[]
+
+        operator_fields = []
+        if len(operators) > 0:
+            if isinstance(operators[0], tuple):
+                # A list of operators
+                operator_fields.append(forms.ChoiceField(choices=operators, required=False))                
+                all_names.append('operator')
+            else:
+                # Specified fields
+                operator_fields.append(operators[0])
+                all_names.append('operator')
+
         if modifier is not None:
             operator_fields.append(forms.BooleanField(initial=False, required=False, label=modifier))
             all_names.append("modifier")
+
         all_names += names
         all_fields = (*operator_fields,
                       *fields)
+
+        labels = [f.label for f in all_fields]            
+
         logger.debug(f"all_fields: {all_fields}")
 
         super().__init__(fields=all_fields, require_all_fields=False, 
-                         widget=OperatorWidget(operators=operators, modifier=modifier, class_prefix=class_prefix, subwidgets=[field.widget for field in all_fields],names=all_names),
+                         widget=OperatorWidget(modifier=modifier, class_prefix=class_prefix, subwidgets=[field.widget for field in all_fields],labels=labels, names=all_names),
                          error_messages=error_messages, **kwargs)
 
     def compress(self, data_list):
@@ -243,20 +252,34 @@ def get_field_groups(fields, exclude):
 
 # Create your models here.
 class QueryForm(forms.Form):
-    which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date","")], initial="object_name", required=True, widget=forms.RadioSelect)
+    which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date",""), ("coords","")], initial="object_name", required=True, widget=forms.RadioSelect)
     filename =   QueryWithOperator(label="By Path and Filename", operators=[("exact", "="), ("prefix", "starts with")],
                                    class_prefix="search_terms_",
-                                   fields=[forms.CharField(max_length=1024, strip=True, empty_value="")],
+                                   fields=[forms.CharField(max_length=1024, strip=True, empty_value="", required=False)],
                                    initial={"operator": "exact", "value": ""},  help_text='e.g. "2014-04/08/AO/m140409_0040.fits"',required=False)
     object_name = QueryWithOperator(label="By Object", operators= [("exact", "="), ("prefix", "starts with"), ("contains", "contains")],
                                     modifier="Match Case",
                                     class_prefix="search_terms_",
-                                    fields=[forms.CharField(max_length=80, empty_value="", strip=True)],
+                                    fields=[forms.CharField(max_length=80, empty_value="", strip=True, required=False)],
                                     initial={"operator": "exact", "value": ""},  help_text='e.g. "K6021275"', required=False) 
     date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
-                               fields=[forms.DateField(),forms.DateField()], names=["start", "end"],
-                               initial={"operator": "exact", "value": None},  help_text='e.g. "2006-08-17". All dates are noon to noon PST (UTC-8). Date ranges are inclusive.', required=False)
+                               fields=[forms.DateField(required=False),forms.DateField(required=False)], names=["start", "end"],
+                               initial={"operator": "exact", "value": None}, 
+                               help_text=format_html('{}<p>{}</p>','e.g. "2006-08-17". All dates are noon to noon PST (UTC-8).', 'Date ranges are inclusive.'),
+                               required=False)
+    coords = QueryWithOperator(label="By Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
+                               class_prefix="search_terms_",
+                               fields=[AngleField(label="RA", default_unit="d", required=False),
+                                       AngleField(label="DEC", default_unit="d", required=False)],
+                               names=["ra", "dec"],
+                               initial={"operator": None, "value": None},  
+                               help_text=format_html('{}<p>{}<ul><li>{}</li><li>{}</li></ul>',
+                                                     'Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.',
+                                                     'Examples:',
+                                                     '"radius 36s ra 6:12:19.5s dec -40:30:12.3"',
+                                                     '"radius 36 ra 93.0812 -40.5034"'), 
+                               required=False)
     count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], 
                               initial="no", required=True, widget=forms.RadioSelect(attrs = {"class": "search_fields_radio"}))
     sort_fields = forms.ChoiceField(label="Sorting", initial = DEFAULT_SORT, choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
@@ -283,7 +306,7 @@ class QueryForm(forms.Form):
         # Verify the appropriate query type has a value populated        
         query_type = cleaned_data.get("which_query", '')
         if query_type == '':
-            self.add_error('search terms', "No search term selected.")
+            self.add_error('which_query', "No search term selected.")
         else:
             query_field = cleaned_data.get(query_type, None)
             if query_field is None or not isinstance(query_field, dict):
@@ -312,6 +335,19 @@ class QueryForm(forms.Form):
                         self.add_error("date", "Start date cannot be empty when querying a date range.")
                     if query_value[1] is None:
                         self.add_error("date", "End date cannot be empty when querying a date range.")
+            elif query_type == "coords":
+                logger.debug(f"coords query_value: {query_value} operator: {query_operator}")
+                if query_value is None or not isinstance(query_value, tuple):
+                    self.add_error("coords", "Cannot query by empty location.")
+                else:
+                    if query_operator is None or len(query_operator) == 0:
+                        # We can use a default value for the radius
+                        query_operator = settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS
+
+                    if query_value[1] is None or len(query_value[1]) == 0:
+                        self.add_error("coords", f"RA and DEC are required for location query.")
+                    cleaned_data["coords"]["value"] = (query_value[0], query_value[1], query_operator)
+
             else:
                 self.add_error("which_query", f"Unknown query type {query_type}.")
 
@@ -339,8 +375,6 @@ def get_user_facing_result_fields(fields):
 
     common_fields = []
     instrument_fields = {}
-    units = { "obs_date": "UTC-8",
-              "exptime": "seconds"}
 
     # Separate common fields from instrument specific fields
     for field in fields:
@@ -354,17 +388,47 @@ def get_user_facing_result_fields(fields):
     common_fields.sort(key=lambda x: field_ordering.index(x[0]))
 
     api_fields = [f[0] for f in common_fields]
-    field_units = [units.get(f[0]) for f in common_fields]
     user_fields = [f[1].user_name for f in common_fields]
 
     # Sort instrument fields by instrument name, then by user facing field name
     for instrument in sorted(instrument_fields.keys()):        
-        instrument_fields[instrument].sort(key = lambda x: x[1].user_name)
+        instrument_fields[instrument].sort(key = lambda x: archive_schema.allowed_result_attributes.index(x[0]))
         api_fields +=  [f[0] for f in instrument_fields[instrument]]
-        field_units += [units.get(f[0]) for f in instrument_fields]
         user_fields += [f[1].user_name for f in instrument_fields[instrument]]
 
-    return user_fields, api_fields, field_units
+    return user_fields, api_fields
+
+def get_user_facing_field_units(api_fields, coord_format):
+    """Return user facing units for a list of fields.
+    
+    Args:
+        api_fields (list of str): A list of field names, as 
+                                  known to the backend API.
+
+        coord_format (str):       The format to use for sky
+                                  coordinates. Either "sexigesimal"
+                                  or "decimal"
+                                  
+    Return (list of str or None): A list of strings describing the
+                                  units for each field in api_fields.
+                                  If there is no unit description, the
+                                  list will contain a None for that 
+                                  field.
+    
+    """
+    field_units = { "obs_date": "UTC-8",
+                    "exptime": "seconds"}
+
+    if coord_format  == "sexigesimal":
+        field_units['ra'] = "hms"
+        field_units['dec'] = "dms"
+    else:
+        field_units['ra'] = "degrees"
+        field_units['dec'] = "degrees"
+
+    return [field_units.get(api_field, None) for api_field in api_fields]
+        
+        
 
 def process_results(api_fields, result_list, coord_format):
     processed_results = []
@@ -390,33 +454,44 @@ def process_results(api_fields, result_list, coord_format):
                     if ":" in result[api_field] or "h" in result[api_field] or "m" in result[api_field] or "s" in result[api_field]:
                         try:
                             # Use astropy to parse and validate angles. It needs to be specifically told to expect hms
-                            ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=(coord_format=="decimal"))
+                            if coord_format == "decimal":
+                                ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=True)
+                            else:
+                                ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=False, unit=astropy.units.hourangle,sep=":")
+
                         except Exception as e:
                             logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
                             ra_angle = "invalid"
                     elif len(result[api_field].strip()) > 0:
                         try:
                             # Use astropy to parse and validate angles
-                            ra_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=(coord_format=="decimal"))
+                            if coord_format=="decimal":
+                                ra_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=True)
+                            else:
+                                ra_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=False, unit=astropy.units.hourangle, sep=":")
+                            
                         except Exception as e:
                             logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
                             ra_angle = "invalid"
                     else:
                         ra_angle = ""
-                    result[api_field] = ra_angle
+                    row.append(ra_angle)
 
                 elif api_field == "dec":
                     if len(result[api_field].strip()) > 0:
                         try:
                             # Use astropy to parse and validate angles
                             # It will automatically handle dms vs decimal degrees
-                            dec_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=(coord_format=="decimal"))
+                            if coord_format=="decimal":
+                                dec_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=True)
+                            else:
+                                dec_angle = Angle(result[api_field], unit=astropy.units.deg).to_string(decimal=False, sep=":")
                         except Exception as e:
                             logger.error(f"Failed to parse angle from backend {e.__class__.__name__}:{e}")
                             dec_angle = "invalid"
                     else:
                         dec_angle = ""
-                    result[api_field] = dec_angle
+                    row.append(dec_angle)
 
                 elif isinstance(result[api_field], float):
                     # Only show 3 digits for floating point values
@@ -484,6 +559,9 @@ def index(request):
             if query_type == "object_name":
                 query_field = "object"
                 match_case = form.cleaned_data[query_type]["modifier"]
+
+            elif query_type == "coords":
+                query_field = "ra_dec"
 
             elif query_type == "date":
                 # Convert dates to noon to noon datetimes in the lick observatory timezone
@@ -554,13 +632,8 @@ def index(request):
                     try:
                         # Sort the result fields in the order they should appear to the user, and get the user
                         # facing names
-                        user_fields, api_fields, field_units = get_user_facing_result_fields(result_fields)
-                        if form.cleaned_data['coord_format'] == "sexigesimal":
-                            field_units['ra'] = "hms"
-                            field_units['dec'] = "dms"
-                        else:
-                            field_units['ra'] = "degrees"
-                            field_units['dec'] = "degrees"
+                        user_fields, api_fields = get_user_facing_result_fields(result_fields)
+                        field_units = get_user_facing_field_units(api_fields, form.cleaned_data['coord_format'])
 
                         context['result_list'] = process_results(api_fields, result, form.cleaned_data['coord_format'])
                         context['result_fields'] = list(zip(user_fields, field_units))

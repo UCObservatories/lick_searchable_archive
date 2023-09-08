@@ -19,3 +19,4 @@ django_secret_keyfile: "{{ archive_config_dir }}/secret_key"
 django_log: "{{ archive_log_dir }}/lsa_apps.log"
 redis_url: redis://localhost:6379/0
 supported_instrument_dirs: ['AO', 'shane']
+default_search_radius: "1 arcmin"

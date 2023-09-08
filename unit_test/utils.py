@@ -9,7 +9,7 @@ import django
 os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
 
 from lick_archive.db.archive_schema import Main
-
+from lick_archive.db import archive_schema
 from lick_searchable_archive.query.query_api import QueryAPIView
 from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
@@ -44,7 +44,7 @@ class MockView(QueryAPIView):
     """A test view for testing the query api"""
     allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
     allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
-    indexed_attributes = ['filename', 'date', 'date_range', 'object']
+    indexed_attributes = archive_schema.indexed_attributes
     serializer_class = SQLAlchemyORMSerializer
 
     def __init__(self, engine, request=None):

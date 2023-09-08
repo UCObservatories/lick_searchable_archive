@@ -3,10 +3,11 @@ This datatype allows sptial index support for RA/DEC cone searches.
 """
 import logging
 
-from sqlalchemy import func
+from sqlalchemy import func, bindparam
 from sqlalchemy.types import UserDefinedType
+from psycopg2 import ProgrammingError
 
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, Angle
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,10 @@ class SPoint(UserDefinedType):
     """ SQLAlchemy user defined type for the pgsphere SPoint datatype. This
     type allows for spherical coordinates.
     """
+    cache_ok=False
+    def __init__(self, ra=None, dec=None):
+        self.ra = ra
+        self.dec = dec
 
     @classmethod
     def convert(cls, ra, dec):
@@ -70,6 +75,46 @@ class SPoint(UserDefinedType):
         return "SPOINT"
 
     def bind_expression(self, bindvalue):
-        return func.spoint(bindvalue)
+        value = bindvalue.effective_value
+        # SQLAlchemy seems to call this based on the type of the column, not the type
+        # of the value. So if a SCircle is compared to a point, it can end up here
+        if isinstance(value, SCircle):
+            return value.bind_expression(bindvalue)
+        elif not isinstance(value, SPoint):
+            raise ProgrammingError(f"Can't compare SPoint to this value {value}")
+        spoint_converted = SPoint.convert(value.ra, value.dec)
+        logger.debug(f"Converted point: '{spoint_converted}' from ra: '{value.ra}' from dec: '{value.dec}'")
+        return func.spoint(SPoint.convert(value.ra, value.dec))
 
+
+class SCircle(UserDefinedType):
+    """ SQLAlchemy user defined type for the pgsphere SPoint datatype. This
+    type allows for spherical coordinates.
+    """
+    cache_ok = False
+    def __init__(self, center, radius):
+        """Construct a circle in spherical coordinates.
+        Args:
+            center  (SkyCoord): An Astropy SkyCoord representing the ra/dec of the center.
+            radius (Angle):     An Astropy Angle representing the angular radius of the circle.
+
+        """
+        self.center = SPoint(center.ra.value, center.dec.value)
+        self.radius = radius
+        
+        #return f'(SPOINT({center.ra.to_string(decimal=True,unit="deg")}d, {center.dec.to_string(decimal=True,unit="deg")}d), {radius.to_string(decimal=True, unit="rad")})'
+
+
+    def get_col_spec(self):
+        return "SCIRCLE"
+
+    def bind_expression(self, bindvalue):
+        value = bindvalue.effective_value
+        if not isinstance(value, SCircle):
+            raise ProgrammingError(f"Can't convert {value} to SCircle type")
+
+        radius_in_radians = Angle(value.radius,unit="rad").value
+        logger.debug(f"SCircle converting radius: {value.radius.value} {value.radius.unit} to radians: {radius_in_radians}")
+
+        return func.scircle(value.center.bind_expression(bindparam("point", value.center, SPoint)),radius_in_radians)
 

@@ -7,6 +7,8 @@ from tenacity import Retrying, stop_after_delay, wait_exponential
 
 logger = logging.getLogger(__name__)
 
+from astropy.coordinates import Angle
+
 from lick_archive.db import archive_schema
 
 class LickArchiveClient:
@@ -39,9 +41,11 @@ class LickArchiveClient:
         """
         Find the files in the archive that match a query.
 
-            field (str): The field to query on. "filename", "object", "date", and "datetime" are the only accepted fields currently.
+        Args:
+            field (str): The field to query on. "filename", "object", "ra_dec", "date", and "datetime" are the only accepted fields currently.
             value (Any): The value being queried on. This depends on the field being queried:
                          "filename", "object": A string 
+                         "ra_dec": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values.
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
             filters (dict): Additional filters to apply to the query. The key is the name of the field to filter on, the value is one or more values to query for.
@@ -68,7 +72,7 @@ class LickArchiveClient:
             ValueError If an invalid result is returned from the archive server.
         """
         # Validate the field being queried on 
-        if field not in ["filename", "object", "date", "datetime"]:
+        if field not in ["filename", "object", "date", "datetime", "ra_dec"]:
             raise ValueError(f"Unknown query field '{field}'")
 
         # Build query parameters
@@ -81,6 +85,16 @@ class LickArchiveClient:
         else:
             query_params = {field: str(value)}
 
+        if field=="ra_dec":            
+            # ra, dec, and radius, all are converted to decimal degrees
+            if isinstance(value, list) or isinstance(value, tuple):
+                if len(value) !=3:
+                    raise ValueError("Invalid ra_dec value. ra_dec should be a list of ra,dec,radius")
+                
+                query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg") for a in value])}
+            else:
+                raise ValueError("Invalid ra_dec value, ra_dec should be list of ra,dec,radius")
+
         if prefix is True:
             query_params["prefix"] = True
         elif contains is True:
@@ -90,15 +104,14 @@ class LickArchiveClient:
             query_params["match_case"] = match_case
 
         for field, value in filters.items():
-            # TODO need to make separate "reserved words" list somewhere
-            if field in ["filename", "object", "date", "datetime", "prefix", "contains", "match_case", "count", "results", "page_size", "page", "sort"]:
-                raise ValueError(f"Cannot filter by reserved field named {field}")
-            if field not in archive_schema.allowed_result_attributes:
-                raise ValueError(f"Unknown filter field {field}")
+            if field != "instrument":
+                raise ValueError(f"Cannot filter by field named {field}")
+            filter_values = ["instrument"]
             if isinstance(value, str):
-                query_params[field] = value
+                filter_values.append(value)
             else:
-                query_params[field] = ",".join([str(x) for x in value])
+                filter_values += [str(x) for x in value]
+            query_params["filters"] = ",".join(filter_values)
 
         if count is True:
             query_params["count"] = True
