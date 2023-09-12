@@ -6,9 +6,9 @@ from pathlib import Path
 
 from lick_archive.metadata.shane_kast import ShaneKastReader
 from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
-from unit_test.utils import get_hdul_from_text
+from lick_archive.metadata.metadata_utils import get_hdul_from_text
 import os 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 
 
@@ -93,7 +93,7 @@ def test_red_headers():
     assert row.frame_type == FrameType.unknown
     assert row.ingest_flags == "00000000000000000000001000011001"
     assert row.object is None
-    assert row.obs_date == datetime(2019, 12, 16, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.obs_date == datetime(2019, 12, 16, 12, 0, 0, 0, tzinfo=timezone(offset=timedelta(hours=-8)))
 
     file = '2019-05_02_shane_r684-hdu0.txt'
     hdul = get_hdul_from_text([test_data_dir / file])
@@ -255,7 +255,7 @@ def test_blue_headers():
     assert row.frame_type == FrameType.unknown
     assert row.ingest_flags == "00000000000000000000001000011001"
     assert row.object is None
-    assert row.obs_date == datetime(2019, 5, 4, 0, 0, 0, 0, tzinfo=timezone.utc)
+    assert row.obs_date == datetime(2019, 5, 4, 12, 0, 0, 0, tzinfo=timezone(offset=timedelta(hours=-8)))
 
     file = '2019-05_02_shane_b607-hdu0.txt'
     hdul = get_hdul_from_text([test_data_dir / file])

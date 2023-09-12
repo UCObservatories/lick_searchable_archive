@@ -16,6 +16,10 @@ from rest_framework import status, serializers
 from rest_framework.generics import ListAPIView
 from django.conf import settings
 
+from astropy.coordinates import SkyCoord, Angle
+from lick_archive.db import archive_schema
+from lick_archive.db.pgsphere import SCircle
+
 
 class ListWithSeperator(serializers.ListField):
     """
@@ -55,13 +59,15 @@ class QuerySerializer(serializers.Serializer):
                                child=serializers.DateTimeField(format='iso-8601', input_formats=['iso-8601'], default_timezone=datetime.timezone.utc), 
                                min_length=1, max_length=2,
                                allow_empty=False, required=False)
-    object = serializers.CharField(max_length=256, required=False)    
+    object = serializers.CharField(max_length=256, required=False)
+    ra_dec = ListWithSeperator(sep_char=",", child=serializers.FloatField(), min_length=2, max_length=3, allow_empty=False, required=False)
     count = serializers.BooleanField(default=False, required=False)
     prefix = serializers.BooleanField(default=False)
     contains = serializers.BooleanField(default=False)
     match_case = serializers.BooleanField(default=True)
-    results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='[A-Za-z][A-Za-z0-9_]*', max_length=30, allow_blank=False), default=[], max_length=128)
-    sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='-?[A-Za-z][A-Za-z0-9_]*', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)
+    results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='^[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=[], max_length=128)
+    sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='^(-|\+)?[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)
+    filters = ListWithSeperator(sep_char=",",child=serializers.CharField(max_length=60, allow_blank=False),min_length=1, max_length=128, required=False, allow_empty=False)
 
     def __init__(self, data, view):
         """
@@ -78,6 +84,32 @@ class QuerySerializer(serializers.Serializer):
 
         super().__init__(data=data)
 
+    def validate_ra_dec(self, value):
+        """Validate ra value in ra_dec"""
+        dec=value[1]
+        if dec <= -90.0 or dec >= 90.0:
+            raise serializers.ValidationError([{'ra_dec': 'DEC must be between -90 and 90 degrees'}])
+        return value
+
+    def validate_filters(self,value):
+        """Validate the filters passed into the query."""
+        # Eventually this might allow filtering on arbitrary fields using simple expressions,
+        # but for now we only allow one filter, on instrument
+        if value[0] != "instrument":
+            raise serializers.ValidationError([{'filters': 'Only "instrument" is allowed as a filter.'}])
+        requested_instruments = []
+        valid_instruments = [x.name for x in archive_schema.Instrument]
+        for instrument in value[1:]:
+            # We'll allow case insensitive instrument names in the query
+            if instrument.upper() in valid_instruments:
+                # The DB holds the string value of the enum
+                requested_instruments.append(archive_schema.Instrument[instrument.upper()].value)
+            else:
+                raise serializers.ValidationError([{'filters': 'Instrument filter must be one of: ' + ",".join([f"\"{x}\"" for x in valid_instruments])}])
+        if len(requested_instruments)==0:
+            raise serializers.ValidationError([{'filters': 'Instrument filter must be one of: ' + ",".join([f"\"{x}\"" for x in valid_instruments])}])
+        return requested_instruments
+
     def validate_sort(self, value):
         """Validate the sort fields of a query"""
         errors = []
@@ -87,6 +119,8 @@ class QuerySerializer(serializers.Serializer):
             # Pull off the "-" indicating a reversed sort
             if sort_field.startswith("-"):
                 field_name = sort_field.strip("-")
+            elif sort_field.startswith("+"):
+                field_name = sort_field.strip("+")
             else:
                 field_name = sort_field
 
@@ -173,6 +207,8 @@ class QueryAPIPagination(PageNumberPagination):
 
                 # Make sure all sort attributes are included in the results
                 for sort_attribute in request.validated_query['sort']:
+                    if sort_attribute.startswith("+") or sort_attribute.startswith("-"):
+                        sort_attribute=sort_attribute[1:]
                     if sort_attribute not in requested_attributes:
                         requested_attributes.append(sort_attribute)
 
@@ -300,7 +336,9 @@ class QueryAPIFilterBackend:
             raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.indexed_attributes)})"})
 
         logger.info(f"Building {required_field} query on '{required_search_value}'")
-        filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'])
+        filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'],
+                                    request.validated_query.get('filters', None))
+
         queryset = queryset.filter(**filters)
 
         # Add sort attributes if needed
@@ -309,7 +347,7 @@ class QueryAPIFilterBackend:
         else:
             return queryset
             
-    def _build_where(self, field, value, string_match, match_case):
+    def _build_where(self, field, value, string_match, match_case, user_filters=None):
         """Build the Django keyword arguments to filter a queryset.
         
         Args:
@@ -322,6 +360,9 @@ class QueryAPIFilterBackend:
 
             match_case (bool):
                 Whether or not to to perform case sensitive string filtering.
+
+            user_filters(list):
+                Optional filters to apply to the where clause.
 
         Returns (dict): The keyword arguments needed to filter the QuerySet.
         """
@@ -351,6 +392,21 @@ class QueryAPIFilterBackend:
                 self._build_range_filter(filters, "obs_date", start_date_time, end_date_time+ datetime.timedelta(milliseconds=1))
             else:
                 self._build_exact_filter(filters, "obs_date", value[0])
+        elif field == 'ra_dec':
+            ra_dec = SkyCoord(ra=value[0], dec=value[1], unit=("deg", "deg"))
+            if len(value) == 3:
+                radius = Angle(value[2], unit="deg")
+            else:
+                # Use a default if no radius is given
+                radius = Angle(settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS)
+            self._build_contained_in_filter(filters, "coord", ra_dec, radius)
+
+        if user_filters is not None:
+            # Currently only instrument filters are supported
+            self._build_in_filter(filters, "instrument", user_filters)
+
+
+
         return filters
 
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
@@ -383,7 +439,7 @@ class QueryAPIFilterBackend:
         orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
                               in the query string.
         value (str):          The value to filter by.
-        string_match (str):     Either "exact", "startswith" or "contains"
+        string_match (str):     Either "exact", "startswith", "in", or "contains"
         match_case (bool):    If true, a case sensitive search is performed. If false, it is case insensitive.
         """
         logger.debug(f"String filter value {value}")
@@ -393,6 +449,37 @@ class QueryAPIFilterBackend:
             sensitivity = "i"
 
         filters[f"{orm_field_name}__{sensitivity}{string_match}" ] = value
+
+    def _build_in_filter(self, filters, orm_field_name, values):
+        """Build a filter for a field that will exactly match one of a fixed set of values.
+        
+        Args:
+        filters (dict):       A filter dictionary to add the filter to.
+        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                              in the query string.
+        values (list or Any): The value or values to filter by.
+        """
+        logger.debug(f"in filter value {values}")
+        if not isinstance(values, list):
+            values = [values]
+        filters[f"{orm_field_name}__in" ] = values
+
+    def _build_contained_in_filter(self, filters, orm_field_name, ra_dec, radius):
+        """Build a filter for the PostgreSQL "<@" geometric operation that searches for
+           coordinates within a circle.
+
+        Args:
+        filters (dict):       A filter dictionary to add the filter to.
+        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                              in the query string.
+        ra_dec (SkyCoord):    The center of a circle on the sky.
+        radius (Angle):       The angular radius of a circle.
+                    
+        """
+        logger.debug(f"in contained in filter {ra_dec} {radius}")
+        # To be a proper Django operation we'd have to make a custom
+        # lookup, but since we're faking it with SQLAlchemy we don't have to
+        filters[f"{orm_field_name}__contained_in" ] = SCircle(ra_dec, radius)
 
     def _build_exact_filter(self, filters, orm_field_name, value):
         """Build a filter for a field that will exactly match a value

@@ -7,6 +7,9 @@ from tenacity import Retrying, stop_after_delay, wait_exponential
 
 logger = logging.getLogger(__name__)
 
+from astropy.coordinates import Angle
+
+from lick_archive.db import archive_schema
 
 class LickArchiveClient:
     """Client for the Lick Searchable Archive's REST API
@@ -34,17 +37,20 @@ class LickArchiveClient:
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
 
-    def query(self, field, value, contains=False, match_case=True, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
+    def query(self, field, value, filters={}, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
-            field (str): The field to query on. "filename", "object", "date", and "datetime" are the only accepted fields currently.
+        Args:
+            field (str): The field to query on. "filename", "object", "ra_dec", "date", and "datetime" are the only accepted fields currently.
             value (Any): The value being queried on. This depends on the field being queried:
                          "filename", "object": A string 
+                         "ra_dec": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values.
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
+            filters (dict): Additional filters to apply to the query. The key is the name of the field to filter on, the value is one or more values to query for.
             contains (bool): Whether a string query should query for a substring or an exact match. Defaults to False. Has no effect for date queries.
-            match_case (bool): Whether a string query should be case sensitive. Defaults to True.
+            match_case (bool): Whether a string query should be case sensitive. Only applicable to object searches.
             prefix (bool): Whether a string query should query for the prefix or an exact match. Defaults to False. Has no effect for date queries.
             count (int): Whether to return a count of how many files match the query instead of the metadata from the files. Defaults to False.
             results (list of str): The list of metadata attributes to return. Defaults to ["filename"]. This is ignored
@@ -66,7 +72,7 @@ class LickArchiveClient:
             ValueError If an invalid result is returned from the archive server.
         """
         # Validate the field being queried on 
-        if field not in ["filename", "object", "date", "datetime"]:
+        if field not in ["filename", "object", "date", "datetime", "ra_dec"]:
             raise ValueError(f"Unknown query field '{field}'")
 
         # Build query parameters
@@ -79,13 +85,33 @@ class LickArchiveClient:
         else:
             query_params = {field: str(value)}
 
+        if field=="ra_dec":            
+            # ra, dec, and radius, all are converted to decimal degrees
+            if isinstance(value, list) or isinstance(value, tuple):
+                if len(value) !=3:
+                    raise ValueError("Invalid ra_dec value. ra_dec should be a list of ra,dec,radius")
+                
+                query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg") for a in value])}
+            else:
+                raise ValueError("Invalid ra_dec value, ra_dec should be list of ra,dec,radius")
+
         if prefix is True:
             query_params["prefix"] = True
         elif contains is True:
             query_params["contains"] = True
         
-        if match_case is False:
-            query_params["match_case"] = False
+        if match_case is not None:
+            query_params["match_case"] = match_case
+
+        for field, value in filters.items():
+            if field != "instrument":
+                raise ValueError(f"Cannot filter by field named {field}")
+            filter_values = ["instrument"]
+            if isinstance(value, str):
+                filter_values.append(value)
+            else:
+                filter_values += [str(x) for x in value]
+            query_params["filters"] = ",".join(filter_values)
 
         if count is True:
             query_params["count"] = True

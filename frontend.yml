@@ -49,3 +49,11 @@
     listen:
       - "restart web server"
       - "common config changed"
+
+- name: End
+  hosts: 127.0.0.1
+  tasks:
+    - debug: msg="Finished at {{ ansible_date_time.date }} {{ ansible_date_time.time }} {{ ansible_date_time.tz }}"
+
+
+

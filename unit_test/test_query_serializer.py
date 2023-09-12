@@ -2,7 +2,7 @@ import pytest
 from collections import namedtuple
 import os
 from datetime import date
-
+from urllib.parse import quote
 # Setup test Django settings
 os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
 
@@ -33,34 +33,39 @@ def test_query_serializer(tmp_path):
     assert serializer.validated_data['count'] is False
     assert serializer.validated_data['prefix'] is False
     assert "date" not in serializer.validated_data
-    assert "date_range" not in serializer.validated_data
     assert "object" not in serializer.validated_data
+    assert "ra_dec" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
 
     # Date query
     query_params = QueryDict("date=1970-01-01")
     serializer = QuerySerializer(data=query_params, view=mock_view)
     assert serializer.is_valid(raise_exception=True) is True
-    assert serializer.validated_data['date'] == date(year=1970, month=1, day=1)
+    assert serializer.validated_data['date'] == [date(year=1970, month=1, day=1)]
     assert serializer.validated_data['results'] == []
     assert serializer.validated_data['sort'] == ["id"]
     assert serializer.validated_data['count'] is False
     assert serializer.validated_data['prefix'] is False
     assert "filename" not in serializer.validated_data
-    assert "date_range" not in serializer.validated_data
     assert "object" not in serializer.validated_data
+    assert "ra_dec" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
 
-    # Date range with count and sort
-    query_params = QueryDict("date_range=1970-01-01,2023-01-01&count=t&sort=filename")
+    # Date range with count, filter, and sort
+    query_params = QueryDict("date=1970-01-01,2023-01-01&filters=instrument,SHARCS,KAST_RED&count=t&sort=filename")
     serializer = QuerySerializer(data=query_params, view=mock_view)
     assert serializer.is_valid(raise_exception=True) is True
-    assert serializer.validated_data['date_range'] == [date(year=1970, month=1, day=1),date(year=2023, month=1, day=1)]
+    assert serializer.validated_data['date'] == [date(year=1970, month=1, day=1),date(year=2023, month=1, day=1)]
     assert serializer.validated_data['results'] == []
     assert serializer.validated_data['sort'] == ["filename"]
     assert serializer.validated_data['count'] is True
     assert serializer.validated_data['prefix'] is False
+    assert "ShaneAO/ShARCS" in serializer.validated_data['filters']
+    assert "Kast Red" in serializer.validated_data['filters']
+    assert len(serializer.validated_data['filters']) == 2
     assert "filename" not in serializer.validated_data
-    assert "date" not in serializer.validated_data
     assert "object" not in serializer.validated_data
+    assert "ra_dec" not in serializer.validated_data
 
     # Object query with prefix and sort
     query_params = QueryDict("object=HD3&prefix=t&sort=object,-obs_date")
@@ -73,7 +78,36 @@ def test_query_serializer(tmp_path):
     assert serializer.validated_data['prefix'] is True
     assert "filename" not in serializer.validated_data
     assert "date" not in serializer.validated_data
-    assert "date_range" not in serializer.validated_data
+    assert "ra_dec" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
+
+    # ra_dec query with no radius, + on sort. Note + must be quoted
+    query_params = QueryDict("ra_dec=349.99,-5.1656&sort=" + quote("+obs_date"))
+    serializer = QuerySerializer(data=query_params, view=mock_view)
+    assert serializer.is_valid(raise_exception=True) is True
+    assert serializer.validated_data['ra_dec'] == [349.99, -5.1656]
+    assert serializer.validated_data['results'] == []
+    assert serializer.validated_data['sort'] == ["+obs_date"]
+    assert serializer.validated_data['count'] is False
+    assert serializer.validated_data['prefix'] is False
+    assert "filename" not in serializer.validated_data
+    assert "date" not in serializer.validated_data
+    assert "object" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
+
+    # ra_dec query with radius
+    query_params = QueryDict("ra_dec=349.99,-5.1656,0.1&sort=obs_date")
+    serializer = QuerySerializer(data=query_params, view=mock_view)
+    assert serializer.is_valid(raise_exception=True) is True
+    assert serializer.validated_data['ra_dec'] == [349.99, -5.1656,0.1]
+    assert serializer.validated_data['results'] == []
+    assert serializer.validated_data['sort'] == ["obs_date"]
+    assert serializer.validated_data['count'] is False
+    assert serializer.validated_data['prefix'] is False
+    assert "filename" not in serializer.validated_data
+    assert "date" not in serializer.validated_data
+    assert "object" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
 
     #Everything empty    
     query_params = QueryDict("")
@@ -81,8 +115,9 @@ def test_query_serializer(tmp_path):
     assert serializer.is_valid(raise_exception=True) is True
     assert "filename" not in serializer.validated_data
     assert "date" not in serializer.validated_data
-    assert "date_range" not in serializer.validated_data
     assert "object" not in serializer.validated_data
+    assert "ra_dec" not in serializer.validated_data
+    assert "filters" not in serializer.validated_data
     assert serializer.validated_data['results'] == []
     assert serializer.validated_data['sort'] == ["id"]
     assert serializer.validated_data['count'] is False
@@ -94,11 +129,22 @@ def test_query_serializer(tmp_path):
     with pytest.raises(ValidationError, match="Date has wrong format"):
         serializer.is_valid(raise_exception=True)
 
-    query_params = QueryDict("date_range=01/01/1970,01/01/2023")
+    query_params = QueryDict("date=01/01/1970,01/01/2023")
     serializer = QuerySerializer(data=query_params, view=mock_view)
     with pytest.raises(ValidationError, match="Date has wrong format"):
         serializer.is_valid(raise_exception=True)
-    
+
+    # Invalid ra_dec
+    query_params = QueryDict("ra_dec=100,-91")
+    serializer = QuerySerializer(data=query_params, view=mock_view)
+    with pytest.raises(ValidationError, match="DEC must be between"):
+        serializer.is_valid(raise_exception=True)
+
+    query_params = QueryDict("ra_dec=100,91")
+    serializer = QuerySerializer(data=query_params, view=mock_view)
+    with pytest.raises(ValidationError, match="DEC must be between"):
+        serializer.is_valid(raise_exception=True)
+
 
     # Invalid results (fails regex)
     query_params = QueryDict("results=99,38")
@@ -114,6 +160,12 @@ def test_query_serializer(tmp_path):
 
     # Invalid sort (fails regex)
     query_params = QueryDict("sort=99")
+    serializer = QuerySerializer(data=query_params, view=mock_view)
+    with pytest.raises(ValidationError, match="This value does not match the required pattern."):
+        serializer.is_valid(raise_exception=True)
+
+    # Another invalid sort. We have to quote the + or it get ignored by the QueryDict
+    query_params = QueryDict("sort=" + quote("+-id"))
     serializer = QuerySerializer(data=query_params, view=mock_view)
     with pytest.raises(ValidationError, match="This value does not match the required pattern."):
         serializer.is_valid(raise_exception=True)

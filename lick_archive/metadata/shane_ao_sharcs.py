@@ -151,7 +151,8 @@ class ShaneAO_ShARCS(AbstractReader):
         if m.obs_date is None:
             logger.debug("Using directory date for observation date.")
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
-            m.obs_date = datetime.strptime(f"{filename_date}T00:00:00+00:00", '%Y-%m-%dT%H:%M:%S%z')
+            # Use noon Lick time (aka UTC-8)
+            m.obs_date = datetime.strptime(f"{filename_date}T12:00:00-08:00", '%Y-%m-%dT%H:%M:%S%z')
 
         m.coadds_done = safe_header(header, 'COADDONE')
         m.true_int_time = safe_header(header, 'TRUITIME')

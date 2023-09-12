@@ -1,23 +1,13 @@
 # Test the paginator used by the lick archive api
 
 from collections import namedtuple
-import os
 from datetime import datetime
 import urllib.parse
 
-# Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
-
-import django
 from django.http import QueryDict
 
-from rest_framework.test import APIRequestFactory
-from rest_framework.request import Request
-
 from lick_archive.db.archive_schema import Base, Main, FrameType
-from unit_test.utils import MockDatabase
-from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
-from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
+from unit_test.utils import MockDatabase, MockView, create_validated_request, setup_django_environment
 
 # Test rows shared between most tests
 test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
@@ -33,48 +23,47 @@ test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetim
 def test_no_results(tmp_path):
     # Test a query that returns no results form the database
 
-    MockView = namedtuple("MockView", ["allowed_result_attributes", "allowed_sort_attributes", "indexed_attributes", "filter_backends"])
-    mock_view = MockView(allowed_result_attributes =["filename", "obs_date", "object", "frame_type", "header"],
-                         allowed_sort_attributes=   ["id", "filename", "object", "obs_date"],
-                         indexed_attributes= ['filename', 'date', 'date_range', 'object'],
-                         filter_backends=[QueryAPIFilterBackend])
 
-    # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
+    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict("results=filename,obs_date&sort=object")))
 
-    with MockDatabase(Base) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
-        
+    with MockDatabase(Base) as mock_db:                
+        mock_view = MockView(mock_db.engine)
+        request = create_validated_request(path="files/", data=QueryDict("filename=notafile.fits&results=filename,obs_date&sort=object"), view=mock_view)
+        mock_view.request = request
+        mock_view.filter_backends=[QueryAPIFilterBackend]
+        queryset = mock_view.get_queryset()        
         paginator = QueryAPIPagination()
 
+        queryset = mock_view.filter_queryset(queryset)
         page = paginator.paginate_queryset(queryset, request, mock_view)
         response = paginator.get_paginated_response(page)
         assert response.data['results'] == []
 
 def test_one_page_of_results(tmp_path):
     # Test pulling exactly one page from the database
-    MockView = namedtuple("MockView", ["allowed_result_attributes", "allowed_sort_attributes", "indexed_attributes", "filter_backends"])
-    mock_view = MockView(allowed_result_attributes =["filename", "obs_date", "object", "frame_type", "header"],
-                         allowed_sort_attributes=   ["id", "filename", "object", "obs_date"],
-                         indexed_attributes= ['filename', 'date', 'date_range', 'object'],
-                         filter_backends=[QueryAPIFilterBackend])
 
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
-    request = Request(request_factory.get("files/", data=QueryDict(f"results=filename,obs_date&sort=filename&page_size={len(test_rows)}")))
+    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
 
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
-        
+
+        mock_view = MockView(mock_db.engine)
+        request = create_validated_request(path="files/", 
+                                        data=QueryDict(f"date=2018-01-01,2020-12-31&results=filename,obs_date&sort=filename&page_size={len(test_rows)}"), 
+                                        view=mock_view)
+        mock_view.request = request
+        mock_view.filter_backends=[QueryAPIFilterBackend]
+        queryset = mock_view.get_queryset()        
         paginator = QueryAPIPagination()
+
+        queryset = mock_view.filter_queryset(queryset)
         page = paginator.paginate_queryset(queryset, request, mock_view)
         response = paginator.get_paginated_response(page)
 
@@ -108,23 +97,20 @@ def test_multi_page_result(tmp_path):
                              frame_type=FrameType.science, object="object 4", filename="testfile10.fits",  ingest_flags='00000000000000000000000000000000'),                       
     ]
 
-    MockView = namedtuple("MockView", ["allowed_result_attributes", "allowed_sort_attributes", "indexed_attributes", "filter_backends"])
-    mock_view = MockView(allowed_result_attributes =["filename", "obs_date", "object", "frame_type", "header"],
-                         allowed_sort_attributes=   ["id", "filename", "object", "obs_date"],
-                         indexed_attributes= ['filename', 'date', 'date_range', 'object'],
-                         filter_backends=[QueryAPIFilterBackend])
 
     # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    setup_django_environment(tmp_path)
 
-    request_factory = APIRequestFactory()
+    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
+
     page_size = 3
 
-    base_query_string = f"results=filename,object&sort=object&page_size={page_size}"
+    base_query_string = f"date=2018-01-01,2020-12-31&results=filename,object&sort=object&page_size={page_size}"
     multipage_test_rows = test_rows + additional_rows
     with MockDatabase(Base, multipage_test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        mock_view = MockView(mock_db.engine)
+        mock_view.filter_backends=[QueryAPIFilterBackend]
         
         paginator = QueryAPIPagination()
 
@@ -143,8 +129,13 @@ def test_multi_page_result(tmp_path):
         # Go through all the pages of results
         query_string = base_query_string
         for page_num in range(expected_pages):
-            request = Request(request_factory.get("files/", data=QueryDict(query_string)))
+            request = create_validated_request(path="files/", 
+                                               data=QueryDict(query_string), 
+                                               view=mock_view)
+            mock_view.request = request
 
+            queryset = mock_view.get_queryset()        
+            queryset = mock_view.filter_queryset(queryset)
             page = paginator.paginate_queryset(queryset, request, mock_view)
             response = paginator.get_paginated_response(page)            
 
@@ -177,8 +168,13 @@ def test_multi_page_result(tmp_path):
         # Now test in reverse order
         returned_filenames = []
         returned_objects = []
-        for page_num in range(expected_pages):
-            request = Request(request_factory.get("files/", data=QueryDict(query_string)))
+        for page_num in reversed(range(expected_pages)):
+            request = create_validated_request(path="files/", 
+                                               data=QueryDict(query_string), 
+                                               view=mock_view)
+            mock_view.request = request
+            queryset = mock_view.get_queryset()        
+            queryset = mock_view.filter_queryset(queryset)
 
             page = paginator.paginate_queryset(queryset, request, mock_view)
             response = paginator.get_paginated_response(page)            
@@ -192,15 +188,16 @@ def test_multi_page_result(tmp_path):
                 # Insert objects in reverse order to preserve order
                 returned_objects.insert(0, response.data["results"][i]["object"])
 
-            if page_num == 0:
+            if page_num == expected_pages -1:
                 assert response.data["next"] is None
+
+            if page_num == 0:
+                assert response.data["previous"] is None
             # Use the previous link this time to iterate through the pages
-            if page_num != expected_pages-1:
+            elif page_num < expected_pages:
                 assert response.data["previous"] is not None
                 parsed_url = urllib.parse.urlparse(response.data["previous"])
                 query_string = parsed_url.query
-            else:
-                assert response.data["previous"] is None
 
         # Assert all rows returned
         for row in multipage_test_rows:

@@ -198,6 +198,10 @@ LICK_ARCHIVE_FRONTEND_URL="{{ frontend_url }}"
 LICK_ARCHIVE_DB          = '{{ db_name }}'
 {% endif %}
 
+{% if "frontend" or "query" in archive_apps %}
+LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS = "{{ default_search_radius }}"
+{% endif %}
+
 {% if "ingest" in archive_apps %}
 {# Celery is currently only used by ingest #}
 # Celery configuration

@@ -144,6 +144,9 @@ class SQLAlchemyQuerySet:
                 sort_attr = self._get_orm_attrib(sort_field[1:], "sort").desc()
             else:
                 # Ascending sort
+                if sort_field.startswith("+"):
+                    sort_field = sort_field[1:]
+                
                 sort_attr = self._get_orm_attrib(sort_field, "sort").asc()
 
             return_queryset.sort_attributes.append(sort_attr)
@@ -197,6 +200,8 @@ class SQLAlchemyQuerySet:
                 return_queryset.where_filters.append(sql_alchemy_field < value)
             elif op == "gt":
                 return_queryset.where_filters.append(sql_alchemy_field > value)
+            elif op == "in":
+                return_queryset.where_filters.append(sql_alchemy_field.in_(value))
             elif op == "exact" or op == "iexact":
                 # Look for NULL entries if the value is None or an empty string
                 if kwargs[key] is None or (isinstance(value, str) and len(value.strip())==0):
@@ -215,6 +220,8 @@ class SQLAlchemyQuerySet:
                 return_queryset.where_filters.append(sql_alchemy_field.icontains(value, autoescape=True))
             elif op == "range":
                 return_queryset.where_filters.append(sql_alchemy_field.between(value[0], value[1]))
+            elif op == "contained_in":
+                return_queryset.where_filters.append(sql_alchemy_field.op("<@")(value))
             else:
                 logger.error(f"Unknown filter op {op} in key {key} on value {kwargs[key]}")
                 raise APIException("Failed building query.")

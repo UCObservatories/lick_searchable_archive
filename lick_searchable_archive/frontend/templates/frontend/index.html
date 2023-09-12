@@ -7,51 +7,108 @@
 </head>
 <body>
 <header>
-<h1>Mt. Hamilton Data Repository Search - Beta</h1>
+    <!--Taken from prior repository page-->
+    <map name="home">
+        <area shape="rect" coords="2,30,62,86" href="{{ archive_url }}">
+        <area shape="rect" coords="497,30,566,86" href="/">
+        <area shape="rect" coords="571,30,640,86" href="https://www.ucobservatories.org/">
+    </map>
+    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home">
+
 </header>
+<nav class="nav_sidebar">
+    <section class="nav_section">
+        <H1>Links</H1>
+        <ul class="nav_links_list">
+        <li>
+            <span class = "nav_link_tbd">Browse the repository by date</span>                
+        </li>            
+        <li><a href="/">Mt Hamilton Home Page</a></li>
+        <li><a href="https://www.ucobservatories.org/">UC Observatories Home Page</a></li>
+        <li>
+            <a href="https://mthamilton.ucolick.org/data/help/">About the repository</a>
+        </li>
+        </ul>
+    </section>
+    <section class = "nav_section">
+        <H1>Documentation</H1>
+        <ul class="nav_links_list">
+        <li>            
+            <span class="nav_tbd_link">How to use the repository</span>
+        </li>
+        <li>
+            <span class="nav_tbd_link">Description of all fields</span>
+        </li>
+        <li><span class="nav_tbd_link">API Documentation</span></li>
+    </ul>
+    </section>
+</nav>
 <main>
 <form id="archive_query" class="search_form" method="POST" action="{{ archive_url }}">
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
         <legend>Search</legend>
-
-
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_object" name="which_query" value="object_name" {% if form.which_query.value == "object_name" %}checked {% endif %} />
-            <label class="search_terms_label" for="query_by_object">{{ form.object_name.label }}</label>        
-            {{ form.object_name }}
-            <span class="search_terms_help">{{ form.object_name.help_text }}</span>
-        </fieldset> 
-        
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />
-            <label class="search_terms_label" for="query_by_date">{{ form.date.label }}</label>         
-            {{ form.date }}
-            <span class="search_terms_help">{{ form.date.help_text }}</span>
-        </fieldset> 
-        
-        <fieldset class="search_terms_grid">
-            <input class="search_terms_radio" type="radio" id="query_by_file" name="which_query" value="filename" {% if form.which_query.value == "filename" %}checked {% endif %} />                
-            <label class="search_terms_label" for="query_by_file">{{ form.filename.label }}</label>        
-            {{ form.filename }}
-            <span class="search_terms_help">{{ form.filename.help_text }}</span>
-    
-        </fieldset> 
-        
+        <ul role="list" class="search_form_list">
+            <li class="search_terms_option">
+                <label class="search_terms_label" for="query_by_object">                        
+                    <input class="search_terms_radio" type="radio" id="query_by_object" name="which_query" value="object_name" {% if form.which_query.value == "object_name" %}checked {% endif %} />
+                    {{ form.object_name.label }}
+                </label>
+                <fieldset class="search_terms_grid" id="id_object_fields"> 
+                    {{ form.object_name }}
+                    <span class="search_terms_help">{{ form.object_name.help_text }}</span>
+                </fieldset> 
+            </li>
+            <li class="search_terms_option">
+                <label class="search_terms_label" for="query_by_date">
+                    <input class="search_terms_radio" type="radio" id="query_by_date" name="which_query" value="date" {% if form.which_query.value == "date" %}checked {% endif %} />
+                    {{ form.date.label }}
+                </label>
+                <fieldset class="search_terms_grid" id="id_date_fields">
+                    {{ form.date }}
+                    <span class="search_terms_help">{{ form.date.help_text }}</span>
+                </fieldset> 
+            </li>        
+            <li class="search_terms_option">
+                <label class="search_terms_label" for="query_by_file">
+                    <input class="search_terms_radio" type="radio" id="query_by_file" name="which_query" value="filename" {% if form.which_query.value == "filename" %}checked {% endif %} />                
+                    {{ form.filename.label }}
+                </label>
+                <fieldset class="search_terms_grid" id="id_filename_fields">
+                    {{ form.filename }}
+                    <span class="search_terms_help">{{ form.filename.help_text }}</span>    
+                </fieldset> 
+            </li>
+            <li class="search_terms_option">
+                <label class="search_terms_label" for="query_by_coords">
+                    <input class="search_terms_radio" type="radio" id="query_by_coords" name="which_query" value="coords" {% if form.which_query.value == "coords" %}checked {% endif %} />                
+                    {{ form.coords.label }}
+                </label>
+                <fieldset class="search_terms_grid" id="id_coords_fields">
+                    {{ form.coords }}
+                    <span class="search_terms_help">{{ form.coords.help_text }}</span>    
+                </fieldset> 
+            </li>
+        </ul>      
+    </fieldset>
+    <fieldset id="instrument" class="search_form_instr">
+        <legend>Instruments</legend>
+        {{ form.instruments }}
+        <button id="instrument_all" type="button">Select All</button>
+        <button id="instrument_none" type="button">Deselect All</button>
     </fieldset>
     <fieldset id="results">
         <legend>Search Results</legend>
-        <ul class="search_form_list">
-            <li><label for="{{ form.count.0.id_for_label }}"> {{ form.count.0.tag }} {{ form.count.0.choice_label }}</label></li>
-            <li>
-                <label for="{{ form.count.1.id_for_label }}>"> {{ form.count.1.tag }} {{ form.count.1.choice_label }}
-                    <fieldset id="fields" class="search_form_fields">
-                        <span class="field_select_box"><label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}</span>
-                        <span class="field_select_box"><label for="id_sort_fields">{{ form.sort_fields.label }}</label>{{ form.sort_fields }}</span>
-                    </fieldset>
-                </label>
+        <ul role="list" class="search_field_list">
+            <li>{{ form.count.1.tag }}<label for="{{ form.count.1.id_for_label }}>">{{ form.count.1.choice_label }}</label>
+                <fieldset id="fields" class="search_form_fields">
+                    <label for="id_page_size">Results per page</label>{{ form.page_size }}
+                    <label for="id_coord_format">RA/DEC format</label>{{ form.coord_format }}
+                    <label for="id_sort_fields">{{ form.sort_fields.label }}</label><span>{{ form.sort_fields }}{{ form.sort_dir }}</span>
+                    <label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}
+                </fieldset>  
             </li>
-            <button id="reset_fields" type="button">Use Default Fields</button>
+            <li>{{ form.count.0.tag }}<label for="{{ form.count.0.id_for_label }}">{{ form.count.0.choice_label }}</label></li>
         </ul>
     </fieldset>
 
@@ -60,7 +117,7 @@
 {% if result_list is None or result_list|length == 0 %}
     Number of results: {{ result_count }}
 {% else %}
-    Showing results {{ start_result }} - {{ start_result|add:"1" }} of {{ result_count }} results.
+    Showing results {{ start_result }} - {{ end_result }} of {{ result_count }} results.
     <br>{{ form.page }}
     
     <table>
@@ -94,66 +151,78 @@ Footer text?
     const objectRadioInput = document.getElementById("query_by_object")
     const dateRadioInput = document.getElementById("query_by_date")
     const filenameRadioInput = document.getElementById("query_by_file")
+    const locationRadioInput = document.getElementById("query_by_coords")
+    const countRadioInput = document.getElementById("id_count_0")
+    const resultsRadioInput = document.getElementById("id_count_1")
 
-    const objectOperator = document.getElementById("id_object_name_0")
-    const objectText = document.getElementById("id_object_name_1")
+    const objectFields = document.getElementById("id_object_fields")
+    const dateFields = document.getElementById("id_date_fields")
+    const filenameFields = document.getElementById("id_filename_fields")
+    const locationFields = document.getElementById("id_coords_fields")
+    const resultFields = document.getElementById("fields")
 
-    const dateOperator = document.getElementById("id_date_0")
-    const dateStart = document.getElementById("id_date_1")
-    const dateEnd = document.getElementById("id_date_2")
-
-    const filenameOperator = document.getElementById("id_filename_0")
-    const filenameText = document.getElementById("id_filename_1")
-    const resetFieldsButton = document.getElementById("reset_fields")
-
-    const resultFields = document.getElementById("id_result_fields")
-    const sortFields = document.getElementById("id_sort_fields")
+    const instrAllButton = document.getElementById("instrument_all")
+    const instrNoneButton = document.getElementById("instrument_none")
+    const instrumentCheckboxes = document.getElementsByClassName("search_instr_check")
 
     objectRadioInput.addEventListener("change", enableAndDisableFields)
     dateRadioInput.addEventListener("change", enableAndDisableFields)
     filenameRadioInput.addEventListener("change", enableAndDisableFields)
-    resetFieldsButton.addEventListener("click", resetResultAndSortFields)
+    locationRadioInput.addEventListener("change", enableAndDisableFields)
+    countRadioInput.addEventListener("change", enableAndDisableResultFields)
+    resultsRadioInput.addEventListener("change", enableAndDisableResultFields)
+    
+    instrAllButton.addEventListener("click", selectInstruments)
+    instrNoneButton.addEventListener("click", selectInstruments)
 
     document.addEventListener("DOMContentLoaded", enableAndDisableFields)
 
-
-    function resetResultAndSortFields(value) {
-        for (var i = 0; i < resultFields.options.length; i++) {
-            resultFields.options[i].selected = resultFields.options[i].defaultSelected
-        }
-        for (var i = 0; i < sortFields.options.length; i++) {
-            sortFields.options[i].selected = sortFields.options[i].defaultSelected
-        }
-    }
-
-    function setObjectQueryDisabled(value) {
-        objectOperator.disabled=value
-        objectText.disabled=value
-    }
-
-    function setDateQueryDisabled(value) {
-        dateOperator.disabled=value
-        dateStart.disabled=value
-        dateEnd.disabled=value
-    }
-    function setFilenameQueryDisabled(value) {
-        filenameOperator.disabled=value
-        filenameText.disabled=value
-    }
-    function enableAndDisableFields() {
-        if (objectRadioInput.checked) {
-            setObjectQueryDisabled(false)
-            setDateQueryDisabled(true)
-            setFilenameQueryDisabled(true)
-        } else if (dateRadioInput.checked) {
-            setObjectQueryDisabled(true)
-            setDateQueryDisabled(false)
-            setFilenameQueryDisabled(true)
+    function selectInstruments(event) {
+        if (event.target.id=="instrument_all") {
+            value = true
+        } else if (event.target.id == "instrument_none") {
+            value = false
         }
         else {
-            setObjectQueryDisabled(true)
-            setDateQueryDisabled(true)
-            setFilenameQueryDisabled(false)
+            return
+        }
+        for (checkbox of instrumentCheckboxes) {
+            checkbox.checked = value
+        }
+    }
+
+    function enableAndDisableResultFields() {
+        if (countRadioInput.checked) {
+            resultFields.disabled=true
+        }
+        else {
+            resultFields.disabled=false
+        }
+    }
+
+    function enableAndDisableFields() {
+
+        if (objectRadioInput.checked) {
+            objectFields.disabled=false
+            dateFields.disabled=true
+            filenameFields.disabled=true
+            locationFields.disabled=true
+        } else if (dateRadioInput.checked) {
+            objectFields.disabled=true
+            dateFields.disabled=false
+            filenameFields.disabled=true
+            locationFields.disabled=true
+        }
+        else if (filenameRadioInput.checked) {
+            objectFields.disabled=true
+            dateFields.disabled=true
+            filenameFields.disabled=false
+            locationFields.disabled=true
+        } else {
+            objectFields.disabled=true
+            dateFields.disabled=true
+            filenameFields.disabled=true
+            locationFields.disabled=false
         }
     }
 </script>

@@ -3,10 +3,10 @@
 import argparse
 import sys
 from datetime import datetime, timezone
-from sqlalchemy import text
+from sqlalchemy import text, func, select
 from lick_archive.db.archive_schema import Base, VersionHistory, version
 
-from lick_archive.db.db_utils import create_db_engine, open_db_session
+from lick_archive.db.db_utils import create_db_engine, open_db_session, execute_db_statement
 
 
 def get_parser():
@@ -28,7 +28,11 @@ def main(args):
     Base.metadata.create_all(engine)
 
     session = open_db_session(engine)
-    session.add(VersionHistory(version=version, event="Create DB", install_date=datetime.now(timezone.utc)))
+    version_count = execute_db_statement(session, select(func.count(VersionHistory.version))).scalar()
+    if version_count > 0:
+        session.add(VersionHistory(version=version, event="Update DB", install_date=datetime.now(timezone.utc)))
+    else:
+        session.add(VersionHistory(version=version, event="Create DB", install_date=datetime.now(timezone.utc)))
 
     if args.read_write_user is not None:
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_write_user))
