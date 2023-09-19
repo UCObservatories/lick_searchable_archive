@@ -455,7 +455,7 @@ def process_results(api_fields, result_list, coord_format):
                         try:
                             # Use astropy to parse and validate angles. It needs to be specifically told to expect hms
                             if coord_format == "decimal":
-                                ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=True)
+                                ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=True, unit=astropy.units.deg)
                             else:
                                 ra_angle = Angle(result[api_field], unit=astropy.units.hourangle).to_string(decimal=False, unit=astropy.units.hourangle,sep=":")
 
