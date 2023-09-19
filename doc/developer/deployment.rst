@@ -202,7 +202,7 @@ For example::
 ``your_user`` should be able to  ssh to the target machine without being challenged for a password. 
 If neccessary it is possible to specify a specific ssh key to use for this. For example::
 
-    ansible-playbook  single_host_archive.yml --key-file ~/work/keys/id_quarry_localdusty -u localdusty -K
+    ansible-playbook  single_host_archive.yml -i ops --key-file ~/work/keys/id_quarry_localdusty -u localdusty -K
 
 This is all that is needed to deploy the archive software. However there are additional playbooks that can
 be used to only deploy parts of the archive.

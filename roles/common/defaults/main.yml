@@ -11,6 +11,7 @@ package_install_dir: "{{ venv_root }}/lib/python{{ python_version }}/site-packag
 archive_log_dir: "{{ venv_root }}/var/log"
 archive_config_dir: "{{ venv_root }}/etc"
 archive_url_path_prefix: archive
+api_port: 8000
 watchdog_config: ingest_watchdog.conf
 django_settings: settings.py
 django_secret_keyfile: "{{ archive_config_dir }}/secret_key"

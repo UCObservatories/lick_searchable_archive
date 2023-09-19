@@ -10,9 +10,11 @@ Deployment Todo
 * Playbook for setting up an admin user on the archive host.
 * Deploy in Python packages? Debian Packages for ingest_watchdog? I think at least the common code
   in lick_archive should be packaged up.
-* Deploy rotating logging handlers for celery
+* Switch logging to syslog/rsyslog and logrotate
 * Pull mounting the archive file system into its own role?
 * Figure out self signed keys for having the ingest_watchdog deployed on the storage host
+* Figure out if the ignest_watchdog will ever be used remotely, if not it can
+  be greatly simplified.
 * Delete code prior to copying, or sync via rsync?
 * Auto deploy django/metadata dbs fs the tables aren't there?
  
@@ -25,9 +27,20 @@ Code Quality
 * Reorganize code so ansible is in its own deploy directory, and source is under src?
 * Get pid into logs for searching journalctl
 * get stdout into logs?
-* Consolidate query validation so it isn't done multiple times in query_api. Can it also be shared with lick_archive_client query_page?
 * A data dictionary class usable by the db schema, api, clients and for generating docs? See field_info in archive_schema
 * Make date format returned by api consistent, easy to parse and document.
+* At one point I decided to separate the query/query_api.py classes from the lick_archive classes, and create a distinct QueryAPIView as a base
+  class. Given how things have turned out I'm not sure that's necessary. Maybe it could be merged with query/views.py
+* I passed in the instrument as a "filter", I don't really like that.
+  I'd like the api to accept any field as a "filter", but to do that the
+  api validation couldn't use a serializer like it does now. Also there'data
+  have to be a fancy frontend to add new filter.
+
+Additional Features
+-------------------
+Add file size to db.
+Split file path and filename in db.
+object search could ignore whitespace
 
 Testing Todo
 ------------
