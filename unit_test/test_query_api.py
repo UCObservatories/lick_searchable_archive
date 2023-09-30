@@ -151,9 +151,12 @@ def test_ra_dec_filter(tmp_path):
         # Dig into the SQLAlchemy stuff to validate the filter
         assert queryset.where_filters[0].left.name == "coord"
         queryset.where_filters[0].operator.opstring == "<@"
-        assert queryset.where_filters[0].right.value.center.ra == 349.99
-        assert queryset.where_filters[0].right.value.center.dec == -5.1656
+        assert queryset.where_filters[0].right.value.ra == Angle("349.99 deg")
+        assert queryset.where_filters[0].right.value.ra.unit == "rad"
+        assert queryset.where_filters[0].right.value.dec == ("-5.1656 deg")
+        assert queryset.where_filters[0].right.value.dec.unit == "rad"
         assert queryset.where_filters[0].right.value.radius  == Angle("0.1 deg")
+        assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
     # Test with default radius
     request = create_test_request("files/", data=QueryDict("ra_dec=349.99,-5.1656"))
@@ -171,9 +174,12 @@ def test_ra_dec_filter(tmp_path):
         queryset = filter_backend.filter_queryset(request=request, queryset=queryset, view=view)
         assert queryset.where_filters[0].left.name == "coord"
         queryset.where_filters[0].operator.opstring == "<@"
-        assert queryset.where_filters[0].right.value.center.ra == 349.99
-        assert queryset.where_filters[0].right.value.center.dec == -5.1656
+        assert queryset.where_filters[0].right.value.ra == Angle("349.99 deg")
+        assert queryset.where_filters[0].right.value.ra.unit == "rad"
+        assert queryset.where_filters[0].right.value.dec == Angle("-5.1656 deg")
+        assert queryset.where_filters[0].right.value.dec.unit == "rad"
         assert queryset.where_filters[0].right.value.radius  == Angle(settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS)
+        assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
 def test_date_filter(tmp_path):
     """Test a date filter"""
