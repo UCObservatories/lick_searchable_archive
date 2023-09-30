@@ -67,3 +67,19 @@
   become: yes
   become_user: "{{ archive_service_user }}"
   notify: "common config changed"
+- name: Copy dev environment tests
+  ansible.builtin.copy: 
+    src: dev_test
+    dest: "{{ venv_root }}/"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0660
+    directory_mode: 0770
+  become: yes
+  when: archive_config == "dev"
+- name: Install development packages
+  ansible.builtin.pip: 
+    name: pytest
+    virtualenv: "{{ venv_root }}"
+    virtualenv_command: python{{ python_version }} -m venv
+  when: archive_config == "dev"

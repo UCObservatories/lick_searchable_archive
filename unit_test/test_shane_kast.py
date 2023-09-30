@@ -1,6 +1,6 @@
 import pytest
 
-from astropy.coordinates import IllegalSecondWarning
+from astropy.coordinates import IllegalSecondWarning, Angle
 from astropy.logger import AstropyUserWarning
 from pathlib import Path
 
@@ -173,7 +173,8 @@ def test_red_headers():
         assert row.program == 'KAST'
         assert row.ra == "14:11:60.0"
         assert row.dec == '+37:25:57.0'
-        assert row.coord == '(213d, 37.4325d)'
+        assert row.coord.ra == Angle("213 deg",unit="rad").value
+        assert row.coord.dec == Angle('37.4325 deg',unit="rad").value
 
     # Older, had no INSTRUME but program and SPSIDE
     file = '2007-08_20_shane_r90-hdu0.txt'

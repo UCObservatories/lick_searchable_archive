@@ -2,6 +2,9 @@
 Common utility functions for reading metadata from fits files
 """
 
+import logging
+logger = logging.getLogger(__name__)
+
 from lick_archive.db.pgsphere import SPoint
 from astropy.io import fits
 
@@ -67,7 +70,6 @@ def get_ra_dec(header):
 
             ra  = header['CRVAL1S']
             dec = header['CRVAL2S']
-            coord = SPoint.convert(ra, dec)
 
     if (ra is None and 
         'CRVAL1' in header and 'CRVAL2' in header and 
@@ -83,21 +85,24 @@ def get_ra_dec(header):
             ra  = header['CRVAL1']
             dec = header['CRVAL2']
 
-            coord = SPoint.convert(ra, dec)            
-
     if ra is None and 'RA' in header and 'DEC' in header:
         ra = header['RA']
         dec = header['DEC']
-        if ":" in ra:
-            coord = SPoint.convert_hmsdms(ra, dec)
-        else:
-            coord = SPoint.convert(ra, dec)
 
     if isinstance(ra, str):
         ra = ra.strip()
 
     if isinstance(dec, str):
         dec = dec.strip()
+
+    if ra is not None and dec is not None:
+        try:
+            coord = SPoint(ra, dec)
+            if coord.ra is None or coord.dec is None:
+                coord = None
+        except Exception as e:
+            logger.info("Failed to create SPoint from ra/dec: {e}",exc_info=True)
+            coord = None
     return (ra, dec, coord)
 
 class _MockHDU:
