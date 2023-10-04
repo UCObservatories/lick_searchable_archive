@@ -8,4 +8,5 @@
   hosts: archive_main_server
   roles:
     - common
+    - admin_scripts
     - database
