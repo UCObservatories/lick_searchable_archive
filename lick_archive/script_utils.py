@@ -1,9 +1,9 @@
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import time
 from pathlib import Path
-
+import re
 
 def get_std_log_formatter(log_tid=False, log_pid=False):
     """Return a log formatter with the "standard" for the lick searchable archive.
@@ -118,3 +118,88 @@ def get_unique_file(path, prefix, extension=""):
         unique_file = path.joinpath(prefix + f".{n}" + extension)
         n+=1
     return unique_file
+
+def parse_date_range(date_range):
+    """
+    Parse a date range from the command line. The date range's format is "YYYY-MM-DD" indicating a single day or 
+    "YYYY-MM-DD:YYYY-MM-DD" indicating a range.
+
+    Returns:
+    start_date: A datetime.date of the start of the date range.
+    end_date: A datetime.date of the end of the date range.
+    """
+    if date_range is not None:
+        if ":" in date_range:
+            (start_str, end_str) = date_range.split(":")
+        else:
+            start_str = date_range
+            end_str = None
+
+        date_list = start_str.split('-')
+        if len(date_list) < 3:
+            raise ValueError(f"'{start_str}' is an invalid start date. It should be YYYY-MM-DD.")
+
+        try:
+            start_date = date(int(date_list[0]), int(date_list[1]), int(date_list[2]))
+        except:
+            raise ValueError(f"'{start_str}' is an invalid start date. It should be YYYY-MM-DD.")
+
+        if end_str is None:
+            end_date = start_date
+        else:
+            date_list = end_str.split('-')
+            if len(date_list) < 3:
+                raise ValueError(f"'{end_str}' is an invalid end date. It should be YYYY-MM-DD.")
+
+            try:
+                end_date = date(int(date_list[0]), int(date_list[1]), int(date_list[2]))
+            except:
+                raise ValueError(f"'{end_str}' is an invalid start date. It should be YYYY-MM-DD.")
+
+        return (start_date, end_date)
+    return (None, None)
+
+def get_files_for_daterange(root_dir, start_date, end_date, instruments):
+    """
+    Scan the lick archive root dir for files that match command line parameters.
+
+    The direcotires in the archive are expected to follow the 'YYYY-MM/DD/instrument/' convention.
+
+    Args:
+
+    root_dir:    (str) The root directory of the archive
+    start_date:  (datetime.date) The starting date of the date range returned files should lie within.
+                                 None for no date range. 
+    end_date:    (datetime.date) The ending date of the date range returned files should lie within
+                                 None for no date range.
+    instruments: (list of str) A list of instruments to find files for.
+
+    Returns: A generator for the list of matching pathlib.Path objects.
+    """
+    root_path = Path(root_dir)
+
+    # Go through the month directories
+    for month_dir in root_path.iterdir():
+        if month_dir.is_dir():
+            # This should be a directory of the format YYYY-MM
+            match = re.match('^(\d\d\d\d)-(\d\d)$', month_dir.name)
+            if match is not None:
+                year = int(match.group(1))
+                month = int(match.group(2))
+                # Go through the day directories
+                for day_dir in month_dir.iterdir():
+                    if day_dir.is_dir() and re.match('^\d\d$',day_dir.name) is not None:
+                        day = int(day_dir.name)
+                        # Build a date object and if it's between the requested date range (inclusive), keep searching this
+                        # directory
+                        current_date = date(year, month, day)
+                        if start_date is None or (current_date >= start_date and current_date <= end_date):
+                            # Go through instrument directories
+                            for instrument_dir in day_dir.iterdir():                                
+                                # Return any files found for the requested instruments
+                                if instrument_dir.is_dir() and instrument_dir.name in instruments:
+                                    for file in instrument_dir.iterdir():
+                                        if not file.is_file():
+                                            print(f"Unexpected directory or special file: {file}")
+                                            continue
+                                        yield file

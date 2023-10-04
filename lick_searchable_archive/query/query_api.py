@@ -65,8 +65,8 @@ class QuerySerializer(serializers.Serializer):
     prefix = serializers.BooleanField(default=False)
     contains = serializers.BooleanField(default=False)
     match_case = serializers.BooleanField(default=True)
-    results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='^[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=[], max_length=128)
-    sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex='^(-|\+)?[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)
+    results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex=r'^[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=[], max_length=128)
+    sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex=r'^(-|\+)?[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)
     filters = ListWithSeperator(sep_char=",",child=serializers.CharField(max_length=60, allow_blank=False),min_length=1, max_length=128, required=False, allow_empty=False)
 
     def __init__(self, data, view):

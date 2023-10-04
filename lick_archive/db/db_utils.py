@@ -88,7 +88,7 @@ def check_exists(engine, filename, session = None):
 
     # We do a select count()... and see if the result is one. There's a unique constraint
     # on filename so it should always be 1 or 0
-    stmt = select(func.count(Main.id)).where(Main.filename == filename)
+    stmt = select(func.count(Main.id)).where(Main.filename == str(filename))
     
     logger.debug(f"Running Exists SQL: {stmt.compile()}")
     result = session.execute(stmt).scalar() == 1
