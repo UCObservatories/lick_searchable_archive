@@ -128,3 +128,4 @@ allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.nam
 allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']]
 
 field_info = {col.name: col.info for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']}
+
