@@ -4,14 +4,20 @@
   roles:
     - local_init
 
-- name: Install Django Applications
+- name: Deploys lick searchable archive backend
   hosts: backend
   roles:
     - common
+    - admin_tools
+    - database
+    - archive_mount_nfs
+    - django_site
+    - job_queue
     - django_apps
+    - ingest_watchdog
 
   handlers:
-    - name: Retart celery
+    - name: Restart celery
       ansible.builtin.systemd:
         name: celery.service
         enabled: yes
@@ -21,6 +27,7 @@
       listen:
         - "restart web services"
         - "common config changed"
+
     - name: Restart gunicorn
       ansible.builtin.systemd:
         name: gunicorn.service
@@ -30,5 +37,16 @@
       become: yes
       listen: 
         - "restart web services"
+        - "common config changed"
+
+    - name: Restart Ingest Service
+      ansible.builtin.systemd:
+        name: ingest_watchdog.service
+        enabled: yes
+        daemon_reload: yes
+        state: restarted
+      become: yes
+      listen: 
+        - "restart watchdog"
         - "common config changed"
 

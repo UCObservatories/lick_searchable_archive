@@ -4,23 +4,14 @@
   roles:
     - local_init
 
-- name: Install Django Applications
-  hosts: backend
+- name: Deploys lick searchable archive frontend
+  hosts: frontend
   roles:
     - common
+    - django_site
     - django_apps
-
+    - webserver
   handlers:
-    - name: Retart celery
-      ansible.builtin.systemd:
-        name: celery.service
-        enabled: yes
-        daemon_reload: yes
-        state: restarted
-      become: yes
-      listen:
-        - "restart web services"
-        - "common config changed"
     - name: Restart gunicorn
       ansible.builtin.systemd:
         name: gunicorn.service
@@ -31,4 +22,13 @@
       listen: 
         - "restart web services"
         - "common config changed"
-
+    - name: Restart Apache2
+      ansible.builtin.systemd:
+        name: apache2
+        enabled: yes
+        daemon_reload: yes
+        state: restarted
+      become: yes
+      listen:
+        - "restart web server"
+        - "common config changed"

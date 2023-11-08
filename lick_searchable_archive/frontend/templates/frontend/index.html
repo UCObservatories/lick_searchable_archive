@@ -8,13 +8,21 @@
 <body>
 <header>
     <!--Taken from prior repository page-->
-    <map name="home">
+    <!-- <map name="home">
         <area shape="rect" coords="2,30,62,86" href="{{ archive_url }}">
         <area shape="rect" coords="497,30,566,86" href="/">
         <area shape="rect" coords="571,30,640,86" href="https://www.ucobservatories.org/">
     </map>
-    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home">
-
+    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home"> -->
+    <img src="/static/frontend/lick_logo.png" width="1150" height="1033">
+    <H1>Mt. Hamilton Data Repository - Beta</H1>
+    <section class="user_section">
+    {% if username|length > 0 %}
+        You are logged in as <em class="user_name">{{ username }}</em> <button class="user_logout" type="submit" name="logout" form="archive_query" formmethod="POST" formaction="{{ logout_url }}">Logout here</button>
+    {% else %}
+        You are not logged in. <a href="{{ login_url }}">Login here</a>
+    {% endif %}
+    </section>
 </header>
 <nav class="nav_sidebar">
     <section class="nav_section">

@@ -49,14 +49,14 @@ instrument_dirs = {{ supported_instrument_dirs|join(', ') }}
 
 # The URL for notifying the archive software of new files
 {% if remote_watchdog %}
-ingest_url = https://{{ groups['archive_main_server']|first }}:{{api_port}}/{{archive_url_path_prefix}}/
+ingest_url = https://{{ groups['backend']|first }}:{{api_port}}/{{archive_url_path_prefix}}/
 
 # Public key for the self-signed cert used to verify the server. This is optional, if it is not 
 # provided the connection needs to be either http, or the server must have a 
 # properly signed cert.
 ingest_key = {{ archive_config_dir }}/ssl/public/{{ cert_basename }}_public.pem
 {% else %}
-ingest_url = http://localhost:{{api_port}}/{{archive_url_path_prefix}}/
+ingest_url = {{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{archive_url_path_prefix}}/
 {% endif %}
 
 # The maximum delay between retries when an error is detected contacting 

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, date
-
+import codecs
 import requests
 
 from tenacity import Retrying, stop_after_delay, wait_exponential
@@ -15,27 +15,183 @@ class LickArchiveClient:
     """Client for the Lick Searchable Archive's REST API
     
     Args:
-    archive_url (str):             The URL of the Archive REST API
-    retry_max_delay (int):         The maximum delay between retrying an API call in seconds. 
-                                   The actual delay will be an exponential backoff starting at 5s. 
-    retry_max_time (int):          The maximum time to spend retrying a call.
-    request_timeout (int):         The maximum time to wait for an API call to return before
-                                   timing out and assuming it failed.
-    ssl_verify (str):              Optional. Path to a public key or CA bundle for SSL vberification.
+    archive_url (str):                 The URL of the Archive REST API
+    retry_max_delay (int):             The maximum delay between retrying an API call in seconds. 
+                                       The actual delay will be an exponential backoff starting at 5s. 
+    retry_max_time (int):              The maximum time to spend retrying a call.
+    request_timeout (int):             The maximum time to wait for an API call to return before
+                                       timing out and assuming it failed.
+    session (dict or dict-like):       Dict-like object for data for persisted in this session by persist()
+    ssl_verify (str):                  Optional. Path to a public key or CA bundle for SSL vberification.
     
     """
-    def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, ssl_verify=None):
+    def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, session={}, ssl_verify=None):
     
         # The ingest URLs should have a / on it so the sync_query, or ingest_new_files part can be appended
         if archive_url[-1] == '/':
-            self.ingest_url = archive_url
+            self.archive_url = archive_url
         else:
-            self.ingest_url = archive_url + '/'
+            self.archive_url = archive_url + '/'
 
         self.retry_max_delay = retry_max_delay
         self.retry_max_time = retry_max_time
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
+        self._csrf_middleware_token = None
+        self.logged_in_user = None
+        self._session = requests.Session()
+
+        login_session = session.get("login_session",None)
+
+        if login_session is not None:
+            try:
+                self._csrf_middleware_token = login_session['csrfmiddlewaretoken']
+                self.logged_in_user = login_session['username']
+                for cookie_name,cookie_value in login_session['cookies'].items():
+                    self._session.cookies[cookie_name] = cookie_value
+            except Exception as e:
+                self._csrf_middleware_token = None
+                self.logged_in_user = None
+                self._session = requests.Session()
+                logger.error(f"Failed to read login information from session, using a new session.",exc_info=True)                    
+
+    def login(self, username,password):
+        """
+        login to the archive API as a user.
+
+        Args:
+            username (str): The username to login as
+            password (str): The password to login with
+
+        Return:
+            bool: True if the login was accepted, false otherwise
+
+        """
+
+        logger.debug(f"Logging in as {username}")
+        try:
+
+            # Get a new csrf token and cookie
+            if not self.get_login_status():
+                return False
+
+            # Check if we're already logged in
+            if self.logged_in_user is not None:
+                if self.logged_in_user == username:
+                    logger.debug(f"Already logged in.")
+                    return True
+                else:
+                    previous_username = self.logged_in_user
+                    logger.debug(f"Logging out old user {previous_username} before submitting a new login")
+                    if not self.logout():
+                        logger.error(f"Could not log out previous user {previous_username}, aborting login.")
+                        return False
+            
+            logger.debug(f"Authenticating {username} with archive API")
+
+            post_data = {"username": username, "password":password, "csrfmiddlewaretoken": self._csrf_middleware_token}
+            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
+            result = retryer(self._session.post, self.archive_url + "login", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+
+            if result.status_code == 200:
+                response = result.json()
+                # Success, verify the response is true and matches our user
+                if response["logged_in"] is True and response["user"] == username:
+                    # Success
+                    self.logged_in_user = response["user"]
+                    logger.debug(f"Archive API Authentication succeeded")
+                else:
+                    self.logged_in_user = None
+                    logger.debug(f"Archive API Authentication failed")                    
+                # Always save the csrf token for the next call
+                self._csrf_middleware_token = response["csrfmiddlewaretoken"]
+                return response["logged_in"] 
+            else:
+                logger.error(f"Failed to login {username}, Archive API returned status code: {result.status_code}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to login {username}, received exception.", exc_info=True)
+            return False
+
+        return False
+
+
+    def logout(self):
+        try:
+            # Update login info/csrf tokens if needed
+            if self._csrf_middleware_token is None or self.logged_in_user is None:
+                logger.debug("No login information, asking backend for current log status")
+                if not self.get_login_status(self):
+                    # Failed to get login status
+                    return False
+
+            if self.logged_in_user is None:
+                logger.debug("Already logged out")
+                return True
+
+            # Logout using the csrf token
+            logger.debug("Logging out.")
+            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
+            post_data = {"csrfmiddlewaretoken": self._csrf_middleware_token}
+            result = retryer(self._session.post, self.archive_url + "logout", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+            if result.status_code >= 200 and result.status_code < 300:
+                logger.debug("Successfully logged out")
+                return True
+            else:
+                logger.error(f"Failed to logout, status code {result.status_code}")
+                return False
+        except Exception as e:
+            logger.error("Caught exception logging out.", exc_info=True)
+            return False
+        finally:
+            # If we succeeded we're logging out, so clear the currently logged in user
+            # If we failed the login state is unknown, so we treat it as logged out
+            self.logged_in_user = None
+        return False
+
+    def get_login_status(self):
+        """Determine the login status of the current session. If successful the 
+        logged_in_user attribute is set to the current user name or None if not logged in.
+
+        
+        Return:
+            bool: True if successfull getting the login status. False if there was a failure
+        """
+
+        logger.debug(f"Getting CSRF token and login status")
+        try:
+            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
+            result = retryer(self._session.get, self.archive_url + "login", verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+
+            if result.status_code == 200:
+                response = result.json()
+                if response["logged_in"]:
+                    self.logged_in_user = response["user"]
+                    logger.debug(f"Archive API returned that this session is logged in as {self.logged_in_user}")
+                else:
+                    self.logged_in_user = None
+                    logger.debug(f"Archive API returned that this session is not logged in.")
+
+                self._csrf_middleware_token = response["csrfmiddlewaretoken"]
+                return True
+            else:
+                logger.error(f"Failed to get login status from backend, status: {result.status_code}")
+                self._csrf_middleware_token = None
+                self.logged_in_user = None
+    
+        except Exception as e:
+            logger.error(f"Exception trying to get login status from backend.",exc_info=True)
+            self._csrf_middleware_token = None
+            self.logged_in_user = None
+
+        return False
+
+    def persist(self, session):
+        persist_data = {"username": self.logged_in_user,
+                        "csrfmiddlewaretoken": self._csrf_middleware_token,
+                        "cookies": {key: value for key, value in self._session.cookies.items()}}
+        
+        session["login_session"] = persist_data
 
     def query(self, field, value, filters={}, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
@@ -125,7 +281,7 @@ class LickArchiveClient:
                 if len(sort) !=0:
                     query_params["sort"] = ",".join(sort)
 
-        logger.debug(f"Querying archive: url:{self.ingest_url} params: {query_params}")        
+        logger.debug(f"Querying archive: url:{self.archive_url} params: {query_params}")        
 
         return self._process_results(self._run_query(query_params), count)
 
@@ -140,9 +296,9 @@ class LickArchiveClient:
         """
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        logger.debug(f"Querying archive: url:{self.ingest_url} params: {query_params}")
+        logger.debug(f"Querying archive: url:{self.archive_url} params: {query_params}")
         retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-        result = retryer(requests.get, self.ingest_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(self._session.get, self.archive_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
         result.raise_for_status()
 
         return result.json()

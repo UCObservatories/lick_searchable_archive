@@ -38,19 +38,29 @@ DEBUG = True
 
 {% endif %}
 
-ALLOWED_HOSTS = ["{{ groups['archive_main_server']|first }}", 'localhost']
+# Django can be accessed from localhost or it's external hostname/ip
+{% if 'backend' in group_names %}
+ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', '{{ groups['backend']|first }}', 'localhost']
+{% else %}
+ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', 'localhost']
+{% endif %}
 
 
 # Application definition
 
 INSTALLED_APPS = [
-#    'django.contrib.admin',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    'django.forms',
-#    'django.contrib.sessions',
-#    'django.contrib.messages',
-    'django.contrib.staticfiles',
+{% if "archive_admin" in archive_apps or "archive_auth" in archive_apps %}
+    # For the admin page
+    'django.contrib.admin',
+{% endif %}
+{% if "backend" in group_names %}
+    'rest_framework',
+{% endif %}
 {% for app in archive_apps %}
     '{{ app }}',
 {% endfor %}
@@ -64,6 +74,10 @@ MIDDLEWARE = [
 #    'django.contrib.auth.middleware.AuthenticationMiddleware',
 #    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # For the admin page and user login
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 
 ROOT_URLCONF = 'lick_searchable_archive.urls'
@@ -90,6 +104,7 @@ WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
+{% if "backend" in group_names %}
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -98,8 +113,25 @@ DATABASES = {
                     'port': 5432 }, 
     }
 }
+{% else %}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "{{ django_db_name }}",
+    }
+}
+{% endif %}
 
 
+{% if "archive_auth" in archive_apps %}
+# Use django's authentication to login users
+LICK_ARCHIVE_REMOTE_LOGIN = False
+
+# Support the older Apache2 APR_MD5 password hash
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "archive_auth.hashers.APR_MD5PasswordHasher",
+]
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -117,6 +149,12 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+{% else %}
+# Use backend API to authenticate users
+AUTHENTICATION_BACKENDS = ["lick_searchable_archive.frontend.remote_auth.RemoteAPIAuthBackend"]
+#AUTH_USER_MODEL = "frontend.RemoteAPIUser"
+LICK_ARCHIVE_REMOTE_LOGIN = True
+{% endif %}
 
 LOGGING = {
     'version':1,
@@ -180,15 +218,16 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # SSL configuration for operating behind a proxy
+{% if frontend_scheme == "https" %}
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
+{% endif %}
 
 # Lick Archive global settings
 LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
 LICK_ARCHIVE_APPS = {{ archive_apps }}
-LICK_ARCHIVE_API_URL ="http://{{ api_proxy_server }}:{{api_port}}/" + LICK_ARCHIVE_URL_PATH_PREFIX
-LICK_ARCHIVE_FRONTEND_URL="{{ frontend_url }}"
-
+LICK_ARCHIVE_API_URL = '{{ api_scheme }}://{{ api_server }}:{{api_port}}/' + LICK_ARCHIVE_URL_PATH_PREFIX
+LICK_ARCHIVE_FRONTEND_URL='{{ frontend_url }}'
 {# Now include only the settings needed for the apps being installed #}
 
 {% if "ingest" or "query" in archive_apps %}
@@ -200,17 +239,26 @@ LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS = "{{ default_search_radius }}"
 {% endif %}
 
 {% if "ingest" in archive_apps %}
+# Ingest specific configuration
+
 {# Celery is currently only used by ingest #}
 # Celery configuration
 CELERY_BROKER_URL = '{{ redis_url }}'
 
-# Ingest specific configuration
 LICK_ARCHIVE_INGEST_USER = '{{ db_ingest_user }}'
 {% endif %}
 
 {% if "query" in archive_apps %}
 # Query specific configuration
 LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
-LICK_ARCHIVE_HEADER_URL_FORMAT = '{{ frontend_scheme }}://{{ frontend_host }}/{{ archive_url_path_prefix }}/data/{}/header'
+LICK_ARCHIVE_HEADER_URL_FORMAT = '{{ frontend_url }}/data/{}/header'
 LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
+{% endif %}
+
+{% if "backend" in group_names %}
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+}
 {% endif %}

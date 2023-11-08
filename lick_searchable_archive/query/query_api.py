@@ -19,7 +19,7 @@ from django.conf import settings
 from astropy.coordinates import SkyCoord, Angle
 from lick_archive.db import archive_schema
 from lick_archive.db.pgsphere import SCircle
-
+from lick_archive.django_utils import log_request_debug
 
 class ListWithSeperator(serializers.ListField):
     """
@@ -521,12 +521,13 @@ class QueryAPIView(ListAPIView):
         access a plaintext version of the header.
         
         Args:
-        request (rest_framework.requests.Request): The request specifying the query.        
-        args (list):     Additional arguments to the view.
-        **kwargs (dict): Additional keyword arguments to the view.
-        
+            request (rest_framework.requests.Request): The request specifying the query.        
+            args (list):     Additional arguments to the view.
+            **kwargs (dict): Additional keyword arguments to the view.
+            
         Return (rest_framework.response.Response): The processed response from the query.
         """
+        log_request_debug(request)
 
         # Validate the query using a serializer
         serializer = QuerySerializer(data=request.query_params, view=self)

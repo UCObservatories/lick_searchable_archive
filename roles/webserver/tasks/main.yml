@@ -1,0 +1,60 @@
+- name: Install Apache
+  ansible.builtin.apt:
+    name: apache2
+    state: present
+  become: yes
+- name: Enable Apache Modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  become: yes
+  notify: "restart web server"
+  loop: 
+    - proxy
+    - proxy_http
+    - ssl
+    - headers
+- name: Copy Archive Virtual Host settings
+  ansible.builtin.template:
+    mode: 0644
+    owner: root
+    group: root
+    src: templates/archive.conf.j2
+    dest: "/etc/apache2/sites-available/archive.conf"
+  become: yes
+  notify: "restart web server"
+- name: Link Archive Virtual Host
+  ansible.builtin.file:
+    src: "/etc/apache2/sites-available/archive.conf"
+    path: "/etc/apache2/sites-enabled/archive.conf"
+    state: "link"
+  become: yes
+  notify: "restart web server"
+- name: Create Archive WWW directory
+  ansible.builtin.file:
+    owner: root
+    group: root
+    mode: 0755
+    path: "/var/www/archive"
+    state: "directory"
+  become: yes
+  notify: "restart web server"
+- name: Create Archive static files directory
+  ansible.builtin.file:
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0775
+    path: "/var/www/archive/static"
+    state: "directory"
+  become: yes
+  notify: "restart web server"
+- name: "Copy front end static files"
+  ansible.builtin.copy:
+    src: lick_searchable_archive/frontend/static/frontend
+    dest: "/var/www/archive/static"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    directory_mode: 0775
+    mode: 0664
+  become: yes
+  notify: "restart web server"

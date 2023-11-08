@@ -11,6 +11,7 @@ from django.conf import settings
 from rest_framework import generics, views, status
 from rest_framework.response import Response
 
+from lick_archive.django_utils import log_request_debug
 
 from .serializers import IngestNotificationSerializer
 from .tasks import ingest_new_files
@@ -19,6 +20,7 @@ class IngestNotifications(generics.CreateAPIView):
     serializer_class = IngestNotificationSerializer
     
     def create(self, request, *args, **kwargs):
+        log_request_debug(request)
         serializer = self.get_serializer(data=request.data, many=isinstance(request.data, list))
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

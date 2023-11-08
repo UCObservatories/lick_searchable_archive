@@ -62,14 +62,6 @@
   when: lsclusters_output is not skipped and lsclusters_output.stdout.find("archive_db") == -1
   become: yes
   become_user: postgres
-- name: Install python packages needed for admin scripts
-  ansible.builtin.pip:
-    name: psycopg2-binary, sqlalchemy, astropy
-    state: present
-    virtualenv: "{{ venv_root }}"
-    virtualenv_command: python{{ python_version }} -m venv
-  become: yes
-  become_user: "{{ archive_service_user }}"
 - name: Install psycopg2-binary for ansible tasks running as postgres
   ansible.builtin.apt:
     name: python3-psycopg2

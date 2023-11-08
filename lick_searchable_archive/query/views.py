@@ -14,7 +14,7 @@ from rest_framework import status
 
 from lick_archive.db.db_utils import create_db_engine
 from lick_archive.db import archive_schema
-
+from lick_archive.django_utils import log_request_debug
 from .query_api import QuerySerializer, QueryAPIView
 from .sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
@@ -49,6 +49,8 @@ class HeaderView(APIView):
     allowed_sort_attributes = ["id"]
 
     def get(self, request, file):
+        log_request_debug(request)
+
         # Validate request using query serializer
         data = {"filename": file}
         serializer = QuerySerializer(data=data, view=self)
