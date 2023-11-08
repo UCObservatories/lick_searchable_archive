@@ -9,7 +9,8 @@ import logging
 
 from sqlalchemy import select
 
-from lick_archive.db.archive_schema import Main, IngestFlags, all_attributes
+from lick_archive.data_dictionary import data_dictionary
+from lick_archive.db.archive_schema import Main, IngestFlags
 
 from lick_archive.metadata.reader import read_hdul
 from lick_archive.db.db_utils import create_db_engine, open_db_session, execute_db_statement, update_batch
@@ -84,7 +85,8 @@ def update_metadata_batch(db_engine, metadata_batch):
     """
 
     # We don't need to include the header in the update
-    attributes = [name for name in all_attributes if name not in ['header']]
+    index = data_dictionary['db_name'] != 'header'
+    attributes = data_dictionary['db_name'][index]
 
     try:
         session = open_db_session(db_engine)

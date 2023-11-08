@@ -15,7 +15,7 @@ from rest_framework.exceptions import APIException
 from lick_searchable_archive.query.query_api import QuerySerializer
 
 from lick_archive.db.archive_schema import Base, Main, FrameType
-from unit_test.utils import MockDatabase, MockView, create_test_request, setup_django_environment
+from test_utils import MockDatabase, MockView, create_test_request, setup_django_environment
 
 
 # Test rows shared between most tests
