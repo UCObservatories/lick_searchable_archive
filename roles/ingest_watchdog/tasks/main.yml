@@ -1,3 +1,11 @@
+- name: Install Python Packages
+  ansible.builtin.pip: 
+    name: watchdog
+    virtualenv: "{{ venv_root }}"
+    virtualenv_command: python{{ python_version }} -m venv
+  become: yes
+  become_user: "{{ archive_service_user }}"
+  notify: "restart watchdog"
 - name: Copy ingest_watchdog
   ansible.builtin.copy: 
     src: scripts/ingest_watchdog.py
@@ -6,6 +14,7 @@
     group: "{{ archive_service_group }}"
     mode: 0770
   become: yes
+  notify: "restart watchdog"
 - name: Create config directory
   ansible.builtin.file:
     mode: 0770
@@ -22,6 +31,7 @@
     src: templates/ingest_watchdog.conf.j2
     dest: "{{ archive_config_dir }}/{{ watchdog_config }}"
   become: yes
+  notify: "restart watchdog"
 - name: Create logging directory
   ansible.builtin.file:
     mode: 0770
@@ -66,3 +76,4 @@
     src: templates/ingest_watchdog.service.j2
     dest: /etc/systemd/system/ingest_watchdog.service
   become: yes
+  notify: "restart watchdog"

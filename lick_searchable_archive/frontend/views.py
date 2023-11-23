@@ -18,10 +18,14 @@ from django import forms
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.forms.renderers import TemplatesSetting
 from django.utils.html import format_html, escape
+from django.http import HttpResponseNotAllowed,HttpResponseRedirect
 from django.utils.safestring import mark_safe
 from django.utils.dateparse import parse_datetime
+from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth import logout as auth_logout
 from lick_archive.lick_archive_client import LickArchiveClient
 from lick_archive.db import archive_schema
+from lick_archive.django_utils import log_request_debug
 
 from .fields import AngleField
 
@@ -359,7 +363,6 @@ class QueryForm(forms.Form):
 
         return cleaned_data
 
-archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5)
 
 
 def get_user_facing_result_fields(fields):
@@ -524,17 +527,19 @@ def index(request):
                'result_fields': [],
                'result_units': [],
                'result_list': None,
-               'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL,
+               'username': '',
+               'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/index.html",
+               'login_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/users/login/",
+               'logout_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/users/logout/",
                'total_pages': 0,
                'current_page': 1,
                'start_result': 1,
                'end_result': 1,}
 
-    if logger.isEnabledFor(logging.DEBUG):
-        for key in request.META.keys():
-            logger.debug(f"Header key '{key}' value: {request.META[key]}")
-        for key in os.environ:
-            logger.debug(f"Environment variable '{key}' value: '{os.environ[key]}'")
+    log_request_debug(request)
+
+    if request.user.is_authenticated:
+        context['username'] = request.user.username
 
     if request.method == 'POST':
         logger.debug(f"Unvalidated Form contents: {request.POST}")
@@ -613,6 +618,8 @@ def index(request):
                     logger.info(f"Match Case: {match_case}")
                     logger.info(f"Prefix: {prefix}")
                     logger.info(f"Contains: {contains}")
+                    logger.info(f"Username: '{request.user.username}'")
+                    archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5, session=request.session)
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
                                                                            value = query_value,
@@ -662,9 +669,34 @@ def index(request):
 
         for key in form.errors:
             logger.error(f"Form error {key} : '{form.errors[key]}")
-    else:
+    elif request.method == "GET":
         form = QueryForm()
-
+    else:
+        return HttpResponseNotAllowed(['GET','POST'])
     context['form'] = form
     return render(request, 'frontend/index.html', context)
 
+def logout(request):
+    log_request_debug(request)
+
+    if request.method == 'POST':
+        if settings.LICK_ARCHIVE_REMOTE_LOGIN:
+            logger.info("Performing remote logout...")
+            # If our local django session doesn't think we're logged in, there's a case
+            # where the remote session might think we are. So try the remote logout regardless of if we're
+            # logged in
+            archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5, session=request.session)
+            if not archive_client.logout():
+                logger.error(f"Failed to perform remote logout.")
+
+        # Now perform the local session logout
+        try:
+            auth_logout(request)
+        except Exception as e:
+            logger.error(f"Failed django logout.", exc_info=True)
+    
+        # Redirect back to the frontend query page, which should reflect the logged out status
+        return HttpResponseRedirect(settings.LICK_ARCHIVE_FRONTEND_URL + "/index.html")
+        
+    else:
+        return HttpResponseNotAllowed(['POST'])

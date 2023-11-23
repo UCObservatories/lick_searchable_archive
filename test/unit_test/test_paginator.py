@@ -7,7 +7,7 @@ import urllib.parse
 from django.http import QueryDict
 
 from lick_archive.db.archive_schema import Base, Main, FrameType
-from unit_test.utils import MockDatabase, MockView, create_validated_request, setup_django_environment
+from test_utils import MockDatabase, MockView, create_validated_request, setup_django_environment
 
 # Test rows shared between most tests
 test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),

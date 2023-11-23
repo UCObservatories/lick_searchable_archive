@@ -5,7 +5,7 @@
     - local_init
 
 - name: Install Django Applications
-  hosts: archive_main_server
+  hosts: backend
   roles:
     - common
     - django_apps

@@ -18,7 +18,6 @@ from django.urls import path, include
 from django.conf import settings
 
 urlpatterns = [
-    path(f'{settings.LICK_ARCHIVE_URL_PATH_PREFIX}/admin/', admin.site.urls),
 ]
 
 for app in settings.LICK_ARCHIVE_APPS:

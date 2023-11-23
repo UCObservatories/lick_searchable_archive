@@ -4,7 +4,7 @@ import os
 from datetime import date
 from urllib.parse import quote
 # Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
+os.environ["DJANGO_SETTINGS_MODULE"] = "django_test_settings"
 
 import django
 from django.http import QueryDict

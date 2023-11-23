@@ -4,7 +4,7 @@ Uses SQL Alchemy's ORM
 import enum
 from collections import namedtuple
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Float, String, Integer, Sequence, ForeignKey, TIMESTAMP, Text
+from sqlalchemy import Column, Float, String, Integer, Boolean, Sequence, ForeignKey, TIMESTAMP, Text
 from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy.orm import relationship
 from sqlalchemy import Index, Enum
@@ -105,12 +105,21 @@ class Main(Base):
     coadds_done          = Column(Integer, info=FieldInfo("Number of Coadds", SHARCS_GROUP, "Number of coadds."))
     true_int_time        = Column(Float, info=FieldInfo("True Integration Time", SHARCS_GROUP, "True integration time in seconds per coadd"))
 
+    # Authorization fields
+    #public               = Column(Boolean, info=FieldInfo("Is Public", None, "True if the file is public."))
 
 Index('index_m_obs_date', Main.obs_date)
 Index('index_m_instrument', Main.instrument)
 Index('index_m_object', Main.object)
 Index('index_m_frame', Main.frame_type)
 Index('index_m_coord', Main.coord, postgresql_using='gist')
+
+indexed_attributes = ['filename', 'date', 'datetime', 'object', 'ra_dec']
+allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.name not in ['coord', 'header', 'ingest_flags', 'public']]
+allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags', 'public']]
+
+field_info = {col.name: col.info for col in Main.__table__.columns if col.name not in ['coord','ingest_flags', 'public']}
+
 
 class VersionHistory(Base):
     __tablename__ = 'version_history'
@@ -122,10 +131,26 @@ class VersionHistory(Base):
 
 Index('index_vh_install_date', VersionHistory.install_date)
 
-all_attributes = [col.name for col in Main.__table__.columns]
-indexed_attributes = ['filename', 'date', 'datetime', 'object', 'ra_dec']
-allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.name not in ['coord', 'header', 'ingest_flags']]
-allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']]
+"""
+class User(Base):
+    __tablename__ = "user"
 
-field_info = {col.name: col.info for col in Main.__table__.columns if col.name not in ['coord','ingest_flags']}
+    observer_id = Column(Integer, primary_key=True)
+    first_name_lower = Column(String)
+    last_name_lowe = Column(String)
+
+class UserDataAccess(Base):
+    __tablename__ = "user_data_access"
+
+    file_id = Column(ForeignKey("main.id"), primary_key=True)
+    obid = Column(ForeignKey("user.observer_id"), primary_key=True)
+    reason = String()
+
+class CoverDataAccess(Base):
+    __tablename__ = "cover_data_access"
+
+    file_id = Column(ForeignKey("main.id"), primary_key=True)
+    cover_id = Column(String, primary_key=True)
+    reason = String()
+"""
 

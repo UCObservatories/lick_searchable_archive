@@ -55,11 +55,12 @@
   become: yes
 - name: Create virtual python environment
   ansible.builtin.pip: 
-    name: tenacity, watchdog, requests
+    name: tenacity, requests, astropy, sqlalchemy
     virtualenv: "{{ venv_root }}"
     virtualenv_command: python{{ python_version }} -m venv
   become: yes
   become_user: "{{ archive_service_user }}"
+  notify: "common config changed"
 - name: Copy common lick_archive python code
   ansible.builtin.copy: 
     src: lick_archive
@@ -67,9 +68,27 @@
   become: yes
   become_user: "{{ archive_service_user }}"
   notify: "common config changed"
+- name: Create config directory
+  ansible.builtin.file:
+    mode: 0770
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    state: directory
+    dest: "{{ archive_config_dir }}"
+  become: yes
+  notify: "restart web services"
+- name: Create logging directory
+  ansible.builtin.file:
+    mode: 0770
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    state: directory
+    dest: "{{ archive_log_dir }}"
+  become: yes
+  notify: "restart web services"
 - name: Copy dev environment tests
   ansible.builtin.copy: 
-    src: dev_test
+    src: test/dev_test
     dest: "{{ venv_root }}/"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
@@ -82,4 +101,6 @@
     name: pytest
     virtualenv: "{{ venv_root }}"
     virtualenv_command: python{{ python_version }} -m venv
+  become: yes
+  become_user: "{{ archive_service_user }}"
   when: archive_config == "dev"

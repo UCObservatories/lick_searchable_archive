@@ -17,7 +17,6 @@ Deployment Todo
   be greatly simplified.
 * Delete code prior to copying, or sync via rsync?
 * Auto deploy django/metadata dbs fs the tables aren't there?
- 
 Code Quality
 ------------
 * make sure i'm consistent in os.path vs Path usage.
@@ -28,6 +27,7 @@ Code Quality
 * Get pid into logs for searching journalctl
 * get stdout into logs?
 * A data dictionary class usable by the db schema, api, clients and for generating docs? See field_info in archive_schema
+  - Once this is done, remove sqlalchemy from packages installed with "common"
 * Make date format returned by api consistent, easy to parse and document.
 * At one point I decided to separate the query/query_api.py classes from the lick_archive classes, and create a distinct QueryAPIView as a base
   class. Given how things have turned out I'm not sure that's necessary. Maybe it could be merged with query/views.py

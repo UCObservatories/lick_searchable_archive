@@ -1,0 +1,21 @@
+{% if frontend_scheme == "https" %}
+<VirtualHost *:443> 
+    ServerName {{ frontend_host }}
+    SSLEngine On
+    SSLCertificateFile {{ ssl_cert }}
+    SSLCertificateKeyFile {{ ssl_private_key }}
+{% else %}
+<VirtualHost *:80> 
+    ServerName {{ frontend_host }}
+{% endif %}
+    DocumentRoot /var/www/archive
+    RequestHeader set "X-Forwarded-Proto" expr=%{REQUEST_SCHEME} 
+    ProxyPass "/archive/index.html" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
+    ProxyPassReverse "/archive/index.html" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
+    ProxyPass "/archive/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
+    ProxyPassReverse "/archive/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
+    ProxyPass "/archive/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
+    ProxyPassReverse "/archive/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>

@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 import django
 
 # Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "unit_test.django_test_settings"
+os.environ["DJANGO_SETTINGS_MODULE"] = "django_test_settings"
 
 from lick_archive.db.archive_schema import Main
 from lick_archive.db import archive_schema

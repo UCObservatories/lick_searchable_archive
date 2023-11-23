@@ -1,0 +1,5 @@
+/* Disable timezone warnings on date fields, as they are just representing path names
+   in the archive file system anyway */
+.timezonewarning {
+    display: none;
+}

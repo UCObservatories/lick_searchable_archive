@@ -8,12 +8,28 @@ Setting up a Development/Deployment Machine
 -------------------------------------------
 I used conda to setup my personal machine to create a distinct python environment::
 
-    conda create -n archive python=3.9
+    conda create -n archive python=3.10
     conda activate archive
-    pip install sqlalchemy
-    pip install psycopg2-binary
+
+    *or*
+
+    python3.10 -m venv archive
+    source archive/bin/activate
+
+Then install packages needed for unit testing:
     pip install pytest
+    pip install django
+    pip install astropy
+    pip install sqlalchemy
+    pip install djangorestframework
+    pip install psycopg2-binary
+    pip install tenacity
     pip install coverage
+
+Packages needed for external tests (in test/ext_test)
+    pip install requests
+
+Packages needed for deploying
     pip install sphinx
     sudo apt install ansible
 
@@ -21,22 +37,27 @@ In addition the following packages are used on the development machine, but migh
 to keep IDEs looking for imports happy::
 
     pip install Celery
-    pip install astropy
-    pip install django
-    pip install django-rest-framework
 
+QoL packages:
+    pip install ipython
 
 .. _deploy-requirements:
 
-Requirements for deploying to a machine
----------------------------------------
-    * The machine must use Ubuntu as its OS
-    * You must have a user that can ssh to the target machine without being prompted for a password.
-    * That user must have sudo acceess.
-    * A database data partition. (Which will be formatted and mounted during the deployment).
-    * Permission to NFS mount the archive file storage.
+Requirements for deploying the archive
+--------------------------------------
+    * A host for the archive software
+  
+      * This host must use Ubuntu 22.04 as its OS.
+      * This host must have a user, with sudo access, that can ssh to the target machine without being prompted for a password.
+      * The software host requires a database data partition of at least 128GiB (Which will be formatted and mounted during the deployment).
+      * KROOT and LROOT must be installed on the software host.
 
-For example, for the current ``Quarry.ucolick.org`` machine I've been using the ``localdusty`` account.
+       
+    * A host providing the archive data
+
+      * The archive data must be exported to the software host via NFS. Only read-only access is required.
+    
+
 
 Configuring the Deployment
 --------------------------
@@ -280,16 +301,31 @@ This play book will do the following (if needed):
 Post Deployment Steps
 ---------------------
 
+Backend Host
+^^^^^^^^^^^^^
+
 On a fresh environment, the deployment will create the archive database but will not create the schema.
 This is to allow the administrator to restore a previous database or create a new one. 
 See :ref:`Database Administration <db_admin>` for how to do this.
 
 The Django environment will also need to be created. Use these commands to do so::
 
-    $ cd /opt/lick_archive/lib/python3.9/site-packages/lick_searchable_archive
+    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
 
     # For new database only
     $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations ingest
+    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations archive_admin
 
     # For both new and updated
     $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate
+
+Frontend Host
+^^^^^^^^^^^^^
+If using a separate frontend host, it will use a sqllite datebase to store session information. Use
+the following commands to initialize this::
+
+    # For new system installs only
+    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations
+    # For both new and updated system installs
+    $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate
+

@@ -5,8 +5,19 @@
     - local_init
 
 - name: DB Server playbook
-  hosts: archive_main_server
+  hosts: backend
   roles:
     - common
-    - admin_scripts
+    - admin_tools
     - database
+  handlers:
+  - name: Restart gunicorn
+    ansible.builtin.systemd:
+      name: gunicorn.service
+      enabled: yes
+      daemon_reload: no
+      state: restarted
+    become: yes
+    listen: 
+      - "restart web services"
+      - "common config changed"
