@@ -5,14 +5,13 @@ import logging
 import math
 from datetime import datetime, time, timezone, timedelta
 import zoneinfo
-import functools
+import itertools
 
 logger = logging.getLogger(__name__)
 
 from astropy.coordinates import Angle
 import astropy.units
 
-from django.conf import settings
 from django.shortcuts import render
 from django import forms
 from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
@@ -24,8 +23,12 @@ from django.utils.dateparse import parse_datetime
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import logout as auth_logout
 from lick_archive.lick_archive_client import LickArchiveClient
-from lick_archive.db import archive_schema
+from lick_archive.data_dictionary import data_dictionary, Category, Instrument, api_capabilities
 from lick_archive.django_utils import log_request_debug
+from lick_archive.archive_config import ArchiveConfigFile, ArchiveSiteType
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
 
 from .fields import AngleField
 
@@ -34,12 +37,7 @@ _LICK_TIMEZONE = timezone(timedelta(hours=-8))
 
 
 class OperatorWidget(forms.MultiWidget):
-    """
-    Web widget for an operator form control that let's the user select between a given set of operators
-    and provide a value for that operator. For example a numeric field might allow "<", "=", or ">" with
-    one NumberInput widget. A date field might allow ">", "<", "=", or "between" and two DateInput widgets,
-    with the second widget only being used for "between".
-    """
+
     def __init__(self, subwidgets, names, class_prefix, attrs=None, labels=[], modifier=None):
 
         #widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
@@ -241,27 +239,30 @@ class QueryWithOperator(forms.MultiValueField):
         return value
 
 DEFAULT_SORT = "obs_date"
-DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]  
+DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]
 
-def get_field_groups(fields, exclude):
+
+def get_field_groups(fields):
     
-    groups = dict()
-    for field_name in fields:
-        if field_name not in exclude:
-            field_info = archive_schema.field_info[field_name]
-            field_value = (field_name, field_info.user_name)
-            groups.setdefault(field_info.user_group, []).append(field_value)
+    # Exclude "id" from the UI, as it's intended for backend use only
+    desired_fields = fields['db_name'] != 'id'
+    
+    groups = fields[desired_fields].group_by('category').groups
+
+    group_dict = {g[0]['category'].value: tuple(tuple(row) for row in g['db_name','human_name']) for g in groups}
 
     # This list establishes the order groups appear on the front end, 
     # We put the default "common" group first, followed by the other groups in alphabetical order
-    group_names = [archive_schema.DEFAULT_GROUP] + [group_name for group_name in sorted(groups.keys()) if group_name != archive_schema.DEFAULT_GROUP]
+    group_names = [Category.COMMON.value] + sorted([c.value for c in Category if c != Category.COMMON])
 
-    return [[group_name, groups[group_name]] for group_name in group_names]
+    return [(group_name, group_dict[group_name]) for group_name in group_names]
 
+UI_ALLOWED_SORT = get_field_groups(api_capabilities['sort'])
+UI_ALLOWED_RESULT =  get_field_groups(api_capabilities['result'])
 
 # Create your models here.
 class QueryForm(forms.Form):
-    which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date",""), ("coords","")], initial="object_name", required=True, widget=forms.RadioSelect)
+    which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date",""), ("coord","")], initial="object_name", required=True, widget=forms.RadioSelect)
     filename =   QueryWithOperator(label="By Path and Filename", operators=[("exact", "="), ("prefix", "starts with")],
                                    class_prefix="search_terms_",
                                    fields=[forms.CharField(max_length=1024, strip=True, empty_value="", required=False)],
@@ -277,7 +278,7 @@ class QueryForm(forms.Form):
                                initial={"operator": "exact", "value": None}, 
                                help_text=format_html('{}<p>{}</p>','e.g. "2006-08-17". All dates are noon to noon PST (UTC-8).', 'Date ranges are inclusive.'),
                                required=False)
-    coords = QueryWithOperator(label="By Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
+    coord  = QueryWithOperator(label="By Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
                                class_prefix="search_terms_",
                                fields=[AngleField(label="RA", default_unit="d", required=False),
                                        AngleField(label="DEC", default_unit="d", required=False)],
@@ -291,14 +292,14 @@ class QueryForm(forms.Form):
                                required=False)
     count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], 
                               initial="no", required=True, widget=forms.RadioSelect(attrs = {"class": "search_fields_radio"}))
-    sort_fields = forms.ChoiceField(label="Sorting", initial = DEFAULT_SORT, choices = get_field_groups(archive_schema.allowed_sort_attributes, exclude=["id"]), 
+    sort_fields = forms.ChoiceField(label="Sorting", initial = DEFAULT_SORT, choices = UI_ALLOWED_SORT, 
                                     required=False)
     sort_dir = forms.ChoiceField(choices=[("+", "Low to high (Ascending)"), ("-", "High to low (Descending)")], initial="+", required=False)
     result_fields = forms.MultipleChoiceField(initial = DEFAULT_RESULTS,
-                                              choices = get_field_groups(archive_schema.allowed_result_attributes, exclude=["id"]),        
+                                              choices = UI_ALLOWED_RESULT,        
                                               required=False,
                                               widget=forms.SelectMultiple(attrs={"class": "search_fields_input_big"}))
-    instruments = forms.MultipleChoiceField(initial = [x.name for x in archive_schema.Instrument], choices=[(x.name, x.value) for x in archive_schema.Instrument], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
+    instruments = forms.MultipleChoiceField(initial = [x.name for x in Instrument], choices=[(x.name, x.value) for x in Instrument], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
     page=forms.IntegerField(min_value=1,  initial=1,widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
     page_size=forms.IntegerField(min_value=1, max_value=1000, initial=50, required=True, widget=forms.NumberInput(attrs={"class": "search_fields_input_small"}))
     coord_format=forms.ChoiceField(initial="sexigesimal", required=True, choices=[("sexigesimal", "sexigesimal"), ("decimal", "decimal degrees")])    
@@ -344,18 +345,18 @@ class QueryForm(forms.Form):
                         self.add_error("date", "Start date cannot be empty when querying a date range.")
                     if query_value[1] is None:
                         self.add_error("date", "End date cannot be empty when querying a date range.")
-            elif query_type == "coords":
-                logger.debug(f"coords query_value: {query_value} operator: {query_operator}")
+            elif query_type == "coord":
+                logger.debug(f"coord query_value: {query_value} operator: {query_operator}")
                 if query_value is None or not isinstance(query_value, tuple):
-                    self.add_error("coords", "Cannot query by empty location.")
+                    self.add_error("coord", "Cannot query by empty location.")
                 else:
                     if query_operator is None or len(query_operator) == 0:
                         # We can use a default value for the radius
-                        query_operator = settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS
+                        query_operator = lick_archive_config.query.default_search_radius
 
                     if query_value[1] is None or len(query_value[1]) == 0:
-                        self.add_error("coords", f"RA and DEC are required for location query.")
-                    cleaned_data["coords"]["value"] = (query_value[0], query_value[1], query_operator)
+                        self.add_error("coord", f"RA and DEC are required for location query.")
+                    cleaned_data["coord"]["value"] = (query_value[0], query_value[1], query_operator)
 
             else:
                 self.add_error("which_query", f"Unknown query type {query_type}.")
@@ -379,32 +380,16 @@ def get_user_facing_result_fields(fields):
 
     """
     # Common field ordering
-    field_ordering = ["filename", "telescope", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "airmass", "object", "program", "observer", "header"]
+    field_ordering = ["filename", "telescope", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "airmass", "object", "program", "observer", "coversheet", "public_date", "file_size", "header"]
 
-    common_fields = []
-    instrument_fields = {}
+    # Sort common fields by that ordering. We use UI_ALLOWED_RESULT to get the api field/user facing field pair
+    sorted_common_fields = [field_tuple for field_tuple in sorted(UI_ALLOWED_RESULT[0][1], key=lambda x: field_ordering.index(x[0])) if field_tuple[0] in fields]
 
-    # Separate common fields from instrument specific fields
-    for field in fields:
-        field_info = archive_schema.field_info[field]
-        if field_info.user_group == archive_schema.DEFAULT_GROUP:
-            common_fields.append((field, field_info))
-        else:
-            instrument_fields.setdefault(field_info.user_group, []).append((field, field_info))
-
-    # Sort common fields by the order in field_ordering
-    common_fields.sort(key=lambda x: field_ordering.index(x[0]))
-
-    api_fields = [f[0] for f in common_fields]
-    user_fields = [f[1].user_name for f in common_fields]
-
-    # Sort instrument fields by instrument name, then by user facing field name
-    for instrument in sorted(instrument_fields.keys()):        
-        instrument_fields[instrument].sort(key = lambda x: archive_schema.allowed_result_attributes.index(x[0]))
-        api_fields +=  [f[0] for f in instrument_fields[instrument]]
-        user_fields += [f[1].user_name for f in instrument_fields[instrument]]
-
-    return user_fields, api_fields
+    # Use the sorting in UI_ALLOWED_RESULTS for the instrument field sorting, which
+    # we get by flattening UI_ALLOWED_RESULT
+    instrument_fields = [field_tuple for field_tuple in (itertools.chain(*[x[1] for x in UI_ALLOWED_RESULT[1:]])) if field_tuple[0] in fields]
+    
+    return zip(*(sorted_common_fields + instrument_fields))
 
 def get_user_facing_field_units(api_fields, coord_format):
     """Return user facing units for a list of fields.
@@ -528,9 +513,9 @@ def index(request):
                'result_units': [],
                'result_list': None,
                'username': '',
-               'archive_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/index.html",
-               'login_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/users/login/",
-               'logout_url': settings.LICK_ARCHIVE_FRONTEND_URL + "/users/logout/",
+               'archive_url': lick_archive_config.host.frontend_url + "/index.html",
+               'login_url': lick_archive_config.host.frontend_url + "/users/login/",
+               'logout_url': lick_archive_config.host.frontend_url + "/users/logout/",
                'total_pages': 0,
                'current_page': 1,
                'start_result': 1,
@@ -571,12 +556,9 @@ def index(request):
                 query_field = "object"
                 match_case = form.cleaned_data[query_type]["modifier"]
 
-            elif query_type == "coords":
-                query_field = "ra_dec"
-
             elif query_type == "date":
                 # Convert dates to noon to noon datetimes in the lick observatory timezone
-                query_field="datetime"
+                query_field="obs_date"
 
                 query_value = [datetime.combine(d, time(hour=12, minute=0, second=0, tzinfo=_LICK_TIMEZONE)) for d in query_value if d is not None]
 
@@ -602,7 +584,7 @@ def index(request):
             instruments = form.cleaned_data.get("instruments", None)
             filters = {}
             if instruments is not None:
-                all_instruments = [x.name for x in archive_schema.Instrument]
+                all_instruments = [x.name for x in Instrument]
                 # If all the instruments are specified no filter is needed
                 if len(instruments) != all_instruments:
                     filters["instrument"] = instruments
@@ -619,7 +601,7 @@ def index(request):
                     logger.info(f"Prefix: {prefix}")
                     logger.info(f"Contains: {contains}")
                     logger.info(f"Username: '{request.user.username}'")
-                    archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5, session=request.session)
+                    archive_client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5, session=request.session)
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
                                                                            value = query_value,
@@ -645,7 +627,7 @@ def index(request):
                     try:
                         # Sort the result fields in the order they should appear to the user, and get the user
                         # facing names
-                        user_fields, api_fields = get_user_facing_result_fields(result_fields)
+                        api_fields, user_fields = get_user_facing_result_fields(result_fields)
                         field_units = get_user_facing_field_units(api_fields, form.cleaned_data['coord_format'])
 
                         context['result_list'] = process_results(api_fields, result, form.cleaned_data['coord_format'])
@@ -680,12 +662,12 @@ def logout(request):
     log_request_debug(request)
 
     if request.method == 'POST':
-        if settings.LICK_ARCHIVE_REMOTE_LOGIN:
+        if lick_archive_config.host.type == ArchiveSiteType.FRONTEND:
             logger.info("Performing remote logout...")
             # If our local django session doesn't think we're logged in, there's a case
             # where the remote session might think we are. So try the remote logout regardless of if we're
             # logged in
-            archive_client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5, session=request.session)
+            archive_client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5, session=request.session)
             if not archive_client.logout():
                 logger.error(f"Failed to perform remote logout.")
 
@@ -696,7 +678,7 @@ def logout(request):
             logger.error(f"Failed django logout.", exc_info=True)
     
         # Redirect back to the frontend query page, which should reflect the logged out status
-        return HttpResponseRedirect(settings.LICK_ARCHIVE_FRONTEND_URL + "/index.html")
+        return HttpResponseRedirect(lick_archive_config.host.frontend_url + "/index.html")
         
     else:
         return HttpResponseNotAllowed(['POST'])

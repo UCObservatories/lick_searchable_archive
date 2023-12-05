@@ -12,8 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 from os import environ
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent / "lick_searchable_archive"
+
 
 UNIT_TEST_DIR = environ['UNIT_TEST_DIR']
 
@@ -152,18 +151,3 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Celery configuration
 #CELERY_BROKER_URL = '{{ redis_url }}'
 
-
-# Lick Archive settings
-LICK_ARCHIVE_API_VERSION = '1'
-
-LICK_ARCHIVE_ROOT_DIR = f'/data'
-
-LICK_ARCHIVE_INSTRUMENT_DIRS = ['AO', 'shane']
-LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS = "1 arcmin"
-
-LICK_ARCHIVE_ALLOW_INGEST = True
-
-LICK_ARCHIVE_QUERY_USER  = 'user'
-LICK_ARCHIVE_INGEST_USER = 'user'
-LICK_ARCHIVE_DB          = f'{UNIT_TEST_DIR}/test_metadta_db.sqlite3'
-LICK_ARCHIVE_HEADER_URL_FORMAT = "http://testserver/files/{}/header"

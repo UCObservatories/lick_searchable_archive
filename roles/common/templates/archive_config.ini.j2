@@ -1,0 +1,21 @@
+# TODO, link to docs, or put docs in here
+[host]
+type            = {{ host_type }}
+app_names       = {{ archive_apps|join(',') }}
+url_path_prefix = {{ archive_url_path_prefix }}
+api_url         = {{ api_scheme }}://{{ api_server }}:{{api_port}}/{{ archive_url_path_prefix }}
+frontend_url    = {{ frontend_url }}
+
+[database]
+archive_db     = {{ db_name }}
+db_query_user  = {{ db_query_user }}
+db_ingest_user = {{ db_ingest_user }}
+
+[query]
+file_header_url_format = {{ frontend_url }}/data/{}/header
+default_search_radius  = {{ default_search_radius }}
+
+[ingest]
+archive_root_dir           = {{ archive_data_root }}
+default_proprietary_period = 2 years
+

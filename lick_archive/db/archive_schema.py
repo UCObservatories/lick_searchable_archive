@@ -1,61 +1,71 @@
 """ Defines the schema used to store metadata for the Lick Archive.
 Uses SQL Alchemy's ORM
 """
-import enum
-from collections import namedtuple
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Float, String, Integer, Boolean, Sequence, ForeignKey, TIMESTAMP, Text
-from sqlalchemy.dialects.postgresql import BIT
-from sqlalchemy.orm import relationship
-from sqlalchemy import Index, Enum
+from enum import Enum as PythonEnum
+from datetime import datetime, date
+
+from sqlalchemy import Column, Float, String, Integer, Table, BigInteger, ForeignKey, Date, TIMESTAMP, Text
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import Index
+from sqlalchemy import Enum as SqlAlchemyEnum
+
+from astropy.coordinates import SkyCoord
+
+
 from lick_archive.db.pgsphere import SPoint
 from lick_archive.db.bitstring import BitString
-
-Base = declarative_base()
-
-version = 0.1
-
-class FrameType(enum.Enum):
-    dark    = "dark"
-    flat    = "flat"
-    bias    = "bias"
-    science = "science"
-    arc     = "arc"
-    unknown = "unknown"
-
-class IngestFlags(enum.IntFlag):
-    CLEAR               = 0        # Nothing of interest when ingesting the file
-    NO_LAMPS_IN_HEADER  = 1        # No lamps were specified in the header, so OBJECT was used to find the type
-    AO_NO_DATE_BEG      = 2        # A Shane AO/ShARCS file had no DATE_BEG
-    AO_USE_DATE_OBS     = 4        # A Shane AO/ShARCS file had used DATE_OBS, which is less reliable
-    USE_DIR_DATE        = 8        # The obs date for a file was determined by the directory name, so is only accurate to 24 hours.
-    NO_OBJECT_IN_HEADER = 16       # There was no OBJECT in the header
-    NO_FITS_END_CARD    = 32       # The FITS header had no END card
-    NO_FITS_SIMPLE_CARD = 64       # The FITS header had no SIMPLE card at the beginning.
-    FITS_VERIFY_ERROR   = 128      # The FITS header failed a verification check.
-    UNKNOWN_FORMAT      = 256      # The FITS file could not be identified (used internally, should not be inserted to DB).
-    NO_COORD            = 512      # The RA/DEC in the header could be parsed, so cone searches will not match it.
-    INVALID_CHAR        = 1024     # An invalid character (such as '\x00') was found in the header.
-
-class Telescope(enum.Enum):
-    SHANE = "Shane"
-
-class Instrument(enum.Enum):
-    KAST_RED =  "Kast Red"
-    KAST_BLUE = "Kast Blue"
-    SHARCS =    "ShaneAO/ShARCS"
+from lick_archive.data_dictionary import data_dictionary, IngestFlags, LargeInt, LargeStr
 
 
-# Field Info for meta information about fields
-# TODO: Make a full DataDictionary class with this info?
-FieldInfo = namedtuple("FieldInfo", ["user_name", "user_group", "descr"])
+class Base(DeclarativeBase):
+    pass
 
 
-# Constants to prevent typos in group names
-DEFAULT_GROUP = "Common Fields"
-SHANE_KAST_GROUP = "Shane Kast Specific"
-SHARCS_GROUP = "Shane AO/ShARCS Specific"
+version = 1.0
 
+# We build the Main table using SQL Alchemy's Core API so we can build it from the data dictionary
+
+_primary_key = "id"
+_unique = ['filename']
+_required = ['filename', 'telescope', 'instrument', 'obs_date', 'frame_type', 'public_date']
+
+# Define a default publication date far into the future, for help migrating existing data without a date
+_defaults = {'public_date': date(9999,12,31).isoformat()}
+
+def _map_type(python_type):
+    type_map = {int :        Integer,
+                str :        String,
+                float :      Float,
+                datetime:    TIMESTAMP,
+                date:        Date,
+                SkyCoord:    SPoint,
+                IngestFlags: BitString,
+                LargeInt:    BigInteger,
+                LargeStr:    Text,
+                }
+    
+    if python_type in type_map:
+        return type_map[python_type]
+    elif issubclass(python_type, PythonEnum):
+        return SqlAlchemyEnum(python_type, values_callable=lambda x: [y.value for y in x])
+    else:
+        raise NotImplementedError(f"Python type {python_type} not supported when mapping to SQLAlchemy")
+
+
+main_columns = [Column(dd_row['db_name'], _map_type(dd_row['type']), 
+                       primary_key=True if dd_row['db_name'] in _primary_key else None,
+                       unique=True if dd_row['db_name'] in _unique else None,
+                       nullable=False if dd_row['db_name'] in _required else True,
+                       server_default=_defaults.get(dd_row['db_name'],None),
+                       ) 
+                for dd_row in data_dictionary]
+main = Table("main", Base.metadata,*main_columns)
+
+class Main(Base):
+    __table__ = main
+
+"""
+Old main
 class Main(Base):
     __tablename__ = 'main'
 
@@ -80,7 +90,7 @@ class Main(Base):
     airmass              = Column(Float,
                                   info=FieldInfo("Airmass", DEFAULT_GROUP, "Airmass of the observation."))
     frame_type           = Column(Enum(FrameType, values_callable=lambda x: [y.value for y in x], name="frame_type_enum"), nullable = False,
-                                  info=FieldInfo("Frame Type", DEFAULT_GROUP, f"""Type of the observation. One of {','.join(['"' + frame_type.value + '"' for frame_type in FrameType])}."""))
+                                  info=FieldInfo("Frame Type", DEFAULT_GROUP, f" ""Type of the observation. One of {','.join(['"' + frame_type.value + '"' for frame_type in FrameType])}."" "))
     filename             = Column(String, unique=True, nullable = False,
                                   info=FieldInfo("File Location", DEFAULT_GROUP, "Relative filename and path within the archive filesystem."))
     program              = Column(String,
@@ -107,18 +117,12 @@ class Main(Base):
 
     # Authorization fields
     #public               = Column(Boolean, info=FieldInfo("Is Public", None, "True if the file is public."))
-
+"""
 Index('index_m_obs_date', Main.obs_date)
 Index('index_m_instrument', Main.instrument)
 Index('index_m_object', Main.object)
 Index('index_m_frame', Main.frame_type)
 Index('index_m_coord', Main.coord, postgresql_using='gist')
-
-indexed_attributes = ['filename', 'date', 'datetime', 'object', 'ra_dec']
-allowed_sort_attributes = [col.name for col in Main.__table__.columns if col.name not in ['coord', 'header', 'ingest_flags', 'public']]
-allowed_result_attributes =[col.name for col in Main.__table__.columns if col.name not in ['coord','ingest_flags', 'public']]
-
-field_info = {col.name: col.info for col in Main.__table__.columns if col.name not in ['coord','ingest_flags', 'public']}
 
 
 class VersionHistory(Base):
@@ -131,21 +135,13 @@ class VersionHistory(Base):
 
 Index('index_vh_install_date', VersionHistory.install_date)
 
-"""
-class User(Base):
-    __tablename__ = "user"
-
-    observer_id = Column(Integer, primary_key=True)
-    first_name_lower = Column(String)
-    last_name_lowe = Column(String)
-
 class UserDataAccess(Base):
     __tablename__ = "user_data_access"
 
     file_id = Column(ForeignKey("main.id"), primary_key=True)
-    obid = Column(ForeignKey("user.observer_id"), primary_key=True)
-    reason = String()
-
+    obid = Column(Integer, primary_key=True)
+    reason = Column(String)
+"""
 class CoverDataAccess(Base):
     __tablename__ = "cover_data_access"
 

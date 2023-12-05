@@ -15,13 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.conf import settings
+
+from lick_archive.archive_config import ArchiveConfigFile
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 urlpatterns = [
 ]
 
-for app in settings.LICK_ARCHIVE_APPS:
-    urlpatterns.append(path(f"{settings.LICK_ARCHIVE_URL_PATH_PREFIX}/", include(f'{app}.urls')))
+for app in lick_archive_config.host.app_names:
+    urlpatterns.append(path(f"{lick_archive_config.host.url_path_prefix}/", include(f'{app}.urls')))
 
 
 # TODO remove when we get deployment of a real web server in front of gunicorn finished

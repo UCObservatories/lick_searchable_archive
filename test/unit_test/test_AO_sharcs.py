@@ -2,7 +2,7 @@ from astropy.io import fits
 from pathlib import Path
 
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
-from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
+from lick_archive.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.metadata.metadata_utils import get_hdul_from_text
 import os 
 from datetime import datetime, timezone, timedelta

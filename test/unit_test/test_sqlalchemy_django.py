@@ -14,7 +14,8 @@ from django.db.models import F, Value
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
-from lick_archive.db.archive_schema import Base, Main, FrameType, Telescope, Instrument
+from lick_archive.db.archive_schema import Base, Main
+from lick_archive.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.db.pgsphere import SCircle, SPoint
 
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS

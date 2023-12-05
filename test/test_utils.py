@@ -1,6 +1,6 @@
 import contextlib
 import os
-
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import django
@@ -8,8 +8,12 @@ import django
 # Setup test Django settings
 os.environ["DJANGO_SETTINGS_MODULE"] = "django_test_settings"
 
+# Force archive config to load the test version rather than the default config
+from lick_archive.archive_config import ArchiveConfigFile
+ArchiveConfigFile.from_file(Path(__file__).parent / "archive_test_config.ini")
+
 from lick_archive.db.archive_schema import Main
-from lick_archive.db import archive_schema
+from lick_archive.data_dictionary import api_capabilities
 from lick_searchable_archive.query.query_api import QueryAPIView
 from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
@@ -44,7 +48,7 @@ class MockView(QueryAPIView):
     """A test view for testing the query api"""
     allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
     allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
-    indexed_attributes = archive_schema.indexed_attributes
+    required_attributes = list(api_capabilities['required']['db_name'])
     serializer_class = SQLAlchemyORMSerializer
 
     def __init__(self, engine, request=None):

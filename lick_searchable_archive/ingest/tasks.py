@@ -2,14 +2,17 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from .models import IngestNotification
-from django.conf import settings
 
 logger=get_task_logger(__name__)
 
 from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_batch, check_exists
 from lick_archive.metadata.reader import read_row
+from lick_archive.archive_config import ArchiveConfigFile
 
-_db_engine = create_db_engine(user=settings.LICK_ARCHIVE_INGEST_USER, database=settings.LICK_ARCHIVE_DB)
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
+
+_db_engine = create_db_engine(user=lick_archive_config.database.db_ingest_user, database=lick_archive_config.database.archive_db)
 
 
 @shared_task

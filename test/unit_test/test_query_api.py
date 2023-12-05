@@ -5,30 +5,36 @@ from collections import namedtuple
 import os
 from datetime import datetime
 
+from test_utils import MockDatabase, MockView, create_test_request, setup_django_environment
 
 import django
 from django.http import QueryDict
 
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
-
+from datetime import date
 from lick_searchable_archive.query.query_api import QuerySerializer
 
-from lick_archive.db.archive_schema import Base, Main, FrameType
-from test_utils import MockDatabase, MockView, create_test_request, setup_django_environment
+from lick_archive.db.archive_schema import Base, Main
+from lick_archive.data_dictionary import FrameType
 
 
 # Test rows shared between most tests
 test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.arc,     object=None, filename="/data/testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
+                   frame_type=FrameType.arc,     object=None, filename="/data/testfile1.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 1", filename="/data/testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 1", filename="/data/testfile2.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
 ]
 
 
@@ -122,8 +128,8 @@ def test_instrument_filter(tmp_path):
         assert response.data["results"][0]["filename"]  == os.path.basename(test_rows[4].filename)
         assert response.data["results"][0]["object"]  == test_rows[4].object
 
-def test_ra_dec_filter(tmp_path):
-    """Test a ra_dec filter"""
+def test_coord_filter(tmp_path):
+    """Test a coord filter"""
     # This cannot actually run the query, because the mock sqllite database doesn't handle coordiante searches. We can still
     # test that the filter is added
 
@@ -132,10 +138,14 @@ def test_ra_dec_filter(tmp_path):
     setup_django_environment(tmp_path)
 
     from astropy.coordinates import Angle
-    from django.conf import settings
+    from lick_archive.archive_config import ArchiveConfigFile
+
+    lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
+
 
     # Test with specific radius
-    request = create_test_request("files/", data=QueryDict("ra_dec=349.99,-5.1656,0.1"))
+    request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656,0.1"))
     
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -159,7 +169,7 @@ def test_ra_dec_filter(tmp_path):
         assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
     # Test with default radius
-    request = create_test_request("files/", data=QueryDict("ra_dec=349.99,-5.1656"))
+    request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -178,7 +188,7 @@ def test_ra_dec_filter(tmp_path):
         assert queryset.where_filters[0].right.value.ra.unit == "rad"
         assert queryset.where_filters[0].right.value.dec == Angle("-5.1656 deg")
         assert queryset.where_filters[0].right.value.dec.unit == "rad"
-        assert queryset.where_filters[0].right.value.radius  == Angle(settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS)
+        assert queryset.where_filters[0].right.value.radius  == Angle(lick_archive_config.query.default_search_radius)
         assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
 def test_date_filter(tmp_path):
@@ -186,7 +196,7 @@ def test_date_filter(tmp_path):
     # Setup django environment
     setup_django_environment(tmp_path)
 
-    request = create_test_request("files/", data=QueryDict("date=2018-12-1&results=filename,obs_date"))
+    request = create_test_request("files/", data=QueryDict("obs_date=2018-12-1&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -210,7 +220,7 @@ def test_date_range_filter(tmp_path):
     # Setup django environment
     setup_django_environment(tmp_path)
 
-    request = create_test_request("files/", data=QueryDict("date=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("obs_date=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -233,7 +243,7 @@ def test_reverse_date_range_filter(tmp_path):
     # Setup django environment
     setup_django_environment(tmp_path)
 
-    request = create_test_request("files/", data=QueryDict("date=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("obs_date=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)
@@ -302,7 +312,7 @@ def test_no_result_attributes(tmp_path):
             assert response.data["results"][i]["frame_type"] == test_rows[i].frame_type.name
 
             # Post-processing by the view should turn the header into a URL
-            assert response.data["results"][i]["header"]     == "http://testserver/files/{}/header".format(os.path.basename(test_rows[i].filename))
+            assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(test_rows[i].filename))
 
 
 def test_count(tmp_path):
@@ -310,7 +320,7 @@ def test_count(tmp_path):
     # Setup django environment
     setup_django_environment(tmp_path)
 
-    request = create_test_request("files/", data=QueryDict("date=2019-06-01&count=t"))
+    request = create_test_request("files/", data=QueryDict("obs_date=2019-06-01&count=t"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = MockView(mock_db.engine, request)

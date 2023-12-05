@@ -1,0 +1,78 @@
+import pytest
+
+from lick_archive.lick_archive_client import LickArchiveClient
+
+def test_backend_login(archive_backend):
+
+    # First make sure we default to logged out
+    client = LickArchiveClient(archive_backend, 1, 30, 5)
+    assert client.get_login_status() is True
+    assert client.logged_in_user is None
+
+    # Login with bad password
+    assert client.login("test_user","badpassword") is False
+    assert client.logged_in_user is None
+
+    # login with valid password
+    assert client.login("test_user","valid but bad password") is True
+    assert client.logged_in_user == "test_user"
+
+def test_backend_logout(archive_backend):
+    # First make sure we default to logged out
+    client = LickArchiveClient(archive_backend, 1, 30, 5)
+    assert client.get_login_status() is True
+    assert client.logged_in_user is None
+
+    # login with valid password
+    assert client.login("test_user","valid but bad password") is True
+    assert client.logged_in_user == "test_user"
+
+    # logout
+    assert client.logout() is True
+    assert client.logged_in_user is None
+
+    # Make sure the server agrees we're logged out
+    assert client.get_login_status() is True
+    assert client.logged_in_user is None
+
+def test_session_persist(archive_backend):
+
+    session_dict = {}
+
+    # First make sure we default to logged out
+    client = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    assert client.get_login_status() is True
+    assert client.logged_in_user is None
+
+    # login with valid password
+    assert client.login("test_user","valid but bad password") is True
+    assert client.logged_in_user == "test_user"
+
+    # Persist logged in session
+    client.persist(session_dict)
+
+    # Get status from previous session, and persist again
+    client2 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    assert client2.get_login_status() is True
+    assert client2.logged_in_user == "test_user"
+    client2.persist(session_dict)
+
+    # Get status from previous session, logout, persist again
+    client3 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    assert client3.get_login_status() is True
+    assert client3.logged_in_user == "test_user"
+    assert client3.logout() is True
+    assert client3.logged_in_user is None
+    assert client3.get_login_status() is True
+    assert client3.logged_in_user is None
+    client3.persist(session_dict)
+
+    # make sure session was persisted as logged out
+    client4 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    assert client4.logged_in_user is None
+
+
+
+
+
+

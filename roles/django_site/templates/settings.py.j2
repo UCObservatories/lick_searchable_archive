@@ -16,7 +16,6 @@ import django
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 {% if archive_config == "ops" %}
 
 with open('{{ django_secret_keyfile }}') as f:
@@ -122,8 +121,6 @@ DATABASES = {
 
 
 {% if "archive_auth" in archive_apps %}
-# Use django's authentication to login users
-LICK_ARCHIVE_REMOTE_LOGIN = False
 
 # Support the older Apache2 APR_MD5 password hash
 PASSWORD_HASHERS = [
@@ -151,7 +148,6 @@ AUTH_PASSWORD_VALIDATORS = [
 # Use backend API to authenticate users
 AUTHENTICATION_BACKENDS = ["lick_searchable_archive.frontend.remote_auth.RemoteAPIAuthBackend"]
 #AUTH_USER_MODEL = "frontend.RemoteAPIUser"
-LICK_ARCHIVE_REMOTE_LOGIN = True
 {% endif %}
 
 LOGGING = {
@@ -221,36 +217,10 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 {% endif %}
 
-# Lick Archive global settings
-LICK_ARCHIVE_URL_PATH_PREFIX = '{{ archive_url_path_prefix }}'
-LICK_ARCHIVE_APPS = {{ archive_apps }}
-LICK_ARCHIVE_API_URL = '{{ api_scheme }}://{{ api_server }}:{{api_port}}/' + LICK_ARCHIVE_URL_PATH_PREFIX
-LICK_ARCHIVE_FRONTEND_URL='{{ frontend_url }}'
-{# Now include only the settings needed for the apps being installed #}
 
-{% if "ingest" or "query" in archive_apps %}
-LICK_ARCHIVE_DB          = '{{ db_name }}'
-{% endif %}
-
-{% if "frontend" or "query" in archive_apps %}
-LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS = "{{ default_search_radius }}"
-{% endif %}
-
-{% if "ingest" in archive_apps %}
-# Ingest specific configuration
-
-{# Celery is currently only used by ingest #}
+{% if "job_queue" in archive_apps %}
 # Celery configuration
 CELERY_BROKER_URL = '{{ redis_url }}'
-
-LICK_ARCHIVE_INGEST_USER = '{{ db_ingest_user }}'
-{% endif %}
-
-{% if "query" in archive_apps %}
-# Query specific configuration
-LICK_ARCHIVE_ROOT_DIR = '{{ archive_data_root }}'
-LICK_ARCHIVE_HEADER_URL_FORMAT = '{{ frontend_url }}/data/{}/header'
-LICK_ARCHIVE_QUERY_USER  = '{{ db_query_user }}'
 {% endif %}
 
 {% if "backend" in group_names %}

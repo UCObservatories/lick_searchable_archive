@@ -8,18 +8,81 @@ from pathlib import Path
 import os
 
 from django.db.models import F
+from django.utils.dateparse import parse_date, parse_datetime
+
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework import status, serializers
 from rest_framework.generics import ListAPIView
-from django.conf import settings
 
 from astropy.coordinates import SkyCoord, Angle
-from lick_archive.db import archive_schema
+from lick_archive.data_dictionary import Instrument
 from lick_archive.db.pgsphere import SCircle
 from lick_archive.django_utils import log_request_debug
+from lick_archive.archive_config import ArchiveConfigFile
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
+class ISODateOrDateTimeField(serializers.Field):
+    """A custom field that can be either an ISO date or datetime. This will
+    translate the value to either a python datetime.datetime or datetime.date
+    object depending on whether time information is included in the input."""
+
+    def to_internal_value(self, data):
+        """Convert a value to either a datetime.date or datetime.datetime object
+        
+        Args:
+            data (Any): The data to convert.
+        Return:
+            (datetime or date): The converted value. Any datetime objects returned will have
+                                the timezone set.
+                                
+        Raises:
+            ValidationError: Raised if the passed in data is not a valid date or datetime.
+        """
+        if isinstance(data, datetime.date):
+            return data
+        elif isinstance(data, datetime.datetime):
+            return data
+        elif isinstance(data, str):
+            try:
+                result = parse_date(data)
+                if result is None:
+                    # Try as a datetime
+                    result = parse_datetime(data)
+
+                    if result is None:
+                        raise ValidationError("Date has the wrong format. Expected an ISO-8601 date or datetime.")
+                    if result.tzinfo is None:
+                        # Force UTC
+                        result = datetime.datetime.combine(result.date(), result.time(), datetime.timezone.utc)
+            except ValueError as e:
+                # Problem parsing date
+                logger.error(f"Failed parsing date", exc_info=True)
+                raise ValidationError("Date has the wrong format. Expected an ISO-8601 date or datetime.")
+
+
+            return result
+        else:
+            raise ValidationError("Incorrect data type for date. Expected datetime, date, or string.")
+        
+    def to_representation(self, value):
+        """Convert a datetime/date object to it's string representation
+        Args:
+            value (None, date, datetime): The value to convert.
+
+        Return: (str or None): The converted value, or None if the input was None.            
+        """
+        if value is None:
+            return None
+        elif isinstance(value, datetime.date) or isinstance(value, datetime.datetime):
+            return value.isoformat()
+        else:
+            # I don't know why this would happen, but I don't trust the frame work
+            raise ValidationError("Not a valid data type. Expected datetime, date, or None.")
+        
 
 class ListWithSeperator(serializers.ListField):
     """
@@ -52,15 +115,12 @@ class QuerySerializer(serializers.Serializer):
     """A Serializer class used to validate the query string.
     """
     filename = serializers.CharField(max_length=256, required=False)
-    date = ListWithSeperator(sep_char=",", child=serializers.DateField(), 
-                             min_length=1, max_length=2,
-                             allow_empty=False, required=False)
-    datetime=ListWithSeperator(sep_char=",", 
-                               child=serializers.DateTimeField(format='iso-8601', input_formats=['iso-8601'], default_timezone=datetime.timezone.utc), 
+    obs_date=ListWithSeperator(sep_char=",", 
+                               child=ISODateOrDateTimeField(), 
                                min_length=1, max_length=2,
                                allow_empty=False, required=False)
     object = serializers.CharField(max_length=256, required=False)
-    ra_dec = ListWithSeperator(sep_char=",", child=serializers.FloatField(), min_length=2, max_length=3, allow_empty=False, required=False)
+    coord = ListWithSeperator(sep_char=",", child=serializers.FloatField(), min_length=2, max_length=3, allow_empty=False, required=False)
     count = serializers.BooleanField(default=False, required=False)
     prefix = serializers.BooleanField(default=False)
     contains = serializers.BooleanField(default=False)
@@ -84,11 +144,11 @@ class QuerySerializer(serializers.Serializer):
 
         super().__init__(data=data)
 
-    def validate_ra_dec(self, value):
-        """Validate ra value in ra_dec"""
+    def validate_coord(self, value):
+        """Validate ra value in coord"""
         dec=value[1]
         if dec <= -90.0 or dec >= 90.0:
-            raise serializers.ValidationError([{'ra_dec': 'DEC must be between -90 and 90 degrees'}])
+            raise serializers.ValidationError([{'coord': 'DEC must be between -90 and 90 degrees'}])
         return value
 
     def validate_filters(self,value):
@@ -98,12 +158,12 @@ class QuerySerializer(serializers.Serializer):
         if value[0] != "instrument":
             raise serializers.ValidationError([{'filters': 'Only "instrument" is allowed as a filter.'}])
         requested_instruments = []
-        valid_instruments = [x.name for x in archive_schema.Instrument]
+        valid_instruments = [x.name for x in Instrument]
         for instrument in value[1:]:
             # We'll allow case insensitive instrument names in the query
             if instrument.upper() in valid_instruments:
                 # The DB holds the string value of the enum
-                requested_instruments.append(archive_schema.Instrument[instrument.upper()].value)
+                requested_instruments.append(Instrument[instrument.upper()].value)
             else:
                 raise serializers.ValidationError([{'filters': 'Instrument filter must be one of: ' + ",".join([f"\"{x}\"" for x in valid_instruments])}])
         if len(requested_instruments)==0:
@@ -265,7 +325,7 @@ class QueryAPIFilterBackend:
         The queryset being used for the query. 
 
         view (QueryAPIView):
-        The view running the query. It should have the "indexed_attributes", 
+        The view running the query. It should have the "required_attributes", 
         "allowed_sort_attributes" and "allowed_result_attributes" attributes that
         are used to validate the query.
 
@@ -293,7 +353,7 @@ class QueryAPIFilterBackend:
         The queryset to filter. 
 
         view (QueryAPIView):
-        The view running the query. It should have the "indexed_attributes", 
+        The view running the query. It should have the "required_attributes", 
         "allowed_sort_attributes" and "allowed_result_attributes" attributes that
         are used to validate the query.
 
@@ -322,22 +382,24 @@ class QueryAPIFilterBackend:
 
         # Make sure at least one of the required fields is being queried.
         # These are the fields that are indexed in the database.
-        for field in view.indexed_attributes:
+        for field in view.required_attributes:
             if field in request.validated_query:
                 if required_field is None:
                     required_field = field
                     required_search_value = request.validated_query[field]
                 else:
                     # We don't allow duplicates of these fields, at least for now.
-                    raise ValidationError({"query": f"Only one field of: ({', '.join(view.indexed_attributes)}) may be queried on."})
+                    raise ValidationError({"query": f"Only one field of: ({', '.join(view.required_attributes)}) may be queried on."})
 
 
         if required_field is None:
-            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.indexed_attributes)})"})
+            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.required_attributes)})"})
 
         logger.info(f"Building {required_field} query on '{required_search_value}'")
         filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'],
                                     request.validated_query.get('filters', None))
+
+        self._add_proprietary_access_filter(filters, request)
 
         queryset = queryset.filter(**filters)
 
@@ -371,35 +433,39 @@ class QueryAPIFilterBackend:
             # The database has the full filename, but clients only see the relative pathname
             # A weird implication is that if the client wants to use an absolute path, because
             # os.path.join will ignore the first path if the second path is an absolute path.
-            full_filename = os.path.join(settings.LICK_ARCHIVE_ROOT_DIR, value)
-            logger.debug(f"rootdir {settings.LICK_ARCHIVE_ROOT_DIR}, value {value} Full filename {full_filename}")
+            full_filename = os.path.join(lick_archive_config.ingest.archive_root_dir, value)
+            logger.debug(f"rootdir {lick_archive_config.ingest.archive_root_dir}, value {value} Full filename {full_filename}")
             self._build_string_filter(filters, field, full_filename, string_match, match_case)
         elif field == 'object':
             self._build_string_filter(filters, field, value, string_match, match_case)
-        elif field == 'date':
-            start_date_time = datetime.datetime.combine(value[0], datetime.time(hour=0, minute=0, second=0))
-            if len(value) > 1:
-                end_date_time = datetime.datetime.combine(value[1]+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
-            else:
-                end_date_time = datetime.datetime.combine(value[0]+datetime.timedelta(days=1), datetime.time(hour=0, minute=0, second=0))
-    
-            self._build_range_filter(filters, "obs_date", start_date_time, end_date_time)
-        elif field == 'datetime':
+        elif field == 'obs_date':
             start_date_time = value[0]
             if len(value) > 1:
                 end_date_time = value[1]
-                # If a date range was given, we add a millisecond so the results are inclusive
-                self._build_range_filter(filters, "obs_date", start_date_time, end_date_time+ datetime.timedelta(milliseconds=1))
             else:
-                self._build_exact_filter(filters, "obs_date", value[0])
-        elif field == 'ra_dec':
-            ra_dec = SkyCoord(ra=value[0], dec=value[1], unit=("deg", "deg"))
+                end_date_time = value[0]
+
+            # Convert to datetime
+            if isinstance(start_date_time, datetime.date):
+                start_date_time = datetime.datetime.combine(start_date_time, datetime.time(hour=0, minute=0, second=0), datetime.timezone.utc)
+            
+            if isinstance(end_date_time, datetime.date):
+                # To make the range inclusive we add a a bit to the end of the range.
+                # For a date value, we add one day
+                end_date_time = datetime.datetime.combine(end_date_time, datetime.time(hour=0, minute=0, second=0), datetime.timezone.utc) + datetime.timedelta(days=1) 
+            else:
+                # For datetimes, we add a millisecond
+                end_date_time += datetime.timedelta(milliseconds=1)
+    
+            self._build_range_filter(filters, "obs_date", start_date_time, end_date_time)
+        elif field == 'coord':
+            coord = SkyCoord(ra=value[0], dec=value[1], unit=("deg", "deg"))
             if len(value) == 3:
                 radius = Angle(value[2], unit="deg")
             else:
                 # Use a default if no radius is given
-                radius = Angle(settings.LICK_ARCHIVE_DEFAULT_SEARCH_RADIUS)
-            self._build_contained_in_filter(filters, "coord", ra_dec, radius)
+                radius = Angle(lick_archive_config.query.default_search_radius)
+            self._build_contained_in_filter(filters, "coord", coord, radius)
 
         if user_filters is not None:
             # Currently only instrument filters are supported
@@ -409,17 +475,25 @@ class QueryAPIFilterBackend:
 
         return filters
 
+    def _add_proprietary_access_filter(self, filters, request):
+        """Add a filter to enforce a proprietary access period.
+        
+        Args:
+            filters (dict): A filter dictionary to add the  
+        """
+        filters['public_date__lte'] =  datetime.date.today()
+
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
         """Build a range filter for a field.
         
         Args:
-        filters (dict):       A filter dictionary to add the filter to.
-        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
-                              in the query string.
-        value1 (object):      The first value in the range to filter by. The range will be re-arranged
-                              if value1 is not less than value2.
-        value2 (object):      The second value in the range to filter by. The range will be re-arranged
-                              if value1 is not less than value2.
+            filters (dict):       A filter dictionary to add the filter to.
+            orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                                  in the query string.
+            value1 (object):      The first value in the range to filter by. The range will be re-arranged
+                                  if value1 is not less than value2.
+            value2 (object):      The second value in the range to filter by. The range will be re-arranged
+                                  if value1 is not less than value2.
         """
         if value1 < value2:
             start_value = value1
@@ -435,12 +509,12 @@ class QueryAPIFilterBackend:
         """Build a string filter for a field.
         
         Args:
-        filters (dict):       A filter dictionary to add the filter to.
-        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
-                              in the query string.
-        value (str):          The value to filter by.
-        string_match (str):     Either "exact", "startswith", "in", or "contains"
-        match_case (bool):    If true, a case sensitive search is performed. If false, it is case insensitive.
+            filters (dict):       A filter dictionary to add the filter to.
+            orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                                in the query string.
+            value (str):          The value to filter by.
+            string_match (str):     Either "exact", "startswith", "in", or "contains"
+            match_case (bool):    If true, a case sensitive search is performed. If false, it is case insensitive.
         """
         logger.debug(f"String filter value {value}")
         if match_case:
@@ -454,41 +528,41 @@ class QueryAPIFilterBackend:
         """Build a filter for a field that will exactly match one of a fixed set of values.
         
         Args:
-        filters (dict):       A filter dictionary to add the filter to.
-        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
-                              in the query string.
-        values (list or Any): The value or values to filter by.
+            filters (dict):       A filter dictionary to add the filter to.
+            orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                                in the query string.
+            values (list or Any): The value or values to filter by.
         """
         logger.debug(f"in filter value {values}")
         if not isinstance(values, list):
             values = [values]
         filters[f"{orm_field_name}__in" ] = values
 
-    def _build_contained_in_filter(self, filters, orm_field_name, ra_dec, radius):
+    def _build_contained_in_filter(self, filters, orm_field_name, coord, radius):
         """Build a filter for the PostgreSQL "<@" geometric operation that searches for
            coordinates within a circle.
 
         Args:
-        filters (dict):       A filter dictionary to add the filter to.
-        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
-                              in the query string.
-        ra_dec (SkyCoord):    The center of a circle on the sky.
-        radius (Angle):       The angular radius of a circle.
+            filters (dict):       A filter dictionary to add the filter to.
+            orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                                in the query string.
+            coord (SkyCoord):    The center of a circle on the sky.
+            radius (Angle):       The angular radius of a circle.
                     
         """
-        logger.debug(f"in contained in filter {ra_dec} {radius}")
+        logger.debug(f"in contained in filter {coord} {radius}")
         # To be a proper Django operation we'd have to make a custom
         # lookup, but since we're faking it with SQLAlchemy we don't have to
-        filters[f"{orm_field_name}__contained_in" ] = SCircle(ra_dec, radius)
+        filters[f"{orm_field_name}__contained_in" ] = SCircle(coord, radius)
 
     def _build_exact_filter(self, filters, orm_field_name, value):
         """Build a filter for a field that will exactly match a value
         
         Args:
-        filters (dict):       A filter dictionary to add the filter to.
-        orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
-                              in the query string.
-        value (str):          The value to filter by.
+            filters (dict):       A filter dictionary to add the filter to.
+            orm_filed_name (str): The orm field to name to filter on, which may not be the same name used
+                                in the query string.
+            value (str):          The value to filter by.
         """
         logger.debug(f"exact filter value {value}")
         filters[orm_field_name + "__exact"] = value
@@ -498,7 +572,7 @@ class QueryAPIView(ListAPIView):
     """
     A custom DRF view for implementing the archive query api. It should be subclassed
     to specify the QuerySet type, Serializer type. The subclass should also
-    populate the allowed_sort_attributes, allowed_result_attributes, and indexed_attributes
+    populate the allowed_sort_attributes, allowed_result_attributes, and required_attributes
     values.
     """
     # Use cursor based pagination
@@ -506,7 +580,7 @@ class QueryAPIView(ListAPIView):
     filter_backends = [QueryAPIFilterBackend]
     allowed_sort_attributes =[]
     allowed_result_attributes =[]
-    indexed_attributes = []
+    required_attributes = []
 
     def list(self, request, *args, **kwargs):
         """Performs a query based on a request. The query is handled by the
@@ -521,10 +595,10 @@ class QueryAPIView(ListAPIView):
         access a plaintext version of the header.
         
         Args:
-            request (rest_framework.requests.Request): The request specifying the query.        
-            args (list):     Additional arguments to the view.
-            **kwargs (dict): Additional keyword arguments to the view.
-            
+        request (rest_framework.requests.Request): The request specifying the query.        
+        args (list):     Additional arguments to the view.
+        **kwargs (dict): Additional keyword arguments to the view.
+        
         Return (rest_framework.response.Response): The processed response from the query.
         """
         log_request_debug(request)
@@ -551,9 +625,9 @@ class QueryAPIView(ListAPIView):
                 for record in response.data['results']:
                     if "header" in record:
                         filepath = Path(record['header'])
-                        relative_path = filepath.relative_to(settings.LICK_ARCHIVE_ROOT_DIR)
-                        header_url = settings.LICK_ARCHIVE_HEADER_URL_FORMAT.format(relative_path)
+                        relative_path = filepath.relative_to(lick_archive_config.ingest.archive_root_dir)
+                        header_url = lick_archive_config.query.file_header_url_format.format(relative_path)
                         record["header"] = header_url
                     if "filename" in record:
-                        record["filename"] = str(Path(record['filename']).relative_to(settings.LICK_ARCHIVE_ROOT_DIR))
+                        record["filename"] = str(Path(record['filename']).relative_to(lick_archive_config.ingest.archive_root_dir))
         return response

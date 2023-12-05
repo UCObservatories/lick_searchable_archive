@@ -5,7 +5,7 @@ from astropy.io.fits.verify import VerifyWarning
 from pathlib import Path
 
 from lick_archive.metadata.reader import open_fits_file, read_row
-from lick_archive.db.archive_schema import IngestFlags,Instrument
+from lick_archive.data_dictionary import IngestFlags,Instrument
 
 
 def test_open_fits_file():

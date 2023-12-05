@@ -13,24 +13,29 @@ from rest_framework import status
 
 
 from lick_archive.db.db_utils import create_db_engine
-from lick_archive.db import archive_schema
+from lick_archive.data_dictionary import api_capabilities
+from lick_archive.db.archive_schema import Main
 from lick_archive.django_utils import log_request_debug
+from lick_archive.archive_config import ArchiveConfigFile
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
 from .query_api import QuerySerializer, QueryAPIView
 from .sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
 # SQLAlchemy likes its engine to have a global lifetime.
-_db_engine = create_db_engine(user=settings.LICK_ARCHIVE_QUERY_USER, database=settings.LICK_ARCHIVE_DB)
+_db_engine = create_db_engine(user=lick_archive_config.database.db_query_user, database=lick_archive_config.database.archive_db)
 
 class QueryView(QueryAPIView):
     """View that integrates the archive Query API with SQL Alchemy"""
     serializer_class = SQLAlchemyORMSerializer
-    indexed_attributes = archive_schema.indexed_attributes
-    allowed_sort_attributes = archive_schema.allowed_sort_attributes
-    allowed_result_attributes = archive_schema.allowed_result_attributes
+    required_attributes = list(api_capabilities['required']['db_name'])
+    allowed_sort_attributes = list(api_capabilities['required']['db_name'])
+    allowed_result_attributes = list(api_capabilities['required']['db_name'])
 
 
     def get_queryset(self):
-        return SQLAlchemyQuerySet(_db_engine, archive_schema.Main)
+        return SQLAlchemyQuerySet(_db_engine, Main)
 
 class PlainTextRenderer(BaseRenderer):
     """A renderer for rendering FITS headers in plain text."""
@@ -60,11 +65,11 @@ class HeaderView(APIView):
             logger.error("Failed to validate filename when requesting header.", exc_info=True)
             raise
 
-        full_path = Path(settings.LICK_ARCHIVE_ROOT_DIR) / serializer.validated_data['filename']
+        full_path = Path(lick_archive_config.ingest.archive_root_dir) / serializer.validated_data['filename']
         logger.info(f"Getting header info for file: {full_path}")
 
         try:
-            queryset = SQLAlchemyQuerySet(_db_engine,archive_schema.Main)
+            queryset = SQLAlchemyQuerySet(_db_engine,Main)
             queryset = queryset.filter(filename__exact=str(full_path))
             queryset = queryset.values("header")
             results = list(queryset)

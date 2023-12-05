@@ -198,6 +198,8 @@ class SQLAlchemyQuerySet:
 
             if op == "lt":
                 return_queryset.where_filters.append(sql_alchemy_field < value)
+            elif op == "lte":
+                return_queryset.where_filters.append(sql_alchemy_field <= value)
             elif op == "gt":
                 return_queryset.where_filters.append(sql_alchemy_field > value)
             elif op == "in":

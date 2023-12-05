@@ -84,6 +84,8 @@ Or::
 
     $ echo "select * from main where coord @ scircle '< (159.9030737856363d, 43.1025582646240d), 0d2m >';" | psql -U archive -f - > output.txt
 
+.. _db_setup:
+
 Setup new database
 ^^^^^^^^^^^^^^^^^^
 Ansible will install a PostgreSQL, create a database cluster, a database, and a database user
@@ -128,6 +130,40 @@ create a failure file named ``ingest_failures.txt``. This failure file can be gi
     $ python3 retry_bulk_failures.py ingest_failures.txt
 
 
+Upgrading database to a new schema
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1. Login as the postgres user, and backup the database::
+
+       $ sudo su - postgres
+       $ /var/lib/postgresql/scripts/archive_db_backup.sh
+
+   This backup can be used to rollback if needed.    
+
+2. Create a second backup of the main table only::
+   
+       $ cd /pg_data/saved_backups
+       $ pg_dump  -U postgres archive --no-owner --no-comments --table main --data-only | gzip > archive_db_YYYYMMDD_description.dump.gz
+
+3. Once you're sure it's a good backup, login as an archive admin user, delete the current table::
+
+    $ psql -U archive
+    psql (14.9 (Ubuntu 14.9-0ubuntu0.22.04.1))
+    Type "help" for help.
+
+    archive=> drop table user_data_access;
+    DROP TABLE
+    archive=> drop table main;
+    DROP TABLE
+    archive=> exit
+
+4. Setup the new database schema as in :ref:`db_setup`.
+
+5. As the postgres user, restore the database ``main`` table backup::
+
+    $ cd /pg_data/saved_backups
+    $ gunzip -c archive_db_YYYYMMDD_description.dump.gz | psql -U archive -f - -v ON_ERROR_STOP=1
+
+The resulting data will take on any new defaults in the new schema.
 
 

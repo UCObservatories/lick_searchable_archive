@@ -1,3 +1,5 @@
+from lick_archive.archive_config import ArchiveConfigFile
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 def test_spoint_select():
     """Test generating select statements using SPoint"""
@@ -75,7 +77,7 @@ def test_cone_search():
 
     results = session.execute(stmt3).all()
     assert len(results)==2
-    files = [Path(result[0].filename).relative_to(settings.LICK_ARCHIVE_ROOT_DIR) for result in results]
+    files = [Path(result[0].filename).relative_to(lick_archive_config.ingest.archive_root_dir) for result in results]
     assert Path("2019-05/24/shane/b27.fits") in files
     assert Path("2019-05/24/shane/r102.fits") in files
 

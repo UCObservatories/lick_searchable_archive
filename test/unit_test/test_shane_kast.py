@@ -5,7 +5,7 @@ from astropy.logger import AstropyUserWarning
 from pathlib import Path
 
 from lick_archive.metadata.shane_kast import ShaneKastReader
-from lick_archive.db.archive_schema import FrameType, Telescope, Instrument
+from lick_archive.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.metadata.metadata_utils import get_hdul_from_text
 import os 
 from datetime import datetime, timezone, timedelta

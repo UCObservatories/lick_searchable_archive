@@ -3,6 +3,7 @@ Reads metadata from files for ingest into the archive.
 """
 import logging
 from pathlib import Path
+import sys
 
 from lick_archive.metadata.abstract_reader import AbstractReader
 from astropy.io import fits
@@ -11,10 +12,17 @@ from astropy.io import fits
 # Importing each reader registers them as a subclass
 import lick_archive.metadata.shane_kast
 import lick_archive.metadata.shane_ao_sharcs
+from lick_archive.metadata import metadata_utils
 
-from lick_archive.db.archive_schema import IngestFlags
+from lick_archive.data_dictionary import IngestFlags
+from lick_archive.db.archive_schema import Main
+from lick_archive.archive_config import ArchiveConfigFile
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 logger = logging.getLogger(__name__)
+
+
 
 
 def open_fits_file(file_path):
@@ -111,6 +119,14 @@ def read_row(file_path):
                 # The file was a FITS file, but not from a source currently
                 # supported for ingest
                 raise ValueError(f"Unknown FITS file: {file_path}")
+
+            # Set the file size row
+            try:
+                st_info = file_path.stat()
+                row.file_size = st_info.size
+            except Exception as e:
+                logger.error(f"Failed to get filesize for {file_path}, leaving as None")
+                row.file_size = None
             return row
         else:
             # When non-fits file formats are supported, they would be dealt with here
@@ -150,6 +166,18 @@ def read_hdul(file_path, hdul, ingest_flags):
     # if it can
     for child in AbstractReader.__subclasses__():
         if child.can_read(file_path, hdul):
-            return child().read_row(file_path, hdul, ingest_flags)
+            row = child().read_row(file_path, hdul, ingest_flags)
+            populate_auth_data(row)
+            return row
 
     return None
+
+def populate_auth_data(row : Main) -> None:
+    """Populate the database row for a file with authorizatin information.
+    Currently this just uses a default proprietary period.
+    
+    Args:
+        row: The SQLAlchemy database row for the file.
+    """
+    
+    row.public_date = metadata_utils.calculate_public_date(row.obs_date, lick_archive_config.ingest.default_proprietary_period)

@@ -1,12 +1,14 @@
 import logging
+logger = logging.getLogger(__name__)
 
 from django.contrib.auth.backends import BaseBackend
-from django.conf import settings
-
-from lick_archive.lick_archive_client import LickArchiveClient
 from django.contrib.auth.models import User
 
-logger = logging.getLogger(__name__)
+from lick_archive.lick_archive_client import LickArchiveClient
+from lick_archive.archive_config import ArchiveConfigFile
+
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
 
 
 class RemoteAPIAuthBackend(BaseBackend):
@@ -21,7 +23,7 @@ class RemoteAPIAuthBackend(BaseBackend):
 
         logger.debug(f"Authenticating {username}")
 
-        client = LickArchiveClient(f"{settings.LICK_ARCHIVE_API_URL}", 1, 30, 5,session=request.session)
+        client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5,session=request.session)
 
         if (client.login(username,password)):
             logger.debug("Successfull login returned from backend")

@@ -1,9 +1,17 @@
+from __future__ import annotations
+
 import logging
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timezone, date
 import time
 from pathlib import Path
 import re
+import configparser
+import abc
+import typing
+from urllib.parse import urlparse
+import types
+import inspect
 
 def get_std_log_formatter(log_tid=False, log_pid=False):
     """Return a log formatter with the "standard" for the lick searchable archive.
@@ -182,13 +190,13 @@ def get_files_for_daterange(root_dir, start_date, end_date, instruments):
     for month_dir in root_path.iterdir():
         if month_dir.is_dir():
             # This should be a directory of the format YYYY-MM
-            match = re.match('^(\d\d\d\d)-(\d\d)$', month_dir.name)
+            match = re.match(r'^(\d\d\d\d)-(\d\d)$', month_dir.name)
             if match is not None:
                 year = int(match.group(1))
                 month = int(match.group(2))
                 # Go through the day directories
                 for day_dir in month_dir.iterdir():
-                    if day_dir.is_dir() and re.match('^\d\d$',day_dir.name) is not None:
+                    if day_dir.is_dir() and re.match(r'^\d\d$',day_dir.name) is not None:
                         day = int(day_dir.name)
                         # Build a date object and if it's between the requested date range (inclusive), keep searching this
                         # directory
@@ -203,3 +211,207 @@ def get_files_for_daterange(root_dir, start_date, end_date, instruments):
                                             print(f"Unexpected directory or special file: {file}")
                                             continue
                                         yield file
+
+class ParsedURL:
+    """A class representing a parsed URL that can still be passed as an URL to requests.
+    Currently only http and https URLs are allowed.
+
+    Args:
+       url: The URL to parse
+
+    Attributes:
+        url    (str): The whole URL
+    Raises:
+        ValueError if the value is not a valid URL
+    
+    """
+    def __init__(self, url : str):
+        result = urlparse(url)
+        if result.scheme not in  ['http', 'https'] or result.netloc == '':
+            raise ValueError(f"{url} is not a valid http or https URL.")
+        
+        self.url = url
+
+    def __str__(self) -> str:
+        """Return URL as a string"""
+        return self.url
+    
+    def __add__(self, other : str) -> ParsedURL:
+        """Return a new URL with a string appended to it."""
+        return ParsedURL(self.url + other)
+
+
+class ConfigBase(abc.ABC):
+
+    def validate(self):
+        """Method to perform post parsing validation. This is intended to be inherited by 
+        subclasses and is called after creating the config class from an ini file.
+        
+        Child classes should raise an exception if the configuration is not valid. Otherwise
+        They should return the validated object.  The default implementation simply returns self.
+        """
+        return self
+        
+    @classmethod
+    def from_config_section(cls, config_section):
+
+        # Find the init arguments the subclass takes
+        init_signature = inspect.signature(cls.__init__)
+
+        # Build the keyword arguments to build the subclass
+        child_init_kwargs = {}
+        all_validation_errors = []
+        for attr in init_signature.parameters:
+
+            if attr == "self":
+                # Don't count "self"
+                continue
+
+            # Keep track of errors validating a value
+            attr_validation_errors = []
+        
+            # For optional or union arguments, build a list of possible types
+            attr_type =  init_signature.parameters[attr].annotation
+            type_origin = typing.get_origin(attr_type)
+            if type_origin is None:
+                # Not a special annotated type
+                possible_types = typing.get_args(attr_type)
+                if len(possible_types) == 0:
+                    possible_types = [attr_type]
+            elif (type_origin is typing.Union) or (type_origin is typing.Optional) or (type_origin is types.UnionType):
+                # Types that accept multiple types
+                possible_types = typing.get_args(attr_type)
+            else:
+                # Let _read_type_from_config deal with it
+                possible_types = [attr_type]
+
+            if len(possible_types) == 0:
+                raise ValueError(f"Config class '{cls.__name__}' __init__ method uses unsupported type '{attr_type}' for parameter '{attr}'")
+    
+            # Populate default
+            if init_signature.parameters[attr].default != inspect.Parameter.empty:
+                child_init_kwargs[attr] = init_signature.parameters[attr].default
+
+            # Try each possible type to see if it can parse the configuration
+            for t in possible_types:
+                try:
+                    child_init_kwargs[attr] = cls._read_type_from_config(t, config_section, attr)
+                    break
+                except Exception as e:
+                    # Keep track of validation errors
+                    attr_validation_errors.append(str(e))
+    
+            msg =  f"Config section '[{config_section.name}]' attribute '{attr}'"
+            if len(attr_validation_errors) > 0:
+                msg += "\n    " + "\n    ".join(attr_validation_errors)
+
+            if attr not in child_init_kwargs:               
+                # Make sure at least one of the possible types matched
+                raise ValueError(msg)
+            else:
+                if len(attr_validation_errors) > 0:
+                    # Keep track of the errors in case there's an issue building the object
+                    all_validation_errors.append(msg)
+
+        # Try to build the object with the parsed data    
+        try:
+            result = cls(**child_init_kwargs).validate()
+            return result
+        except Exception as e:
+            raise ValueError(f"Failed to build {cls.__name__} from '[{config_section.name}]':\n{e}\n" + "\n".join(all_validation_errors))
+    
+    @classmethod
+    def _read_type_from_config(cls, type_object : typing.Callable, config_section : typing.Mapping, attribute_name : str) -> typing.Any:
+
+        type_origin = typing.get_origin(type_object)
+        
+        if type_origin is not None:
+            type_args = typing.get_args(type_object)
+            type_object = type_origin
+        else:
+            type_args = []
+
+        if not isinstance(type_object, type):
+            # This could happen if the type is something like "typing.Annotated"
+            raise ValueError(f"Unsupported type '{type_object}'")
+
+        # Look for a nested subclass. Note this may not have an option in the ini file
+        elif issubclass(type_object, ConfigBase):
+            # Let a nested subclass parse itself
+            return type_object.from_config_section(config_section)
+       
+        elif attribute_name not in config_section:
+            raise ValueError(f"Missing attribute '{attribute_name}'")
+        elif type_object is list or type_object is tuple or type_object is set:
+            # Sequence types
+            string_values = config_section[attribute_name].split(",")
+            # See if there's typing
+            if len(type_args) == 0:
+                typed_values = string_values
+            elif len(type_args) == 1:
+                # One type for every element
+                typed_values= [cls._parse_value(type_object=type_args[0],value=v) for v in string_values]
+            elif len(type_args) == len(string_values):
+                # Each element must match it's corresponding type
+                typed_values= [cls._parse_value(type_object=t,value=v) for v, t in zip(string_values, type_args)]
+            else:
+                raise ValueError(f"Length of {type_object.__name__} {len(string_values)} does not match expected length {len(type_args)}")
+            return type_object(typed_values)        
+        else:
+            return cls._parse_value(type_object=type_object, value=config_section[attribute_name])
+    
+    @classmethod
+    def _parse_value(cls, type_object : typing.Callable, value: str) -> typing.Any:
+        if type_object is types.NoneType:
+            # Return optional values as None if they're empty
+            if value is None or len(value) == 0:
+                return None
+        
+        elif type_object is str:
+            # Make sure strings aren't empty
+            if len(value) == 0:
+                raise ValueError(f"Empty value for")
+            else:
+                return value
+        elif type_object is bool:
+            # Parse the boolean allowing true/false 1/0 or yes/no.
+            if value.lower() in ["true", "1", "yes"]:
+                return True
+            elif value.lower() in ["false", "0", "no"]:
+                return False
+            else:
+                raise ValueError(f"Invalid boolean value '{value}'")
+        else:
+            # For other types, let the type_object constructor do the parsing
+            return type_object(value)
+
+class ConfigFile:
+    config_classes = []
+    config = None
+
+    def __init__(self, sections):
+        for section, object in sections.items():
+            self.__setattr__(section, object)
+
+    @classmethod
+    def from_file(cls, file : str | Path) -> ConfigFile:
+
+        if cls.config is None:
+            config_parser = configparser.ConfigParser()
+            config_parser.read(file)
+            sections = {}
+            for config_cls in cls.config_classes:
+                if hasattr(config_cls, "config_section_name"):
+                    section_name = config_cls.config_section_name
+                else:
+                    section_name = config_cls.__name__.removesuffix("Config").lower()
+                
+                if section_name not in config_parser.sections():
+                    raise ValueError(f"Config file {file} missing '{section_name}' section.")
+                
+                config_section = config_parser[section_name]
+
+                sections[section_name] = config_cls.from_config_section(config_section)
+
+            cls.config = cls(sections)
+        return cls.config

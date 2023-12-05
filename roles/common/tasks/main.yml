@@ -104,3 +104,12 @@
   become: yes
   become_user: "{{ archive_service_user }}"
   when: archive_config == "dev"
+- name: Create archive ini file
+  ansible.builtin.template:
+    mode: 0660
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    src: templates/archive_config.ini.j2
+    dest: "{{ archive_config_dir }}/archive_config.ini"
+  become: yes
+  notify: "restart web services"

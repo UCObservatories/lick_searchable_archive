@@ -9,8 +9,8 @@ import logging
 
 from sqlalchemy import select
 
-from lick_archive.data_dictionary import data_dictionary
-from lick_archive.db.archive_schema import Main, IngestFlags
+from lick_archive.data_dictionary import data_dictionary, IngestFlags
+from lick_archive.db.archive_schema import Main
 
 from lick_archive.metadata.reader import read_hdul
 from lick_archive.db.db_utils import create_db_engine, open_db_session, execute_db_statement, update_batch

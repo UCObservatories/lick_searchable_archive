@@ -198,10 +198,10 @@ class LickArchiveClient:
         Find the files in the archive that match a query.
 
         Args:
-            field (str): The field to query on. "filename", "object", "ra_dec", "date", and "datetime" are the only accepted fields currently.
+            field (str): The field to query on. "filename", "object", "coord", "date", and "datetime" are the only accepted fields currently.
             value (Any): The value being queried on. This depends on the field being queried:
                          "filename", "object": A string 
-                         "ra_dec": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values.
+                         "coord": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values.
                          "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
                          "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
             filters (dict): Additional filters to apply to the query. The key is the name of the field to filter on, the value is one or more values to query for.
@@ -228,28 +228,28 @@ class LickArchiveClient:
             ValueError If an invalid result is returned from the archive server.
         """
         # Validate the field being queried on 
-        if field not in ["filename", "object", "date", "datetime", "ra_dec"]:
+        if field not in ["filename", "object", "date", "datetime", "coord"]:
             raise ValueError(f"Unknown query field '{field}'")
 
         # Build query parameters
-        if field == "date" or field=="datetime":
+        if field == "obs_date":
             # Convert the date range tuple to a comma separated list
             if isinstance(value, datetime) or isinstance(value,date):
-                query_params = {field: str(value)}
+                query_params = {field: value.isoformat()}
             else:
-                query_params = {field: ",".join([str(date_value) for date_value in value])}
-        else:
-            query_params = {field: str(value)}
+                query_params = {field: ",".join([date_value.isoformat() for date_value in value])}
 
-        if field=="ra_dec":            
+        if field=="coord":            
             # ra, dec, and radius, all are converted to decimal degrees
             if isinstance(value, list) or isinstance(value, tuple):
                 if len(value) !=3:
-                    raise ValueError("Invalid ra_dec value. ra_dec should be a list of ra,dec,radius")
+                    raise ValueError("Invalid coord value. coord should be a list of ra,dec,radius")
                 
                 query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg") for a in value])}
             else:
-                raise ValueError("Invalid ra_dec value, ra_dec should be list of ra,dec,radius")
+                raise ValueError("Invalid coord value, coord should be list of ra,dec,radius")
+        else:
+            query_params = {field: str(value)}
 
         if prefix is True:
             query_params["prefix"] = True

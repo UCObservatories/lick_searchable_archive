@@ -1,23 +1,28 @@
 # Test the paginator used by the lick archive api
 
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, date
 import urllib.parse
 
 from django.http import QueryDict
 
-from lick_archive.db.archive_schema import Base, Main, FrameType
 from test_utils import MockDatabase, MockView, create_validated_request, setup_django_environment
+from lick_archive.db.archive_schema import Base, Main
+from lick_archive.data_dictionary import FrameType
 
 # Test rows shared between most tests
 test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.arc,     object="NA", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
+                   frame_type=FrameType.arc,     object="NA", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 1", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 1", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000',                       
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 2", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000',                       
+                   public_date=date(1970, 1, 1)),
               Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 3", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                   frame_type=FrameType.science, object="object 3", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000',
+                   public_date=date(1970, 1, 1)),
 ]
 
 def test_no_results(tmp_path):
@@ -56,7 +61,7 @@ def test_one_page_of_results(tmp_path):
 
         mock_view = MockView(mock_db.engine)
         request = create_validated_request(path="files/", 
-                                        data=QueryDict(f"date=2018-01-01,2020-12-31&results=filename,obs_date&sort=filename&page_size={len(test_rows)}"), 
+                                        data=QueryDict(f"obs_date=2018-01-01,2020-12-31&results=filename,obs_date&sort=filename&page_size={len(test_rows)}"), 
                                         view=mock_view)
         mock_view.request = request
         mock_view.filter_backends=[QueryAPIFilterBackend]
@@ -84,17 +89,23 @@ def test_multi_page_result(tmp_path):
     "Test multiple pages of results from a query."
 
     additional_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.arc,     object="None", filename="testfile5.fits",  ingest_flags='00000000000000000000000000000000'),
+                             frame_type=FrameType.arc,     object="None", filename="testfile5.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
                         Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.science, object="object 5", filename="testfile6.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                             frame_type=FrameType.science, object="object 5", filename="testfile6.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
                         Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.science, object="object 6", filename="testfile7.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                             frame_type=FrameType.science, object="object 6", filename="testfile7.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
                         Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.science, object="object 5", filename="testfile8.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                             frame_type=FrameType.science, object="object 5", filename="testfile8.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
                         Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.science, object="object 3", filename="testfile9.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                             frame_type=FrameType.science, object="object 3", filename="testfile9.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
                         Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                             frame_type=FrameType.science, object="object 4", filename="testfile10.fits",  ingest_flags='00000000000000000000000000000000'),                       
+                             frame_type=FrameType.science, object="object 4", filename="testfile10.fits",  ingest_flags='00000000000000000000000000000000',
+                             public_date=date(1970, 1, 1)),
     ]
 
 
@@ -106,7 +117,7 @@ def test_multi_page_result(tmp_path):
 
     page_size = 3
 
-    base_query_string = f"date=2018-01-01,2020-12-31&results=filename,object&sort=object&page_size={page_size}"
+    base_query_string = f"obs_date=2018-01-01,2020-12-31&results=filename,object&sort=object&page_size={page_size}"
     multipage_test_rows = test_rows + additional_rows
     with MockDatabase(Base, multipage_test_rows) as mock_db:
         mock_view = MockView(mock_db.engine)

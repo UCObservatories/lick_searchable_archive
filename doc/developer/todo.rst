@@ -35,6 +35,8 @@ Code Quality
   I'd like the api to accept any field as a "filter", but to do that the
   api validation couldn't use a serializer like it does now. Also there'data
   have to be a fancy frontend to add new filter.
+* Have a "http" debug level that spews out header/cookie/session info on requests, but
+  is disabled by default to stop spewage to logs? Or is "debug" enough.
 
 Additional Features
 -------------------

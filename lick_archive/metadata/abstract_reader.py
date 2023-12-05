@@ -46,7 +46,7 @@ class AbstractReader:
         hdul (None or astropy.io.fits.HDUList): 
             An HDUList object if the file is a FITS file, None if it is non-FITS.
 
-        ingest_flags (archive_schema.IngestFlags):
+        ingest_flags (data_dictionary.IngestFlags):
             Any ingest bit flags that were set during the process of opening a FITS file.
 
         Returns (archive_schema.Main): A row of metadata read from the file.
