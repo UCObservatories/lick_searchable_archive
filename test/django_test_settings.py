@@ -14,8 +14,6 @@ from pathlib import Path
 from os import environ
 
 
-UNIT_TEST_DIR = environ['UNIT_TEST_DIR']
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
@@ -31,22 +29,23 @@ ALLOWED_HOSTS = ['testserver']
 # Application definition
 
 INSTALLED_APPS = [
-#    'django.contrib.admin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-#    'django.contrib.sessions',
-#    'django.contrib.messages',
+    'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.staticfiles',
+    'archive_auth',
     'rest_framework',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-#    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-#    'django.contrib.auth.middleware.AuthenticationMiddleware',
-#    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -68,6 +67,16 @@ TEMPLATES = [
     },
 ]
 
+AUTH_USER_MODEL = "archive_auth.ArchiveUser"
+AUTHENTICATION_BACKENDS = ["archive_auth.backends.NonUpgradingBackend"]
+
+# Support the older Apache2 APR_MD5 password hash
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "lick_searchable_archive.archive_auth.hashers.APR_MD5PasswordHasher",
+]
+
+
 WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
 
 
@@ -77,7 +86,7 @@ WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': f'{UNIT_TEST_DIR}/db.sqlite3',
+        'NAME': f'db.sqlite3',
     }
 }
 
@@ -105,10 +114,7 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'django_log': {
-            'class': 'logging.FileHandler',
-            'filename': f'{UNIT_TEST_DIR}/django_log.txt',   
-            'level': 'DEBUG',         
-            'formatter': 'archive_log_formatter',
+            'class': 'logging.NullHandler',
         },
     },
     'formatters': {

@@ -14,8 +14,9 @@ archive_url_path_prefix: archive
 watchdog_config: ingest_watchdog.conf
 django_settings: settings.py
 django_secret_keyfile: "{{ archive_config_dir }}/secret_key"
-django_log: "{{ archive_log_dir }}/lsa_apps.log"
+django_log: "{{ archive_log_dir }}/apps.log"
 redis_url: redis://localhost:6379/0
 supported_instrument_dirs: ['AO', 'shane']
 frontend_url: "{{ frontend_scheme }}://{{ frontend_host }}/{{ archive_url_path_prefix }}"
 default_search_radius: "1 arcmin"
+sync_users_cron_minute: "1-59/2"

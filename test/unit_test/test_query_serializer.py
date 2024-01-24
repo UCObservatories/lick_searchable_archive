@@ -3,24 +3,20 @@ from collections import namedtuple
 import os
 from datetime import date
 from urllib.parse import quote
-# Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "django_test_settings"
 
-import django
-from django.http import QueryDict
-from rest_framework.serializers import ValidationError
+from test_utils import basic_django_setup
 
-from lick_searchable_archive.query.query_api import QuerySerializer
-
-def test_query_serializer(tmp_path):
+@basic_django_setup
+def test_query_serializer():
 
     MockView = namedtuple("MockView", ["allowed_result_attributes", "allowed_sort_attributes"])
     mock_view = MockView(allowed_result_attributes =["filename", "obs_date", "object", "frame_type", "header"],
                          allowed_sort_attributes=   ["id", "filename", "object", "obs_date"])
 
-    # Setup django environment
-    os.environ["UNIT_TEST_DIR"] = str(tmp_path)
-    django.setup()
+    from django.http import QueryDict
+    from rest_framework.serializers import ValidationError
+    from lick_searchable_archive.query.query_api import QuerySerializer
+
 
     # filename query
     query_params = QueryDict("filename=afile.fits&results=filename,obs_date,frame_type,object")

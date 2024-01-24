@@ -3,10 +3,11 @@ import os
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import django
 
-# Setup test Django settings
-os.environ["DJANGO_SETTINGS_MODULE"] = "django_test_settings"
+import pytest
+
+basic_django_setup = pytest.mark.usefixtures("django_log_to_tmp_path")
+django_db_setup = pytest.mark.usefixtures("django_log_to_tmp_path", "django_db")
 
 # Force archive config to load the test version rather than the default config
 from lick_archive.archive_config import ArchiveConfigFile
@@ -14,8 +15,6 @@ ArchiveConfigFile.from_file(Path(__file__).parent / "archive_test_config.ini")
 
 from lick_archive.db.archive_schema import Main
 from lick_archive.data_dictionary import api_capabilities
-from lick_searchable_archive.query.query_api import QueryAPIView
-from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
 
 class MockDatabase(contextlib.AbstractContextManager):
@@ -44,29 +43,29 @@ class MockDatabase(contextlib.AbstractContextManager):
         self.base_class.metadata.drop_all(self.engine)
         return False
 
-class MockView(QueryAPIView):
-    """A test view for testing the query api"""
-    allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
-    allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
-    required_attributes = list(api_capabilities['required']['db_name'])
-    serializer_class = SQLAlchemyORMSerializer
+def create_mock_view(engine, request=None):
 
-    def __init__(self, engine, request=None):
-        self.engine=engine
-        self.request=request
-        self.format_kwarg = "json"
+    # We define the view in a function so the below imports happen after Django is initialized by the test case
+    from lick_searchable_archive.query.query_api import QueryAPIView
+    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
-    def get_queryset(self):
-        return SQLAlchemyQuerySet(self.engine, Main)
+    class MockView(QueryAPIView):
+        """A test view for testing the query api"""
 
+        allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
+        allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
+        required_attributes = list(api_capabilities['required']['db_name'])
+        serializer_class = SQLAlchemyORMSerializer
 
-# Setup django environment
-def setup_django_environment(test_path):
-    os.environ["UNIT_TEST_DIR"] = str(test_path)
+        def __init__(self, engine, request=None):
+            self.engine=engine
+            self.request=request
+            self.format_kwarg = "json"
 
-    django.setup()
+        def get_queryset(self):
+            return SQLAlchemyQuerySet(self.engine, Main)
 
-
+    return MockView(engine,request)
 
 # Helper to create a request for testing
 def create_test_request(path, data):

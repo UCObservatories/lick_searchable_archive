@@ -1,23 +1,27 @@
 """
-Helper functions for connecting the archive database with SQL Alchemy
+Helper functions for working with databases via SQL Alchemy
 """
 from sqlalchemy import create_engine, select, func, inspect, update
 from sqlalchemy.orm import sessionmaker
 import psycopg2
 from tenacity import retry, stop_after_delay, wait_exponential, retry_if_not_exception_type, after_log
 
-from lick_archive.db.archive_schema import Main
 
 import logging
 logger = logging.getLogger(__name__)
 
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def create_db_engine(user='archive', database='archive'):
+def create_db_engine(user='archive', database='archive',url=None):
     """Create a database engine object for the Lick archive database. 
     Uses exponential backoff to deal with connection issues.
     """
+    if url is None:
+        connection_url = f'postgresql://{user}@/{database}'
+    else:
+        connection_url= url
+
     logger.debug("Connecting to database")
-    engine = create_engine(f'postgresql://{user}@/{database}')
+    engine = create_engine(connection_url)
     logger.debug("Connected to database")
     return engine
 
@@ -44,6 +48,24 @@ def insert_one(engine, row):
     session.add(row)
     session.commit()
     logger.debug("Row inserted")
+
+@retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
+def update_one(engine, row, attributes):
+    """
+    Updates one row of metadata using a new database session. This function uses exponential backoff
+    retries for deailing with database issues. We do not retry UniqueViolations because such a failure
+    will never succeed.
+    """
+    logger.info(f"Updating row.")
+    session = open_db_session(engine)
+    table = row.__class__
+    values = {attr: getattr(row, attr) for attr in attributes}
+    stmt = update(row.__class__).where(table.id == row.id).values(**values)
+     
+    session.execute(stmt)
+    session.commit()
+    logger.debug("row updated.")
+
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
 def insert_batch(session, batch):
@@ -79,7 +101,7 @@ def update_batch(session, batch, attributes):
 
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def check_exists(engine, filename, session = None):
+def check_exists(engine, column, expression, session = None):
     """
     Check if a file has already been inserted. 
     """
@@ -88,7 +110,7 @@ def check_exists(engine, filename, session = None):
 
     # We do a select count()... and see if the result is one. There's a unique constraint
     # on filename so it should always be 1 or 0
-    stmt = select(func.count(Main.id)).where(Main.filename == str(filename))
+    stmt = select(func.count(column)).where(expression)
     
     logger.debug(f"Running Exists SQL: {stmt.compile()}")
     result = session.execute(stmt).scalar() == 1

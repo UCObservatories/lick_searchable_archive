@@ -23,7 +23,8 @@ def test_spoint_insert_result_delete():
     """Test inserting an SPoint, retrieving it from the database,
        and deleting it."""
     from sqlalchemy import select,delete
-    from lick_archive.db.archive_schema import Main,FrameType
+    from lick_archive.db.archive_schema import Main
+    from lick_archive.data_dictionary import FrameType
     from lick_archive.db.pgsphere import SPoint
     from lick_archive.db import db_utils
     engine = db_utils.create_db_engine()
@@ -58,7 +59,8 @@ def test_spoint_insert_result_delete():
 def test_cone_search():
     """Test a cone search for known Feige110 data."""
     from sqlalchemy import select
-    from lick_archive.db.archive_schema import Main,Instrument
+    from lick_archive.db.archive_schema import Main
+    from lick_archive.data_dictionary import Instrument
     from lick_archive.db.pgsphere import SCircle
     from lick_archive.db import db_utils
     from astropy.coordinates import SkyCoord, Angle

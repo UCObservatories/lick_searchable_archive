@@ -18,4 +18,7 @@ default_search_radius  = {{ default_search_radius }}
 [ingest]
 archive_root_dir           = {{ archive_data_root }}
 default_proprietary_period = 2 years
-
+sched_db_host = {{ schedule_db_host }}
+sched_db_name = {{ schedule_db_name }}
+sched_db_user_info = {{ archive_config_dir }}/sched_db_user_info.txt
+supported_instruments = {{ supported_instrument_dirs|join(',') }}

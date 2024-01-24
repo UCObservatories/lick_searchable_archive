@@ -6,6 +6,7 @@ from .models import IngestNotification
 logger=get_task_logger(__name__)
 
 from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_batch, check_exists
+from lick_archive.db.archive_schema import Main
 from lick_archive.metadata.reader import read_row
 from lick_archive.archive_config import ArchiveConfigFile
 
@@ -26,7 +27,7 @@ def ingest_new_files(new_ingests):
     logger.info(repr(new_ingests))
     for ingest in new_ingests:
         try:
-            if not check_exists(_db_engine, ingest['filename'], session=session):
+            if not check_exists(_db_engine, Main.id, Main.filename == ingest['filename'], session=session):
                 logger.info(f"Reading metadata for {ingest['filename']}.")
                 row = read_row(ingest['filename'])      
                 rows_to_add.append(row)

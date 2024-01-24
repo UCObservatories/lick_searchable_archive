@@ -122,10 +122,10 @@ def read_row(file_path):
 
             # Set the file size row
             try:
-                st_info = file_path.stat()
-                row.file_size = st_info.size
+                st_info = file_path.stat() if not file_path.is_symlink() else file_path.lstat()
+                row.file_size = st_info.st_size
             except Exception as e:
-                logger.error(f"Failed to get filesize for {file_path}, leaving as None")
+                logger.error(f"Failed to get filesize for {file_path}, leaving as None",exc_info=True)
                 row.file_size = None
             return row
         else:

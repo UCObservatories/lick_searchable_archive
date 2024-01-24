@@ -1,6 +1,6 @@
-- name: Install Django rest frame work
+- name: Install packages needed on all backend hosts
   ansible.builtin.pip: 
-    name: djangorestframework
+    name: djangorestframework, sqlalchemy
     virtualenv: "{{ venv_root }}"
     virtualenv_command: python{{ python_version }} -m venv
   become: yes

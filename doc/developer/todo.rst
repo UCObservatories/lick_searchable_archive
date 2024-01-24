@@ -8,10 +8,10 @@ Deployment Todo
 * Run django migrate against the archive_django db
 * Playbook for deploying a development node?
 * Playbook for setting up an admin user on the archive host.
+* Document django db stuff with database, include manually resetting everything.
 * Deploy in Python packages? Debian Packages for ingest_watchdog? I think at least the common code
   in lick_archive should be packaged up.
-* Switch logging to syslog/rsyslog and logrotate
-* Pull mounting the archive file system into its own role?
+* Switch logging /var/log and use logrotate
 * Figure out self signed keys for having the ingest_watchdog deployed on the storage host
 * Figure out if the ignest_watchdog will ever be used remotely, if not it can
   be greatly simplified.
@@ -24,20 +24,21 @@ Code Quality
 * docstring comments for API docs
 * Use /usr/bin/env python in shebang
 * Reorganize code so ansible is in its own deploy directory, and source is under src?
+  - Create roles for app specific install stuff that can be imported, ala services
+  - Put services in their own source, currently job_queue and ingest_watchdog
 * Get pid into logs for searching journalctl
 * get stdout into logs?
-* A data dictionary class usable by the db schema, api, clients and for generating docs? See field_info in archive_schema
-  - Once this is done, remove sqlalchemy from packages installed with "common"
 * Make date format returned by api consistent, easy to parse and document.
 * At one point I decided to separate the query/query_api.py classes from the lick_archive classes, and create a distinct QueryAPIView as a base
-  class. Given how things have turned out I'm not sure that's necessary. Maybe it could be merged with query/views.py
+  class. Given how things have turned out I'm not sure that's necessary. Maybe it could be merged with query/views.py?
+  or maybe ingest has its own version that doesn't do auth for the watchdog service...
 * I passed in the instrument as a "filter", I don't really like that.
   I'd like the api to accept any field as a "filter", but to do that the
   api validation couldn't use a serializer like it does now. Also there'data
   have to be a fancy frontend to add new filter.
 * Have a "http" debug level that spews out header/cookie/session info on requests, but
   is disabled by default to stop spewage to logs? Or is "debug" enough.
-
+* Update ingest_watchdog to use new configuration class.
 Additional Features
 -------------------
 Add file size to db.

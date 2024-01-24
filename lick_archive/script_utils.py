@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations # To allow a class to return itself
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -97,7 +97,7 @@ def setup_service_logging(log_path, log_name, log_level, rollover_days, backup_c
         log_file = Path(log_path).joinpath(log_file)
 
     # Configure a timed rotating file handler to write to the log file
-    file_handler = logging.handlers.TimedRotatingFileHandler(log_file, when = 'D', interval=rollover_days, backupCount=backup_count)
+    file_handler = TimedRotatingFileHandler(log_file, when = 'D', interval=rollover_days, backupCount=backup_count)
     file_handler.setLevel(log_level)
     tid_format = " tid:{thread}" if log_tid else ""
     file_handler.setFormatter(logging.Formatter(fmt="{levelname:8} {asctime}" + tid_format + " {module}:{funcName}:{lineno} {message}", style='{'))
@@ -214,7 +214,7 @@ def get_files_for_daterange(root_dir, start_date, end_date, instruments):
 
 class ParsedURL:
     """A class representing a parsed URL that can still be passed as an URL to requests.
-    Currently only http and https URLs are allowed.
+    Only http and https URLs are allowed.
 
     Args:
        url: The URL to parse
@@ -225,11 +225,17 @@ class ParsedURL:
         ValueError if the value is not a valid URL
     
     """
+
+    allowed_schemes = ['http', 'https']
+    """The allowed URL schemes, intended to be overridden by a child class."""
+
     def __init__(self, url : str):
         result = urlparse(url)
-        if result.scheme not in  ['http', 'https'] or result.netloc == '':
-            raise ValueError(f"{url} is not a valid http or https URL.")
+        if result.scheme not in  self.allowed_schemes:
+            raise ValueError(f"{url} does not have an allowed scheme. The allowed schemes are: {','.join(self.allowed_schemes)}")
         
+        if result.netloc == '':
+            raise ValueError(f"{url} does not have a valid network location.")
         self.url = url
 
     def __str__(self) -> str:
@@ -240,6 +246,40 @@ class ParsedURL:
         """Return a new URL with a string appended to it."""
         return ParsedURL(self.url + other)
 
+def setup_django():
+    """Setup the django environment when running from a command line script."""
+    import sys
+    django_root = Path(__file__).parent.parent / "lick_searchable_archive"
+    sys.path.insert(0, str(django_root))
+    import os
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'lick_searchable_archive.settings'
+    
+    import django
+    django.setup()
+
+def setup_django_logging(log_file : Path | str, log_level : int | str):
+    """Override Django logging to use a new path and loggging level.
+    Intended to allow command line scripts to use Django code but
+    log to a different location than Django web apps."""
+
+    from django.conf import settings
+    from django.utils.log import configure_logging
+    # Override logging setup to use a new path or logging level
+    log_settings = settings.LOGGING
+    if log_file is not None:
+        log_settings['handlers']['django_log']['filename'] = str(log_file)
+
+    if log_level is not None:
+        log_settings['handlers']['django_log']['level'] = log_level
+
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+
+
+class PostgreSQLURL(ParsedURL):
+    """A URL for connecting to a PostgreSQL database, as specified in the
+    `PostgreSQL documentation <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_
+    """
+    allowed_schemes = ['postgresql','postgres']
 
 class ConfigBase(abc.ABC):
 

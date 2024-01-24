@@ -12,10 +12,12 @@
     - database
     - archive_mount_nfs
     - django_site
-    - job_queue
     - django_apps
-    - ingest_watchdog
-
+  tasks:
+    - name: Install services
+      include_role: 
+        name: "{{ item }}"
+      loop: "{{ services }}"
   handlers:
     - name: Restart celery
       ansible.builtin.systemd:

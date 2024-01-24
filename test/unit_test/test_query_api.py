@@ -5,15 +5,13 @@ from collections import namedtuple
 import os
 from datetime import datetime
 
-from test_utils import MockDatabase, MockView, create_test_request, setup_django_environment
+from test_utils import MockDatabase, create_mock_view, create_test_request, basic_django_setup
 
-import django
 from django.http import QueryDict
 
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 from datetime import date
-from lick_searchable_archive.query.query_api import QuerySerializer
 
 from lick_archive.db.archive_schema import Base, Main
 from lick_archive.data_dictionary import FrameType
@@ -38,31 +36,25 @@ test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetim
 ]
 
 
-
-def test_no_filters(tmp_path):
+@basic_django_setup
+def test_no_filters():
     """Test a query with no filters, which should fail"""
-
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request(path="files/", data=QueryDict("results=filename"))
 
     with MockDatabase(Base) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         
         with pytest.raises(APIException, match="At least one required field must be included in the query."):
             view.list(request)
 
-
-def test_filename_filter(tmp_path):
+@basic_django_setup
+def test_filename_filter():
     """Test filtering on filename"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
     request = create_test_request("files/", data=QueryDict("filename=testfile1.fits&results=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 1
@@ -72,15 +64,14 @@ def test_filename_filter(tmp_path):
         # Note the view filters out the full path stored in the db
         assert response.data["results"][0]["filename"]  == "testfile1.fits"
 
-def test_object_filter(tmp_path):
+@basic_django_setup
+def test_object_filter():
     """Test an exact object filter"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 3
@@ -91,15 +82,14 @@ def test_object_filter(tmp_path):
             assert response.data["results"][i-2]["filename"]  == os.path.basename(test_rows[i].filename)
             assert response.data["results"][i-2]["object"]  == test_rows[i].object
 
-def test_prefix_filter(tmp_path):
+@basic_django_setup
+def test_prefix_filter():
     """Test filtering with a string prefix"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("object=object&prefix=t&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 4
@@ -110,15 +100,14 @@ def test_prefix_filter(tmp_path):
             assert response.data["results"][i-1]["filename"]  == os.path.basename(test_rows[i].filename)
             assert response.data["results"][i-1]["object"]  == test_rows[i].object
 
-def test_instrument_filter(tmp_path):
+@basic_django_setup
+def test_instrument_filter():
     """Test adding an instrument filter"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("object=object 2&filters=instrument,SHARCS&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 1
@@ -128,17 +117,16 @@ def test_instrument_filter(tmp_path):
         assert response.data["results"][0]["filename"]  == os.path.basename(test_rows[4].filename)
         assert response.data["results"][0]["object"]  == test_rows[4].object
 
-def test_coord_filter(tmp_path):
+@basic_django_setup
+def test_coord_filter():
     """Test a coord filter"""
     # This cannot actually run the query, because the mock sqllite database doesn't handle coordiante searches. We can still
     # test that the filter is added
 
 
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
     from astropy.coordinates import Angle
     from lick_archive.archive_config import ArchiveConfigFile
+    from lick_searchable_archive.query.query_api import QuerySerializer
 
     lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
@@ -148,7 +136,7 @@ def test_coord_filter(tmp_path):
     request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656,0.1"))
     
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         filter_backend = view.filter_backends[0]()
         queryset = view.get_queryset()
 
@@ -172,7 +160,7 @@ def test_coord_filter(tmp_path):
     request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         filter_backend = view.filter_backends[0]()
         queryset = view.get_queryset()
 
@@ -191,15 +179,14 @@ def test_coord_filter(tmp_path):
         assert queryset.where_filters[0].right.value.radius  == Angle(lick_archive_config.query.default_search_radius)
         assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
-def test_date_filter(tmp_path):
+@basic_django_setup
+def test_date_filter():
     """Test a date filter"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
+    
     request = create_test_request("files/", data=QueryDict("obs_date=2018-12-1&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 1
@@ -214,16 +201,14 @@ def test_date_filter(tmp_path):
         assert response.data["results"][0]["obs_date"]  == datetime(year=2018, month = 12, day = 1)
 
 
-
-def test_date_range_filter(tmp_path):
+@basic_django_setup
+def test_date_range_filter():
     """Test a date range filter"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("obs_date=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 2
@@ -238,15 +223,14 @@ def test_date_range_filter(tmp_path):
         assert response.data["results"][1]["filename"]  == "testfile3.fits"
         assert response.data["results"][1]["obs_date"]  == datetime(year=2019, month = 6, day = 1)
 
-def test_reverse_date_range_filter(tmp_path):
+@basic_django_setup
+def test_reverse_date_range_filter():
     """Test that a reversed date range is handled correctly"""
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("obs_date=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == 2
@@ -261,16 +245,14 @@ def test_reverse_date_range_filter(tmp_path):
         assert response.data["results"][1]["filename"]  == "testfile3.fits"
         assert response.data["results"][1]["obs_date"]  == datetime(year=2019, month = 6, day = 1)
 
-def test_no_sort_attributes(tmp_path):
+@basic_django_setup
+def test_no_sort_attributes():
     """ Test a query with no specified sort attributes. The results should be sorted by id"""
-
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == len(test_rows)
@@ -283,18 +265,16 @@ def test_no_sort_attributes(tmp_path):
         
         assert response.data["results"][0]["id"] < response.data["results"][1]["id"] < response.data["results"][2]["id"] < response.data["results"][3]["id"]
 
-def test_no_result_attributes(tmp_path):
+@basic_django_setup
+def test_no_result_attributes():
     """ Test a query with no specified result attributes. This should return all allowed result attributes (and id)
     This also tests the header field post-processing
     """
 
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
     request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
         assert len(response.data["results"]) == len(test_rows)
@@ -315,25 +295,23 @@ def test_no_result_attributes(tmp_path):
             assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(test_rows[i].filename))
 
 
-def test_count(tmp_path):
+@basic_django_setup
+def test_count():
     """Test a count query """
-    # Setup django environment
-    setup_django_environment(tmp_path)
 
     request = create_test_request("files/", data=QueryDict("obs_date=2019-06-01&count=t"))
 
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
         assert response.data['count'] == 2
 
-def test_invalid_query(tmp_path):
-    # Setup django environment
-    setup_django_environment(tmp_path)
+@basic_django_setup
+def test_invalid_query():
 
     request = create_test_request("files/", data=QueryDict("filename=file.fits&results=invalid_field"))
     with MockDatabase(Base, test_rows) as mock_db:
-        view = MockView(mock_db.engine, request)
+        view = create_mock_view(mock_db.engine, request)
 
         with pytest.raises(ValidationError):
             view.list(request)

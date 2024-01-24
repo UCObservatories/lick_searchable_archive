@@ -4,6 +4,9 @@ from astropy.io.fits.verify import VerifyWarning
 
 from pathlib import Path
 
+# Import test_utils to load the test archive configuration file
+import test_utils
+
 from lick_archive.metadata.reader import open_fits_file, read_row
 from lick_archive.data_dictionary import IngestFlags,Instrument
 

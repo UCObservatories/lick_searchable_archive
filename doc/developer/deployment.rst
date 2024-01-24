@@ -131,6 +131,14 @@ file named ``host_vars/quarry.ucolick.org`` for the ops environment::
     The user and group names that should own the archive file system NFS mount. They are assigned to ``archive_nfs_uid``
     and ``archive_nfs_gid`` respectively.
 
+Schedule Database User
+^^^^^^^^^^^^^^^^^^^^^^
+To avoid putting database password information into source code, the schedule database
+user information must be manually set in a separate text file stored in the archive configuration directory
+(typically '/opt/lick_archive/etc', but see Ansible defaults below for how to change this)::
+
+    $ cat '<user_name>:<password>' > /opt/lick_archive/etc/sched_db_user_info.txt
+
 Ansible defaults
 ^^^^^^^^^^^^^^^^
 The default values for variables used by the Ansible scripts are stored in ``roles/common/defaults/main.yml``. They
@@ -313,8 +321,8 @@ The Django environment will also need to be created. Use these commands to do so
     $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
 
     # For new database only
+    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations archive_auth
     $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations ingest
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations archive_admin
 
     # For both new and updated
     $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate

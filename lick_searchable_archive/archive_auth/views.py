@@ -55,7 +55,7 @@ def login_user(request):
             user = authenticate(request=request, username=request.POST['username'],password=request.POST['password'])
             if user is None:
                 logger.info(f"Login failed for user '{request.POST['username']}'")
-                return HttpResponse(HTTPStatus.FORBIDDEN)
+                return HttpResponse(status=HTTPStatus.FORBIDDEN)
             else:
                 logger.info(f"Login succeeded for user '{user.get_username()}'")
                 login(request,user)
@@ -66,7 +66,7 @@ def login_user(request):
             return HttpResponseNotAllowed(['GET','POST'])
     except Exception as e:
         logger.error("Login failed with exception", exc_info=True)
-        return HttpResponse(HTTPStatus.FORBIDDEN)
+        return HttpResponse(status=HTTPStatus.FORBIDDEN)
 
     return JsonResponse(response)        
 
@@ -99,11 +99,11 @@ def logout_user(request):
                 logger.info(f"Logging out user {request.user.get_username()}")
                 logout(request)
 
-            return HttpResponse(HTTPStatus.NO_CONTENT)
+            return HttpResponse(status = HTTPStatus.NO_CONTENT)
 
         else:
             return HttpResponseNotAllowed(['POST'])
     except Exception as e:
-        logger.error("Login failed with exception", exc_info=True)
-        return HttpResponse(HTTPStatus.INTERNAL_SERVER_ERROR)
+        logger.error("logout failed with exception", exc_info=True)
+        return HttpResponse(status=HTTPStatus.INTERNAL_SERVER_ERROR)
 

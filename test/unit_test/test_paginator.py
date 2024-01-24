@@ -6,7 +6,7 @@ import urllib.parse
 
 from django.http import QueryDict
 
-from test_utils import MockDatabase, MockView, create_validated_request, setup_django_environment
+from test_utils import MockDatabase, create_mock_view, create_validated_request, basic_django_setup
 from lick_archive.db.archive_schema import Base, Main
 from lick_archive.data_dictionary import FrameType
 
@@ -25,17 +25,15 @@ test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetim
                    public_date=date(1970, 1, 1)),
 ]
 
+@basic_django_setup
 def test_no_results(tmp_path):
     # Test a query that returns no results form the database
 
-
-    setup_django_environment(tmp_path)
     from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
-    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
 
 
     with MockDatabase(Base) as mock_db:                
-        mock_view = MockView(mock_db.engine)
+        mock_view = create_mock_view(mock_db.engine)
         request = create_validated_request(path="files/", data=QueryDict("filename=notafile.fits&results=filename,obs_date&sort=object"), view=mock_view)
         mock_view.request = request
         mock_view.filter_backends=[QueryAPIFilterBackend]
@@ -47,19 +45,16 @@ def test_no_results(tmp_path):
         response = paginator.get_paginated_response(page)
         assert response.data['results'] == []
 
+@basic_django_setup
 def test_one_page_of_results(tmp_path):
     # Test pulling exactly one page from the database
 
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
     from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
-    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
 
 
     with MockDatabase(Base, test_rows) as mock_db:
 
-        mock_view = MockView(mock_db.engine)
+        mock_view = create_mock_view(mock_db.engine)
         request = create_validated_request(path="files/", 
                                         data=QueryDict(f"obs_date=2018-01-01,2020-12-31&results=filename,obs_date&sort=filename&page_size={len(test_rows)}"), 
                                         view=mock_view)
@@ -85,6 +80,7 @@ def test_one_page_of_results(tmp_path):
         assert response.data["next"] is None 
         assert response.data["previous"] is None 
 
+@basic_django_setup
 def test_multi_page_result(tmp_path):
     "Test multiple pages of results from a query."
 
@@ -108,19 +104,14 @@ def test_multi_page_result(tmp_path):
                              public_date=date(1970, 1, 1)),
     ]
 
-
-    # Setup django environment
-    setup_django_environment(tmp_path)
-
     from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
-    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet
 
     page_size = 3
 
     base_query_string = f"obs_date=2018-01-01,2020-12-31&results=filename,object&sort=object&page_size={page_size}"
     multipage_test_rows = test_rows + additional_rows
     with MockDatabase(Base, multipage_test_rows) as mock_db:
-        mock_view = MockView(mock_db.engine)
+        mock_view = create_mock_view(mock_db.engine)
         mock_view.filter_backends=[QueryAPIFilterBackend]
         
         paginator = QueryAPIPagination()

@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import enum
 
-from lick_archive.script_utils import ConfigBase, ConfigFile, ParsedURL
+from lick_archive.script_utils import ConfigBase, ConfigFile, ParsedURL, PostgreSQLURL
 
 class ArchiveSiteType(enum.Enum):
     SINGLE_HOST = "single_host"
@@ -67,6 +67,18 @@ class IngestConfig(ConfigBase):
 
     default_proprietary_period : str
     """The default proprietary period for files."""
+
+    sched_db_host : str
+    """The schedule database host (with optional port specified after a colon)"""
+    
+    sched_db_name : str
+    """The schedule database name"""
+
+    sched_db_user_info : str
+    """Path to a text file containing the schedule database's user information, formatted as 'user:password'"""
+
+    supported_instruments : list[str]
+    """The instrument directory names supported by the archive."""
 
 class ArchiveConfigFile(ConfigFile):
     config_classes = [HostConfig, DatabaseConfig, QueryConfig, IngestConfig]

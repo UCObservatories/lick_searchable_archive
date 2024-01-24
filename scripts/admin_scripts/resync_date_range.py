@@ -5,12 +5,10 @@ Retry failures from bulk_ingest_metadata.
 import argparse
 import sys
 import logging
-import re
-from pathlib import Path
-from datetime import date, datetime, timezone
 
 from lick_archive.script_utils import setup_logging, parse_date_range, get_files_for_daterange
 from lick_archive.db.db_utils import create_db_engine, insert_one, check_exists, insert_batch, open_db_session
+from lick_archive.db.archive_schema import Main
 from lick_archive.metadata.reader import read_row
 
 logger = logging.getLogger(__name__)
@@ -31,7 +29,7 @@ def retry_one_file(error_file, failed_file):
         logger.info(f"Inserting data for {failed_file}.")
         engine = create_db_engine()
 
-        if not check_exists(engine, row.filename):
+        if not check_exists(engine, Main.id, Main.filename == row.filename):
             insert_one(engine, row)
             logger.info(f"Finished inserting data for {failed_file}.")
         else:
@@ -116,7 +114,7 @@ def main():
         success_count = 0
         batch = []
         for file in files:
-            if check_exists(engine, file, session=session):
+            if check_exists(engine, Main.id, Main.filename == file, session=session):
                 logger.debug(f"Skipping {file} because it already exists.")
             elif file.name.startswith("override") and file.name.endswith("access"):
                 logger.debug(f"Skipping override*access file.")

@@ -148,4 +148,11 @@
     user: postgres
     job: "/var/lib/postgresql/scripts/archive_db_backup.sh"
   become: yes
+- name: Install sync_archive_users cronjob
+  ansible.builtin.cron:
+    job: "{{ venv_root }}/bin/python {{ venv_root }}/bin/sync_archive_users.py --log_path {{ archive_log_dir }} --log_level {{ 'INFO' if archive_config == 'ops' else 'DEBUG' }} > /dev/null 2>&1"
+    minute: "{{ sync_users_cron_minute }}"
+    name: sync_archive_users
+    user: "{{ archive_service_user }}"
+  become: yes
 

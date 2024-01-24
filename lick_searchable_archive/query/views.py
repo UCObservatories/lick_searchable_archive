@@ -30,8 +30,8 @@ class QueryView(QueryAPIView):
     """View that integrates the archive Query API with SQL Alchemy"""
     serializer_class = SQLAlchemyORMSerializer
     required_attributes = list(api_capabilities['required']['db_name'])
-    allowed_sort_attributes = list(api_capabilities['required']['db_name'])
-    allowed_result_attributes = list(api_capabilities['required']['db_name'])
+    allowed_sort_attributes = list(api_capabilities['sort']['db_name'])
+    allowed_result_attributes = list(api_capabilities['result']['db_name'])
 
 
     def get_queryset(self):
