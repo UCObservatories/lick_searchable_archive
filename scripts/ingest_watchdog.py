@@ -545,11 +545,12 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         # Start the observer event threads
         self.start()
 
-        # If we're not on initial startup, do a one day resync as a sanity check for
-        # any files in the current day's directory that were created before we noticed the
-        # new date. This is not needed for initial startup because the startup resync handles this.
+        # If we're not on initial startup, do a resync for today and yesterday as a sanity check for
+        # any files that arrived at the very end of yesterday and haven't been synced,
+        # and for any files created in today's directory before we noticed the new date
+        # This is not needed for initial startup because the startup resync handles this.
         if not startup:
-            self.resync(current_date, 1)
+            self.resync(current_date, 2)
 
     def _reset_polling_observers(self, current_date):
         """
