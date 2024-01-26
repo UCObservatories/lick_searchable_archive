@@ -89,12 +89,12 @@
             </li>
             <li class="search_terms_option">
                 <label class="search_terms_label" for="query_by_coords">
-                    <input class="search_terms_radio" type="radio" id="query_by_coords" name="which_query" value="coords" {% if form.which_query.value == "coords" %}checked {% endif %} />                
-                    {{ form.coords.label }}
+                    <input class="search_terms_radio" type="radio" id="query_by_coords" name="which_query" value="coord" {% if form.which_query.value == "coord" %}checked {% endif %} />                
+                    {{ form.coord.label }}
                 </label>
                 <fieldset class="search_terms_grid" id="id_coords_fields">
-                    {{ form.coords }}
-                    <span class="search_terms_help">{{ form.coords.help_text }}</span>    
+                    {{ form.coord }}
+                    <span class="search_terms_help">{{ form.coord.help_text }}</span>
                 </fieldset> 
             </li>
         </ul>      

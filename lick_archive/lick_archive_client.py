@@ -228,7 +228,7 @@ class LickArchiveClient:
             ValueError If an invalid result is returned from the archive server.
         """
         # Validate the field being queried on 
-        if field not in ["filename", "object", "date", "datetime", "coord"]:
+        if field not in ["filename", "object", "obs_date", "coord"]:
             raise ValueError(f"Unknown query field '{field}'")
 
         # Build query parameters
@@ -239,7 +239,7 @@ class LickArchiveClient:
             else:
                 query_params = {field: ",".join([date_value.isoformat() for date_value in value])}
 
-        if field=="coord":            
+        elif field=="coord":            
             # ra, dec, and radius, all are converted to decimal degrees
             if isinstance(value, list) or isinstance(value, tuple):
                 if len(value) !=3:

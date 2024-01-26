@@ -7,6 +7,6 @@ from . import views
 
 urlpatterns = [
     path('index.html', views.index),
-    path('users/login/', auth_views.LoginView.as_view(template_name="frontend/login.html",next_page=lick_archive_config.frontend.frontend_url + "/index.html"),name="login"),
+    path('users/login/', auth_views.LoginView.as_view(template_name="frontend/login.html",next_page=lick_archive_config.host.frontend_url + "/index.html"),name="login"),
     path('users/logout/', views.logout)
 ]
