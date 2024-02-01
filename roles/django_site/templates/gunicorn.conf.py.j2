@@ -1,6 +1,9 @@
 # gunicorn settings, see https://docs.gunicorn.org/en/latest/settings.html#logging
 wsgi_app = "lick_searchable_archive.wsgi:application"
 
+# Create a pidfile
+pidfile="/var/run/gunicorn/gunicorn.pid"
+
 # Number of workers. Currently the front end runs on the same gunicorn server 
 # as the backend, so each query request requires 2 workers.
 workers=2
@@ -16,72 +19,16 @@ bind = ['0.0.0.0:{{ api_port }}']
 
 # Logging configuration
 
-{# Log configuration values dependant on ops vs dev. #}
 {% if archive_config == "ops" %}
-logconfig_dict_loglevel = 'INFO'
+loglevel = 'INFO'
 {% else %}
-logconfig_dict_loglevel = 'DEBUG'
+loglevel = 'DEBUG'
 {% endif %}
 
-# This replaces the gunicorn configuration with our own. Gunicorn needs us to support a 
-# gunicorn.error and gunicorn.access logger.
-logconfig_dict = {
-    'version':1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        # The gunicorn access log file.
-        'gunicorn_access_file': { 
-{# In ops, delete logs older than 14 days. In dev, just manually delete them. #}
-{% if archive_config == "ops" %}
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'when': 'D',
-            'interval': 1,
-            'backupCount': 14,
-{% else %}
-            'class': 'logging.FileHandler',
-{% endif %}
-            'filename': '{{ archive_log_dir }}/gunicorn_access.log'
-        },
-        # The gunicorn error log file.
-        'gunicorn_error_file': {
-{% if archive_config == "ops" %}
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'when': 'D',
-            'interval': 1,
-            'backupCount': 14,
-{% else %}
-            'class': 'logging.FileHandler',
-{% endif %}
-            'formatter': 'archive_log_formatter',
-            'filename': '{{ archive_log_dir }}/gunicorn_error.log'
-        },
-        'gunicorn_stdout': {
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://sys.stdout',
-        },
-    },
-    'root': {
-        'level': logconfig_dict_loglevel,
-        'handlers': ['gunicorn_error_file', 'gunicorn_stdout' ],
-    },
-    'formatters': {
-        'archive_log_formatter': {
-            # log format used through out the lick searchable archive.
-            '()': 'lick_archive.script_utils.get_std_log_formatter',
-            'log_pid': True,  # Log the gunicorn worker pid
-        },
-    },
-    'loggers': {
-        'gunicorn.error': {
-            'level': logconfig_dict_loglevel,
-            'handlers': ['gunicorn_error_file', 'gunicorn_stdout']
-        },
-        'gunicorn.access': {
-            'level': logconfig_dict_loglevel,
-            'handlers': ['gunicorn_access_file', 'gunicorn_stdout']
-        },
-    },
-}
+accesslog = "{{ archive_log_dir }}/gunicorn_access.log"
+errorlog = "{{ archive_log_dir }}/gunicorn_error.log"
+capture_output = True
+
 
 # Hook to print stack trace if a worker aborts.
 def worker_abort(worker):

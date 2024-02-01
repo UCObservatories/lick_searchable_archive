@@ -16,6 +16,8 @@ RuntimeDirectory=gunicorn
 WorkingDirectory={{ package_install_dir }}/lick_searchable_archive/
 ExecStart={{ venv_root }}/bin/gunicorn -c {{ archive_config_dir }}/gunicorn.conf.py
 ExecReload={{ venv_root }}/bin/kill -s HUP $MAINPID
+# Allow group writeable files
+UMask=0002
 KillMode=mixed
 TimeoutStopSec=5
 PrivateTmp=true

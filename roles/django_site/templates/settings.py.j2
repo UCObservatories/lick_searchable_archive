@@ -159,17 +159,11 @@ LOGGING = {
     'disable_existing_loggers': False,
     'handlers': {
         'django_log': {
+            'class': 'logging.handlers.WatchedFileHandler',
+            'filename': '{{ django_log }}',   
 {% if archive_config == "ops" %}
-            'class': 'logging.handlers.TimedRotatingFileHandler',
-            'filename': '{{ django_log }}',   
             'level': 'INFO',
-            'when': 'D',
-            'interval': 1,
-            'backupCount': 14,
-
 {% else %}
-            'class': 'logging.FileHandler',
-            'filename': '{{ django_log }}',   
             'level': 'DEBUG',         
 {% endif %}
             'formatter': 'archive_log_formatter',

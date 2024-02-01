@@ -850,7 +850,7 @@ def get_parser():
 
 def main(args):
 
-    setup_service_logging(args.log_path, "ingest_watchdog", args.log_level, rollover_days=1, backup_count=14, log_tid=True)
+    setup_service_logging(args.log_path, "ingest_watchdog", args.log_level)
 
     try:
         logger.info(f"Reading configuration from '{args.config}'.")

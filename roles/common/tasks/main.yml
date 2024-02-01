@@ -86,6 +86,14 @@
     dest: "{{ archive_log_dir }}"
   become: yes
   notify: "restart web services"
+- name: Setup logrotate
+  ansible.builtin.template:
+    mode: 0644
+    owner: root
+    group: root
+    src: templates/archive_logrotate.j2
+    dest: "/etc/logrotate.d/lick_archive"
+  become: yes
 - name: Copy dev environment tests
   ansible.builtin.copy: 
     src: test/dev_test
