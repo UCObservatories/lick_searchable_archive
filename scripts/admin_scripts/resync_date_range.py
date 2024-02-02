@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Retry failures from bulk_ingest_metadata.
 """
@@ -5,40 +6,15 @@ Retry failures from bulk_ingest_metadata.
 import argparse
 import sys
 import logging
-
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 from lick_archive.script_utils import setup_logging, parse_date_range, get_files_for_daterange
-from lick_archive.db.db_utils import create_db_engine, insert_one, check_exists, insert_batch, open_db_session
+from lick_archive.db.db_utils import create_db_engine, insert_one, update_one, check_exists, insert_batch, update_batch, open_db_session, get_file_metadata
 from lick_archive.db.archive_schema import Main
 from lick_archive.metadata.reader import read_row
 
 logger = logging.getLogger(__name__)
 
-def retry_one_file(error_file, failed_file):
-
-    try:
-        logger.info(f"Reading metadata from {failed_file}.")
-        row = read_row(failed_file)
-        logger.info(f"Finished reading metadata from {failed_file}.")
-    except Exception as e:
-        with open(error_file, "a") as f:
-            print(f"Failed to retry {failed_file}: {e}", file=f)
-        logger.error(f"Failed to retry {failed_file}.", exc_info = True)
-        return
-
-    try:
-        logger.info(f"Inserting data for {failed_file}.")
-        engine = create_db_engine()
-
-        if not check_exists(engine, Main.id, Main.filename == row.filename):
-            insert_one(engine, row)
-            logger.info(f"Finished inserting data for {failed_file}.")
-        else:
-            logger.info(f"{failed_file} already exists.")
-    except Exception as e:
-        with open(error_file, "a") as f:
-            print(f"Failed to retry {failed_file}: {e}", file=f)
-        logger.error(f"Failed to retry {failed_file}.", exc_info = True)
-    
 def get_parser():
     """
     Parse bulk_ingest_metadata command line arguments with argparse.
@@ -57,20 +33,29 @@ def get_parser():
     return parser
 
 
-def insert_batch_with_retry(engine, session, batch):
+def upsert_batch_with_retry(engine : Engine, session : Session, batch : list[Main], update : bool) -> int:
     """
-    Insert a batch of metadata. Retry the batch one row at a time
+    Insert or update a batch of metadata. Retry the batch one row at a time
     in case of a failure.
 
     Args:
 
-        engine (sqlalchemy.engine.Engine): The database engine to add the batch to.
-        batch (list of lick_archive.db.archive_schema.Main): The metadata objects to add.
+        engine:  The database engine to add the batch to.
+        session: The database session to use
+        batch:   The metadata objects to add or update.
+        update:  Whether this batch is for updates of inserts.
 
-    Return (int): The number of successfully inserted rows.
+    Return: The number of successfully inserted/updated rows.
     """
+
+    if update:
+        attributes = [col.name for col in batch[0].__table__.c]
+
     try:
-        insert_batch(session, batch)
+        if update:
+            update_batch(session, batch, attributes)
+        else:
+            insert_batch(session, batch)
         return len(batch)
     except Exception as e:
         try:
@@ -81,7 +66,10 @@ def insert_batch_with_retry(engine, session, batch):
         success_count = 0
         for row in batch:
             try:
-                insert_one(engine, row)
+                if update:
+                    update_one(engine, row, attributes)
+                else:
+                    insert_one(engine, row)
                 success_count += 1
             except Exception as e:
                 logger.error(f"Failed to retry {row.filename}: {e}")        
@@ -113,9 +101,18 @@ def main():
         resync_count = 0
         success_count = 0
         batch = []
+        update_batch = []
         for file in files:
-            if check_exists(engine, Main.id, Main.filename == file, session=session):
-                logger.debug(f"Skipping {file} because it already exists.")
+            file_metadata = get_file_metadata(session, file)
+            if file_metadata is not None:
+                # File exists, check it's size
+                if file_metadata.file_size == file.stat().st_size:
+                    logger.debug(f"Skipping {file} because it already exists.")
+                else:
+                    logger.debug(f"File already exists but has a different size, so will be updated.")
+                    resync_count += 1
+                    update_batch.append(file_metadata)
+
             elif file.name.startswith("override") and file.name.endswith("access"):
                 logger.debug(f"Skipping override*access file.")
             else:
@@ -130,13 +127,23 @@ def main():
                 logger.info(f"Finished reading metadata from {file}")
                 batch.append(next_row)
 
-                # Insert the batch once it's full
-                if len(batch) >= args.batch_size:
-                    success_count+=insert_batch_with_retry(engine,session,batch)
-                    batch = []
-        # Insert any left over data that did not fill an entire batch
+            # Insert the batch once it's full
+            if len(batch) >= args.batch_size:
+                success_count+=upsert_batch_with_retry(engine,session,batch, update=False)
+                batch = []
+
+            # Run any updates once that batch is full
+            if len(update_batch) >= args.batch_size:
+                success_count+=upsert_batch_with_retry(engine,session,update_batch, update=True)
+                update_batch = []
+
+        # Insert/update any left over data that did not fill an entire batch
         if len(batch) > 0:
-            success_count+=insert_batch_with_retry(engine,session,batch)
+            success_count+=upsert_batch_with_retry(engine,session,batch, update=False)
+
+        if len(update_batch) > 0:
+            success_count+=upsert_batch_with_retry(engine,session,update_batch, update=True)
+
     except Exception as e:
         logging.error("Caught exception at end of main.", exc_info = True)
         return 1

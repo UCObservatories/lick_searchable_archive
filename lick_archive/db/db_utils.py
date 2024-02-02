@@ -1,11 +1,15 @@
 """
 Helper functions for working with databases via SQL Alchemy
 """
+
+from pathlib import Path
+
 from sqlalchemy import create_engine, select, func, inspect, update
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 import psycopg2
 from tenacity import retry, stop_after_delay, wait_exponential, retry_if_not_exception_type, after_log
 
+from lick_archive.db.archive_schema import Main
 
 import logging
 logger = logging.getLogger(__name__)
@@ -157,3 +161,22 @@ def convert_object_to_dict(mapped_object):
     i = inspect(mapped_object)
     return {key: getattr(mapped_object, key) for key in i.attrs.keys()}
 
+def get_file_metadata(session : Session, file : str | Path) -> Main | None:
+    """Return the metadata for a single file.
+    
+    Args:
+        session: The SQLAlchemy session to use for querying the database.
+        file:    The full path of the file
+        
+    Return: The metadata object for the file, or None if the file didn't exist.
+    """
+
+    stmt = select(Main).where(Main.filename == str(file))
+
+    results = list(execute_db_statement(session, stmt).scalars())
+    if len(results) > 1:
+        raise ValueError(f"File {file} was not unique in the database!")
+    elif len(results) == 0:
+        return None
+    else:
+        return results[0]

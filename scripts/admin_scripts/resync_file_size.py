@@ -10,7 +10,7 @@ import logging
 from sqlalchemy import select
 
 from lick_archive.script_utils import setup_logging, parse_date_range, get_files_for_daterange
-from lick_archive.db.db_utils import create_db_engine, update_batch, update_one, execute_db_statement, open_db_session
+from lick_archive.db.db_utils import create_db_engine, update_batch, update_one, get_file_metadata, open_db_session
 from lick_archive.db.archive_schema import Main
 from lick_archive.archive_config import ArchiveConfigFile
 
@@ -67,16 +67,6 @@ def update_batch_with_retry(engine, session, batch):
                 logger.error(f"Failed to retry {row.filename}: {e}")        
         return success_count
 
-def get_file_metadata(session, file):
-    stmt = select(Main).where(Main.filename == str(file))
-
-    results = list(execute_db_statement(session, stmt).scalars())
-    if len(results) > 1:
-        raise ValueError(f"File {file} was not unique in the database!")
-    elif len(results) == 0:
-        return None
-    else:
-        return results[0]
 
 
 def main():
