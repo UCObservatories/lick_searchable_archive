@@ -39,7 +39,7 @@ class LickArchiveIngestClient:
         ingest_watchdog service uses this to see if the archive database is missing any files.
 
         Args;
-            path (pathlib.Path): The data directory to sync.
+            data_dir (pathlib.Path): The data directory to sync.
         Return:
             int : The number of files found for that date in that instrument directory.
 
@@ -51,11 +51,10 @@ class LickArchiveIngestClient:
         # Use a retry to run the get request. Retrying a random amount between 5s and the configured max delay
         # The retries will stop after the configured max time
         retryer = Retrying(stop=stop_after_delay(self.ingest_retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.ingest_retry_max_delay))
-        query_params = {"filename": str(data_dir), "prefix":True, "count":True}
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.get, self.ingest_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.get, self.ingest_url + "ingest/counts/" + str(data_dir), verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
         result.raise_for_status()
 
         result_json = result.json()
@@ -111,7 +110,7 @@ class LickArchiveIngestClient:
         
         # We run the request using slightly over the TCP timeout of 3 seconds for the socket connect.
         # The request_timeout is the timeout between bytes sent from the server
-        result = retryer(requests.post, self.ingest_url + 'ingest_notifications/', json=payload, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(requests.post, self.ingest_url + 'ingest/notifications/', json=payload, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
 
         result.raise_for_status()
 

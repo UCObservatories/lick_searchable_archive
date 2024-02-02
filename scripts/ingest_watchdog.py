@@ -666,7 +666,6 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         """
         Determine if all observer threads are still alive.
         """
-        self.logger.debug(f"is_alive...")
         with self._lock:
             result =  all([o.is_alive() for o in self._observer_list])
             self.logger.debug(f"Alive: {result}")
@@ -811,7 +810,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         self.logger.info(f"Resyncing {path}")
         archive_count = 0
         try:
-            archive_count = self.ingest_client.sync_query(path.relative_to(self.config.data_root))
+            archive_count = self.ingest_client.sync_query(path)
         except RequestException as e:
             logging.error(f"Failed to resync {path} due to failure querying archive server: {e}")
         except ValueError as e:

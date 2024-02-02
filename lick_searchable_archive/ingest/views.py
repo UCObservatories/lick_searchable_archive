@@ -8,13 +8,25 @@ logger = logging.getLogger(__name__)
 
 from django.conf import settings
 
-from rest_framework import generics, views, status
+from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.exceptions import APIException
 
-from lick_archive.django_utils import log_request_debug
+from sqlalchemy import select, func
 
-from .serializers import IngestNotificationSerializer
+from .serializers import IngestNotificationSerializer, IngestCountsSerializer
 from .tasks import ingest_new_files
+from .models import IngestCount
+
+from lick_archive.archive_config import ArchiveConfigFile
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+from lick_archive.django_utils import log_request_debug
+from lick_archive.db import db_utils
+from lick_archive.db.archive_schema import Main
+
+# SQLAlchemy likes its engine to have a global lifetime.
+_db_engine = db_utils.create_db_engine(user=lick_archive_config.database.db_query_user, database=lick_archive_config.database.archive_db)
+
 
 class IngestNotifications(generics.CreateAPIView):
     serializer_class = IngestNotificationSerializer
@@ -37,3 +49,32 @@ class IngestNotifications(generics.CreateAPIView):
         return Response(serializer.validated_data, status=status.HTTP_201_CREATED, headers=headers)
 
         
+class IngestCounts(generics.RetrieveAPIView):
+    serializer_class = IngestCountsSerializer
+    def get_object(self):
+        """Returns a count object containing the number of files in an archive ingest path.
+        Overrides the version from :class:`rest_framework.generics.GenericAPIView` to 
+        directly query the SQLAlchemy managed metadata database.
+        """
+        log_request_debug(self.request)
+        
+        # The django URL dispatcher should pass this through to the GenericAPIView get() method
+        ingest_path = self.kwargs.get("ingest_path","")
+        if len(ingest_path) == 0:
+            logger.error("Recieved empty ingest_path.")
+            raise APIException(detail="Recieved empty ingest_path", status=status.HTTP_400_BAD_REQUEST)
+        else:
+            count = self.get_ingest_counts(ingest_path)
+        return IngestCount(ingest_path=ingest_path, count=count)
+    
+    def get_ingest_counts(self, ingest_path : str) -> int:
+        """Count the number of ingested files in a path"""
+        stmt = select(func.count()).where(Main.filename.startswith(ingest_path, autoescape=True))
+
+        try:
+            with db_utils.open_db_session(_db_engine) as session:
+                result = db_utils.execute_db_statement(session, stmt).scalar()
+                return result
+        except Exception as e:
+            logger.error(f"Failed to run archive ingest count query: {e}", exc_info=True)
+            raise APIException(detail="Failed to run count query on archive database.", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
