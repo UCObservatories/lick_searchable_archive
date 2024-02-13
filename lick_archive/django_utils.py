@@ -44,7 +44,10 @@ def validate_username(username):
 def log_request_debug(request):
     if logger.isEnabledFor(logging.DEBUG):
         for key in request.META.keys():
-            logger.debug(f"Header key '{key}' value: {request.META[key]}")
+            if "password" in key.lower():
+                logger.debug(f"Header key '{key}' value: ***")
+            else:
+                logger.debug(f"Header key '{key}' value: {request.META[key]}")
         for key in os.environ:
             logger.debug(f"Environment variable '{key}' value: '{os.environ[key]}'")
         if hasattr(request,"session"):

@@ -12,10 +12,10 @@ from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.serializers import ValidationError
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.response import Response
 from rest_framework import status, serializers
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import GenericAPIView
 
 from astropy.coordinates import SkyCoord, Angle
 from lick_archive.data_dictionary import Instrument
@@ -481,7 +481,8 @@ class QueryAPIFilterBackend:
         Args:
             filters (dict): A filter dictionary to add the  
         """
-        filters['public_date__lte'] =  datetime.date.today()
+        if not (request.user.is_authenticated and request.user.is_superuser):
+            filters['public_date__lte'] =  datetime.date.today()
 
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
         """Build a range filter for a field.
@@ -568,23 +569,22 @@ class QueryAPIFilterBackend:
         filters[orm_field_name + "__exact"] = value
 
 
-class QueryAPIView(ListAPIView):
+class QueryAPIMixin:
     """
-    A custom DRF view for implementing the archive query api. It should be subclassed
-    to specify the QuerySet type, Serializer type. The subclass should also
-    populate the allowed_sort_attributes, allowed_result_attributes, and required_attributes
-    values.
+    A custom DRF mixin for implementing the archive query api. It supports a list
+    method for querying and a retrieving a single object.
+    It should be subclassed to specify the QuerySet type, Serializer type, pagination_class, 
+    filter_backends. The subclass should also
+    populate the allowed_sort_attributes, allowed_result_attributes, and required_attributes values.
     """
     # Use cursor based pagination
-    pagination_class = QueryAPIPagination
-    filter_backends = [QueryAPIFilterBackend]
     allowed_sort_attributes =[]
     allowed_result_attributes =[]
     required_attributes = []
 
     def list(self, request, *args, **kwargs):
         """Performs a query based on a request. The query is handled by the
-        ListAPIView, QueryAPIPagination, and QueryAPIFilterBackend classes. 
+        QueryAPIPagination, and QueryAPIFilterBackend classes. 
         This class performs post processing of database results.
 
         The post processing involves:
@@ -631,3 +631,42 @@ class QueryAPIView(ListAPIView):
                     if "filename" in record:
                         record["filename"] = str(Path(record['filename']).relative_to(lick_archive_config.ingest.archive_root_dir))
         return response
+
+    def get_object(self):
+        log_request_debug(self.request)
+
+        # Validate request using query serializer
+        if self.lookup_url_kwarg not in self.kwargs:
+            raise APIException(f"No {self.lookup_url_kwarg} specified.", code=status.HTTP_400_BAD_REQUEST)
+        value = self.kwargs[self.lookup_url_kwarg]
+        data = {self.lookup_field: value}
+        serializer = QuerySerializer(data=data, view=self)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            logger.error(f"Failed to validate {self.lookup_field}.", exc_info=True)
+            raise
+
+        # Store the validated results in the request to be passed to paginators and filters
+        self.request.validated_query = serializer.validated_data
+
+        logger.info(f"Getting object for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}")
+
+        # Let the superclass filter the query set and then use that
+        # to get the object.
+
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            results = queryset[0:]
+        except Exception as e:
+            logger.error(f"Failed to get object from database for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}: {e}", exc_info=True)
+            raise  APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if len(results) == 0:
+            logger.error(f"{self.lookup_field} = {serializer.validated_data[self.lookup_field]} not found.")
+            raise NotFound(detail="File not found")
+        elif len(results) > 1:
+            logger.error(f"Duplicate matches found for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}, found {len(results)}")
+            raise APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return results[0]

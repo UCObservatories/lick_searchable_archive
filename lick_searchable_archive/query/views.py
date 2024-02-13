@@ -3,31 +3,29 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from pathlib import Path
-
-from django.conf import settings
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.renderers import BaseRenderer
 from rest_framework import status
-
+from rest_framework.serializers import BaseSerializer
+from rest_framework.exceptions import APIException
 
 from lick_archive.db.db_utils import create_db_engine
 from lick_archive.data_dictionary import api_capabilities
 from lick_archive.db.archive_schema import Main
-from lick_archive.django_utils import log_request_debug
 from lick_archive.archive_config import ArchiveConfigFile
 
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-from .query_api import QuerySerializer, QueryAPIView
+from .query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
 from .sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
 # SQLAlchemy likes its engine to have a global lifetime.
 _db_engine = create_db_engine(user=lick_archive_config.database.db_query_user, database=lick_archive_config.database.archive_db)
 
-class QueryView(QueryAPIView):
+class QueryView(QueryAPIMixin, ListAPIView):
     """View that integrates the archive Query API with SQL Alchemy"""
+    pagination_class = QueryAPIPagination
+    filter_backends = [QueryAPIFilterBackend]
     serializer_class = SQLAlchemyORMSerializer
     required_attributes = list(api_capabilities['required']['db_name'])
     allowed_sort_attributes = list(api_capabilities['sort']['db_name'])
@@ -44,42 +42,40 @@ class PlainTextRenderer(BaseRenderer):
     charset='ascii'
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
-        return data
+        # Return the plain text if the response is successfull.
+        # Otherwise return the status code, reason phrase, and error message returned in the data
+        if renderer_context is not None and "response" in renderer_context:
+            response = renderer_context["response"]
+            if response.status_code == status.HTTP_200_OK:
+                return data + "\n" if data[-1] != "\n" else data
+            elif isinstance(data, dict):
+                return f"Status Code: {response.status_code}: {response.reason_phrase}\n\n{data['detail']}\n"
+            else:
+                return f"Status Code: {response.status_code}: {response.reason_phrase}\n"
+        # If we can't get the response, give up let the django/drf deal with it
+        else:
+            raise APIException(detail="Internal Error", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class HeaderSerializer(BaseSerializer):
+    """Serialize a metadata row by returning its header"""
+
+    def to_representation(self, instance):
+        return instance.header
 
 
-class HeaderView(APIView):
+class HeaderView(QueryAPIMixin, RetrieveAPIView):
     """A view for getting the header for a specific fits file in the archive."""
     renderer_classes = [PlainTextRenderer]
+    filter_backends = [QueryAPIFilterBackend]
+    serializer_class = HeaderSerializer
+    lookup_url_kwarg = 'file'
+    lookup_field = 'filename'
+    required_attributes = ['filename']
     allowed_result_attributes = ["header"]
     allowed_sort_attributes = ["id"]
 
-    def get(self, request, file):
-        log_request_debug(request)
+    def get_queryset(self):
+        return SQLAlchemyQuerySet(_db_engine, Main)
 
-        # Validate request using query serializer
-        data = {"filename": file}
-        serializer = QuerySerializer(data=data, view=self)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error("Failed to validate filename when requesting header.", exc_info=True)
-            raise
-
-        full_path = Path(lick_archive_config.ingest.archive_root_dir) / serializer.validated_data['filename']
-        logger.info(f"Getting header info for file: {full_path}")
-
-        try:
-            queryset = SQLAlchemyQuerySet(_db_engine,Main)
-            queryset = queryset.filter(filename__exact=str(full_path))
-            queryset = queryset.values("header")
-            results = list(queryset)
-            if len(results) !=1:
-                return Response(data="File was not found.", status=status.HTTP_404_NOT_FOUND)
-            
-        except Exception as e:
-            logger.error(f"Failed to get header from database for {full_path}: {e}", exc_info=True)
-            return Response(data="Failed to query archive database.", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response(data=results[0]["header"], status=status.HTTP_200_OK)
 
 

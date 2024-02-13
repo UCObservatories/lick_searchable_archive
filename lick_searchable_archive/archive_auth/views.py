@@ -7,7 +7,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed
 from django.contrib.auth import authenticate,login,logout
 from django.middleware.csrf import get_token
 
-from lick_archive.django_utils import validate_username
+from lick_archive.django_utils import validate_username, log_request_debug
 
 logger = logging.getLogger(__name__)
 
@@ -20,32 +20,13 @@ def login_user(request):
                 "user": ""}
     
     try:
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Login request method: {request.method}")
-            if hasattr(request,"session"):
-                session = request.session
-                if session is None:
-                    logger.debug("Session is None")
-                else:
-                    logger.debug(f"Session key: {session.session_key}")
-                    logger.debug(f"Session expiry age: {session.get_expiry_age()}")
-                    for key, value in session.items():
-                        logger.debug(f"Session[{key}] : '{value}'")
-
-
-            for key in request.META.keys():
-                logger.debug(f"Header key '{key}' value: {request.META[key]}")
-            for key in os.environ:
-                logger.debug(f"Environment variable '{key}' value: '{os.environ[key]}'")
-
-
+        log_request_debug(request)
 
         if request.method == "GET":
             response['csrfmiddlewaretoken'] = get_token(request)
             if request.user.is_authenticated:
                 response["logged_in"] = True
                 response["user"] = request.user.get_username()
-
 
         elif request.method == "POST":
             # Validate the username. Presumably authenticate should do it's own validation
@@ -74,25 +55,7 @@ def login_user(request):
 def logout_user(request):
     
     try:
-        if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Logout request method: {request.method}")
-            if hasattr(request,"session"):
-                session = request.session
-                if session is None:
-                    logger.debug("Session is None")
-                else:
-                    logger.debug(f"Session key: {session.session_key}")
-                    logger.debug(f"Session expiry age: {session.get_expiry_age()}")
-                    for key, value in session.items():
-                        logger.debug(f"Session[{key}] : '{value}'")
-
-
-            for key in request.META.keys():
-                logger.debug(f"Header key '{key}' value: {request.META[key]}")
-            for key in os.environ:
-                logger.debug(f"Environment variable '{key}' value: '{os.environ[key]}'")
-
-
+        log_request_debug(request)
 
         if request.method == "POST":
             if request.user.is_authenticated:
