@@ -31,7 +31,7 @@ def logout(request):
             logger.error(f"Failed django logout.", exc_info=True)
     
         # Redirect back to the frontend query page, which should reflect the logged out status
-        return HttpResponseRedirect(lick_archive_config.host.frontend_url + "/index.html")
+        return HttpResponseRedirect(str(lick_archive_config.host.frontend_url) + "/index.html")
         
     else:
         return HttpResponseNotAllowed(['POST'])
