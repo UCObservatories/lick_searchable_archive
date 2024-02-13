@@ -8,9 +8,10 @@ from django import forms
 
 from django.core.exceptions import ValidationError
 
-from astropy.coordinates import Angle, SkyCoord
+from astropy.coordinates import Angle
 import astropy.units
 
+from .widgets import OperatorWidget
 
 class AngleField(forms.CharField):
     """Custom django form field to parse and validate an angular distance.
@@ -86,3 +87,60 @@ def parse_and_validate_angle(value, default_unit, field="Angle"):
         logger.error(f"{field} value {value} could not be parsed by astropy.", exc_info=True)
         raise ValidationError(message=messages[1].format(field), code="invalid")
 
+
+class QueryWithOperator(forms.MultiValueField):
+
+    def __init__(self, operators, fields, modifier=None, names=[''], class_prefix='', **kwargs):
+        error_messages = {"incomplete": "Enter an operator and value"}
+        self.modifier=modifier
+        all_names =[]
+
+        operator_fields = []
+        if len(operators) > 0:
+            if isinstance(operators[0], tuple):
+                # A list of operators
+                operator_fields.append(forms.ChoiceField(choices=operators, required=False))                
+                all_names.append('operator')
+            else:
+                # Specified fields
+                operator_fields.append(operators[0])
+                all_names.append('operator')
+
+        if modifier is not None:
+            operator_fields.append(forms.BooleanField(initial=False, required=False, label=modifier))
+            all_names.append("modifier")
+
+        all_names += names
+        all_fields = (*operator_fields,
+                      *fields)
+
+        labels = [f.label for f in all_fields]            
+
+        logger.debug(f"all_fields: {all_fields}")
+
+        super().__init__(fields=all_fields, require_all_fields=False, 
+                         widget=OperatorWidget(modifier=modifier, class_prefix=class_prefix, subwidgets=[field.widget for field in all_fields],labels=labels, names=all_names),
+                         error_messages=error_messages, **kwargs)
+
+    def compress(self, data_list):
+
+        value = {"operator": None, "modifier": None, "value": None}
+
+        data_length = len(data_list)
+
+        if data_length >= 2:
+            value["operator"] = data_list[0]    
+
+            if self.modifier is not None:
+                values_start = 2
+                value["modifier"] = data_list[1]
+            else:
+                values_start = 1
+
+            if len(data_list) == values_start + 1:
+                value["value"] =  data_list[values_start]
+            elif len(data_list) > values_start + 1:
+                value["value"] = tuple(data_list[1:])
+            
+
+        return value
