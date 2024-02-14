@@ -245,7 +245,7 @@ class LickArchiveClient:
                 if len(value) !=3:
                     raise ValueError("Invalid coord value. coord should be a list of ra,dec,radius")
                 
-                query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg") for a in value])}
+                query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg", precision=8) for a in value])}
             else:
                 raise ValueError("Invalid coord value, coord should be list of ra,dec,radius")
         else:

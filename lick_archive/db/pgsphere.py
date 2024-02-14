@@ -319,12 +319,16 @@ class SCircle(UserDefinedType):
 try:
     from psycopg2.extensions import register_adapter, AsIs
     def adapt_spoint_for_postgresql(spoint):
-        return AsIs(f"{spoint.literal_value()}")
+        asis_value = AsIs(spoint.literal_value())
+        logger.debug(f"spoint quoted value: {asis_value.getquoted()}")
+        return asis_value
 
     register_adapter(SPoint, adapt_spoint_for_postgresql)
 
     def adapt_scircle_for_postgresql(scircle):
-        return AsIs(f"{scircle.literal_value()}")
+        asis_value = AsIs(scircle.literal_value())
+        logger.debug(f"scircle quoted value: {asis_value.getquoted()}")
+        return asis_value
 
     register_adapter(SCircle, adapt_scircle_for_postgresql)
 
