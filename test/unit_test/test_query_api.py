@@ -44,7 +44,6 @@ def test_no_filters():
 
     with MockDatabase(Base) as mock_db:
         view = create_mock_view(mock_db.engine, request)
-        
         with pytest.raises(APIException, match="At least one required field must be included in the query."):
             view.list(request)
 

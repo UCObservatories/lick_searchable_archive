@@ -46,12 +46,16 @@ class MockDatabase(contextlib.AbstractContextManager):
 def create_mock_view(engine, request=None):
 
     # We define the view in a function so the below imports happen after Django is initialized by the test case
-    from lick_searchable_archive.query.query_api import QueryAPIView
+    from rest_framework.generics import ListAPIView
+    from lick_searchable_archive.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
     from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
 
-    class MockView(QueryAPIView):
+    class MockView(QueryAPIMixin,ListAPIView):
         """A test view for testing the query api"""
 
+        pagination_class = QueryAPIPagination
+        filter_backends = [QueryAPIFilterBackend]
+        serializer_class = SQLAlchemyORMSerializer
         allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
         allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
         required_attributes = list(api_capabilities['required']['db_name'])

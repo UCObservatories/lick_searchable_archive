@@ -43,6 +43,13 @@ API Cleanup
   have to be a fancy frontend to add new filter.
 * Remove archive_root from any paths returned by the API.
 
+Bugs
+----
+* When using separate frontend and backend nodes, header requests won't see the
+  header information of proprietary data even if user is logged in.
+* Enabling/disabling result/query fields results in original/default values in disabled fields not being re-populated
+  after submitting a query.  (Disabled fields not passed to view and so it can't pass what was in the
+  field before query request).
 
 Additional Features
 -------------------
