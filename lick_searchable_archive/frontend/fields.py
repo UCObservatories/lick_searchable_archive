@@ -91,35 +91,35 @@ def parse_and_validate_angle(value, default_unit, field="Angle"):
 class QueryWithOperator(forms.MultiValueField):
 
     def __init__(self, operators, fields, modifier=None, names=[''], class_prefix='', **kwargs):
-        error_messages = {"incomplete": "Enter an operator and value"}
+        error_messages = {"incomplete": "Enter an operator and value(s)"}
         self.modifier=modifier
-        all_names =[]
 
-        operator_fields = []
+        all_fields = []
+        subwidgets = []
         if len(operators) > 0:
             if isinstance(operators[0], tuple):
                 # A list of operators
-                operator_fields.append(forms.ChoiceField(choices=operators, required=False))                
-                all_names.append('operator')
+                operator_field = forms.ChoiceField(choices=operators, required=False)
             else:
-                # Specified fields
-                operator_fields.append(operators[0])
-                all_names.append('operator')
+                # Specified operator field
+                operator_field = operators[0]
+
+
+            all_fields.append(operator_field)
+            subwidgets.append(("operator", operator_field.label, operator_field.widget))
 
         if modifier is not None:
-            operator_fields.append(forms.BooleanField(initial=False, required=False, label=modifier))
-            all_names.append("modifier")
+            modifier_field = forms.BooleanField(initial=False, required=False, label=modifier)
+            all_fields.append(modifier_field)
+            subwidgets.append(("modifier", modifier, modifier_field.widget))
 
-        all_names += names
-        all_fields = (*operator_fields,
-                      *fields)
-
-        labels = [f.label for f in all_fields]            
+        all_fields += fields
+        subwidgets += [(f"value{i+1}", field.label, field.widget) for i, field in enumerate(fields)]
 
         logger.debug(f"all_fields: {all_fields}")
 
         super().__init__(fields=all_fields, require_all_fields=False, 
-                         widget=OperatorWidget(modifier=modifier, class_prefix=class_prefix, subwidgets=[field.widget for field in all_fields],labels=labels, names=all_names),
+                         widget=OperatorWidget(subwidgets=subwidgets, class_prefix=class_prefix),
                          error_messages=error_messages, **kwargs)
 
     def compress(self, data_list):

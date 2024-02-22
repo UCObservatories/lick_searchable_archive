@@ -39,26 +39,25 @@ DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", 
 
 class QueryForm(forms.Form):
     which_query = forms.ChoiceField(choices=[("filename",""), ("object_name",""), ("date",""), ("coord","")], initial="object_name", required=True, widget=forms.RadioSelect)
-    filename =   QueryWithOperator(label="By Path and Filename", operators=[("exact", "="), ("prefix", "starts with")],
+    filename =   QueryWithOperator(label="Path and Filename", operators=[("exact", "="), ("prefix", "starts with")],
                                    class_prefix="search_terms_",
                                    fields=[forms.CharField(max_length=1024, strip=True, empty_value="", required=False)],
-                                   initial={"operator": "exact", "value": ""},  help_text='e.g. "2014-04/08/AO/m140409_0040.fits"',required=False)
-    object_name = QueryWithOperator(label="By Object", operators= [("exact", "="), ("prefix", "starts with"), ("contains", "contains")],
+                                   initial={"operator": "exact", "value": ""},  help_text=format_html('{}<p>{}','Example:', '"2014-04/08/AO/m140409_0040.fits"'),required=False)
+    object_name = QueryWithOperator(label="Object Name", operators= [("exact", "="), ("prefix", "starts with"), ("contains", "contains")],
                                     modifier="Match Case",
                                     class_prefix="search_terms_",
                                     fields=[forms.CharField(max_length=80, empty_value="", strip=True, required=False)],
-                                    initial={"operator": "exact", "value": ""},  help_text='e.g. "K6021275"', required=False) 
-    date =   QueryWithOperator(label="By Observation Date", operators= [("exact", "="), ("range", "between")],
+                                    initial={"operator": "exact", "value": ""},  help_text='Example: "K6021275"', required=False) 
+    date =   QueryWithOperator(label="Observation Date", operators= [("exact", "="), ("range", "between")],
                                class_prefix="search_terms_",
-                               fields=[forms.DateField(required=False),forms.DateField(required=False)], names=["start", "end"],
+                               fields=[forms.DateField(required=False),forms.DateField(required=False)],
                                initial={"operator": "exact", "value": None}, 
-                               help_text=format_html('{}<p>{}</p>','e.g. "2006-08-17". All dates are noon to noon PST (UTC-8).', 'Date ranges are inclusive.'),
+                               help_text=format_html('{}<p>{}<p>{}','Example: "2006-08-17".', 'All dates are noon to noon PST (UTC-8).', 'Date ranges are inclusive.'),
                                required=False)
-    coord  = QueryWithOperator(label="By Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
+    coord  = QueryWithOperator(label="Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
                                class_prefix="search_terms_",
                                fields=[AngleField(label="RA", default_unit="d", required=False),
-                                       AngleField(label="DEC", default_unit="d", required=False)],
-                               names=["ra", "dec"],
+                                       AngleField(label="DEC", default_unit="d", required=False)],                               
                                initial={"operator": None, "value": None},  
                                help_text=format_html('{}<p>{}<ul><li>{}</li><li>{}</li></ul>',
                                                      'Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.',

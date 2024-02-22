@@ -1,5 +1,10 @@
 {% spaceless %}
     {% for widget in widget.subwidgets %}
+        <label for="{{ widget.attrs.id }}" class="{{ widget.attrs.class }}_label">
+            {% include widget.template_name %}
+            {{ widget.label}}
+        </label>
+        {% comment %}
         {% if widget.wrap_label %}    
             <label for="{{ widget.attrs.id }}" class="{{ widget.attrs.class }}_label">            
         {% endif %}
@@ -10,6 +15,7 @@
         {% if widget.label %}
             {{ widget.label }}
             </label>
-        {% endif %}
+        {% endif %} 
+        {% endcomment %}
     {% endfor %}
 {% endspaceless %}

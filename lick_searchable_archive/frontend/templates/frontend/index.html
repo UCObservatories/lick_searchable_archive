@@ -5,7 +5,7 @@
     <title>Mt. Hamilton Data Repository Search - Beta</title>
     <link rel="stylesheet" type="text/css" href="/static/frontend/repository.css"/>
 </head>
-<body>
+<body class="search_body">
 <header>
     <!--Taken from prior repository page-->
     <!-- <map name="home">
@@ -13,16 +13,15 @@
         <area shape="rect" coords="497,30,566,86" href="/">
         <area shape="rect" coords="571,30,640,86" href="https://www.ucobservatories.org/">
     </map>
-    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home"> -->
-    <img src="/static/frontend/lick_logo.png" width="1150" height="1033">
-    <H1>Mt. Hamilton Data Repository - Beta</H1>
-    <section class="user_section">
+    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home"> -->    
+    <H1><img class="header_image" src="/static/frontend/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</H1>
+    <span class="user_section">
     {% if username|length > 0 %}
         You are logged in as <em class="user_name">{{ username }}</em> <button class="user_logout" type="submit" name="logout" form="archive_query" formmethod="POST" formaction="{{ logout_url }}">Logout here</button>
     {% else %}
         You are not logged in. <a href="{{ login_url }}">Login here</a>
     {% endif %}
-    </section>
+    </span>
 </header>
 <nav class="nav_sidebar">
     <section class="nav_section">
@@ -55,7 +54,7 @@
 <form id="archive_query" class="search_form" method="POST" action="{{ archive_url }}">
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
-        <legend>Search</legend>
+        <legend>Search By</legend>
         <ul role="list" class="search_form_list">
             <li class="search_terms_option">
                 <label class="search_terms_label" for="query_by_object">                        
@@ -108,48 +107,56 @@
     <fieldset id="results">
         <legend>Search Results</legend>
         <ul role="list" class="search_field_list">
-            <li>{{ form.count.1.tag }}<label for="{{ form.count.1.id_for_label }}>">{{ form.count.1.choice_label }}</label>
+            <li class="search_field_item"><label for="{{ form.count.1.id_for_label }}">{{ form.count.1.tag }}{{ form.count.1.choice_label }}</label>
                 <fieldset id="fields" class="search_form_fields">
-                    <label for="id_page_size">Results per page</label>{{ form.page_size }}
+                    <label for="id_page_size">Results / page</label>{{ form.page_size }}
                     <label for="id_coord_format">RA/DEC format</label>{{ form.coord_format }}
                     <label for="id_sort_fields">{{ form.sort_fields.label }}</label><span>{{ form.sort_fields }}{{ form.sort_dir }}</span>
                     <label for="id_result_fields">{{ form.result_fields.label }}</label>{{ form.result_fields }}
                 </fieldset>  
             </li>
-            <li>{{ form.count.0.tag }}<label for="{{ form.count.0.id_for_label }}">{{ form.count.0.choice_label }}</label></li>
+            <li class="search_field_item"><label for="{{ form.count.0.id_for_label }}">{{ form.count.0.tag }}{{ form.count.0.choice_label }}</label></li>
         </ul>
     </fieldset>
 
     <button type="submit" name="page" value="1">Submit Query</button>
 </form>
+<p class="results_header">
 {% if result_list is None or result_list|length == 0 %}
     Number of results: {{ result_count }}
+</p>
 {% else %}
     Showing results {{ start_result }} - {{ end_result }} of {{ result_count }} results.
     <br>{{ form.page }}
-    
-    <table>
+</p>
+<table class="search_results_table">
+    <thead>
         <tr>
             {% for result_field, units in result_fields  %}
-                <th scope="col">{{ result_field }}{% if units is not None %}<br><span class="page_units">({{units}})</span>{% endif %}</th>
+                <th class="search_results_header" scope="col">{{ result_field }}{% if units is not None %}<br><span class="result_table_units">({{units}})</span>{% endif %}</th>
             {% endfor %}
         </tr>
+    </thead>
+    <tbody>
         {% for result in result_list %}
             <tr>
                 {% for value in result %}    
-                    <td>{{ value }}</td>
+                    <td class="search_results_data">{{ value }}</td>
                 {% endfor %}
             </tr>
         {% endfor %}
-    </table>
+    </tbody>
+</table>
+<p class="results_footer">
     {{ form.page }}<br>
     Number of results in page: {{ result_list|length }}
+</p>
 {% endif %}
 {% if form.errors|length > 0 %}
-    <p>
-    Errors:
-        {{ form.errors }}
-    </p>
+<p>
+Errors:
+    {{ form.errors }}
+</p>
 {% endif %}
 </main>
 <footer>

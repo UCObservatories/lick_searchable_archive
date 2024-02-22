@@ -6,21 +6,18 @@ from django import forms
 
 class OperatorWidget(forms.MultiWidget):
 
-    def __init__(self, subwidgets, names, class_prefix, attrs=None, labels=[], modifier=None):
+    def __init__(self, subwidgets, class_prefix, attrs=None):
 
         #widgets={"operator": forms.Select(choices=operators, attrs={"class": class_prefix+"operator"})}
         self.class_prefix = class_prefix
-        self.labels=labels
 
-        if len(names) != len(subwidgets):
-            raise ValueError("Length of names must match length of subwidgets")        
         widgets = dict()
-        for i, subwidget in enumerate(subwidgets):
-            if len(names[i]) == 0:
-                subwidget.attrs["class"] = class_prefix + "value"
-            else:
-                subwidget.attrs["class"] = class_prefix + names[i]
-            widgets[names[i]] = subwidget
+        self.labels=dict()
+        for name, label, subwidget in subwidgets:
+            css_class = class_prefix + name
+            subwidget.attrs["class"] = css_class
+            widgets[name] = subwidget
+            self.labels[css_class] = label
 
         super().__init__(widgets,attrs)
         logger.debug(f"my name: all subwidgets: {subwidgets} widgets: {widgets}")
@@ -42,9 +39,10 @@ class OperatorWidget(forms.MultiWidget):
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
         for i, subwidget in enumerate(context["widget"]["subwidgets"]):
-            if i < len(self.labels) and self.labels[i] is not None:
-                subwidget["wrap_label"] = True                
-                subwidget["label"] = self.labels[i]
+            css_class = subwidget['attrs']['class']
+            label = "" if self.labels[css_class] is None else self.labels[css_class]
+            subwidget["wrap_label"] = True                
+            subwidget["label"] = label
             logger.debug(f"subwidget context {subwidget}")
         return context
 
