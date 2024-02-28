@@ -10,11 +10,18 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import sys
 from pathlib import Path
 import django
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Determine if this is running in mange.py
+if Path(sys.argv[0]).name == "manage.py":
+    lick_archive_in_manage=True
+else:
+    lick_archive_in_manage=False
 
 {% if archive_config == "ops" %}
 
@@ -38,10 +45,12 @@ DEBUG = True
 {% endif %}
 
 # Django can be accessed from localhost or it's external hostname/ip
-{% if 'backend' in group_names %}
+{% if host_type == 'backend' %}
 ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', '{{ groups['backend']|first }}', 'localhost']
-{% else %}
+{% elif host_type == 'frontend' %}
 ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', 'localhost']
+{% else %}
+ALLOWED_HOSTS = ['{{ groups['backend']|first }}', 'localhost']
 {% endif %}
 
 
@@ -110,6 +119,7 @@ DATABASES = {
                     'port': 5432 }, 
     }
 }
+SESSION_COOKIE_NAME = 'backend_sessionid'
 {% else %}
 DATABASES = {
     "default": {
@@ -117,6 +127,7 @@ DATABASES = {
         "NAME": "{{ django_db_name }}",
     }
 }
+SESSION_COOKIE_NAME = 'frontend_sessionid'
 {% endif %}
 
 
@@ -158,9 +169,10 @@ LOGGING = {
     'version':1,
     'disable_existing_loggers': False,
     'handlers': {
-        'django_log': {
+        'django_log': {            
             'class': 'logging.handlers.WatchedFileHandler',
-            'filename': '{{ django_log }}',   
+            # Command line runs of "manage.py" don't go to the application logs
+            'filename': '{{ django_log }}' if not lick_archive_in_manage else '{{ archive_log_dir }}/manage.log',   
 {% if archive_config == "ops" %}
             'level': 'INFO',
 {% else %}

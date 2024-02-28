@@ -312,28 +312,46 @@ Post Deployment Steps
 Backend Host
 ^^^^^^^^^^^^^
 
+Metadata Database
++++++++++++++++++
 On a fresh environment, the deployment will create the archive database but will not create the schema.
 This is to allow the administrator to restore a previous database or create a new one. 
 See :ref:`Database Administration <db_admin>` for how to do this.
 
+
+Django Database
++++++++++++++++
 The Django environment will also need to be created. Use these commands to do so::
 
+    $ source /opt/lick_archive/bin/activate
     $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
 
     # For new database only
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations archive_auth
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations ingest
+    $ ./manage.py makemigrations archive_auth
+    $ ./manage.py makemigrations ingest
 
     # For both new and updated
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate
+    $ ./manage.py migrate
+
+Admin Superuser
++++++++++++++++
+An admin superuser account should be created on a fresh installation of the archive::
+
+    $ source /opt/lick_archive/bin/activate
+    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
+    $ ./manage.py createsuperuser
 
 Frontend Host
 ^^^^^^^^^^^^^
 If using a separate frontend host, it will use a sqllite datebase to store session information. Use
 the following commands to initialize this::
 
+    $ source /opt/lick_archive/bin/activate
+    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
+
     # For new system installs only
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py makemigrations
+    $ ./manage.py makemigrations
+
     # For both new and updated system installs
-    $ sudo -u archive /opt/lick_archive/bin/python manage.py migrate
+    $ ./manage.py migrate
 

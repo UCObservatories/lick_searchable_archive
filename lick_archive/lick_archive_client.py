@@ -21,11 +21,12 @@ class LickArchiveClient:
     retry_max_time (int):              The maximum time to spend retrying a call.
     request_timeout (int):             The maximum time to wait for an API call to return before
                                        timing out and assuming it failed.
-    session (dict or dict-like):       Dict-like object for data for persisted in this session by persist()
-    ssl_verify (str):                  Optional. Path to a public key or CA bundle for SSL vberification.
+    request (django.http.HTTPRequest,Optional): Django request that initiated this call. Used to find login information when talking
+                                       to the archive.
+    ssl_verify (str, Optional):         Path to a public key or CA bundle for SSL vberification.
     
     """
-    def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, session={}, ssl_verify=None):
+    def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, request=None, ssl_verify=None):
     
         # The ingest URLs should have a / on it so the sync_query, or ingest_new_files part can be appended
         if archive_url[-1] == '/':
@@ -41,20 +42,27 @@ class LickArchiveClient:
         self.logged_in_user = None
         self._session = requests.Session()
 
-        login_session = session.get("login_session",None)
+        if request is not None:
+            # Transfer any persisted login information in a remote frontend scenario
+            if hasattr(request, "session") and "login_session" in request.session:
+                login_session = request.session["login_session"]
 
-        if login_session is not None:
-            try:
-                self._csrf_middleware_token = login_session['csrfmiddlewaretoken']
-                self.logged_in_user = login_session['username']
-                for cookie_name,cookie_value in login_session['cookies'].items():
+                if login_session is not None:
+                    try:
+                        self._csrf_middleware_token = login_session['csrfmiddlewaretoken']
+                        self.logged_in_user = login_session['username']
+                        for cookie_name,cookie_value in login_session['cookies'].items():
+                            self._session.cookies[cookie_name] = cookie_value
+                    except Exception as e:
+                        self._csrf_middleware_token = None
+                        self.logged_in_user = None
+                        self._session = requests.Session()
+                        logger.error(f"Failed to read login information from session, using a new session.",exc_info=True)                    
+            # In a local frontend scenarion, use the cookies in our request
+            else:
+                for cookie_name, cookie_value in request.COOKIES.items():
                     self._session.cookies[cookie_name] = cookie_value
-            except Exception as e:
-                self._csrf_middleware_token = None
-                self.logged_in_user = None
-                self._session = requests.Session()
-                logger.error(f"Failed to read login information from session, using a new session.",exc_info=True)                    
-
+    
     def login(self, username,password):
         """
         login to the archive API as a user.

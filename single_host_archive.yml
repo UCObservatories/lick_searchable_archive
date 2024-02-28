@@ -5,16 +5,20 @@
     - local_init
 
 - name: Deploys lick searchable archive to a single node
-  hosts: archive_main_server, webserver
+  hosts: backend
   roles:
     - common
     - admin_tools
     - database
     - archive_mount_nfs
+    - django_site
     - django_apps
-    - ingest_watchdog
     - webserver
-
+  tasks:
+    - name: Install services
+      include_role: 
+        name: "{{ item }}"
+      loop: "{{ services }}"
   handlers:
     - name: Restart celery
       ansible.builtin.systemd:

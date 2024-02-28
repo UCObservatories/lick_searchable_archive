@@ -1,7 +1,6 @@
 # Gunicorn systemd service config, adapted from https://docs.gunicorn.org/en/latest/deploy.html
 [Unit]
 Description=gunicorn daemon
-#Requires=gunicorn.socket
 After=network.target
 
 [Service]

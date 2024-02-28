@@ -56,7 +56,7 @@ class QueryForm(forms.Form):
                                required=False)
     coord  = QueryWithOperator(label="Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
                                class_prefix="search_terms_",
-                               fields=[AngleField(label="RA", default_unit="d", required=False),
+                               fields=[AngleField(label="RA", default_unit="hour", required=False),
                                        AngleField(label="DEC", default_unit="d", required=False)],                               
                                initial={"operator": None, "value": None},  
                                help_text=format_html('{}<p>{}<ul><li>{}</li><li>{}</li></ul>',

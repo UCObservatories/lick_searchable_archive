@@ -259,7 +259,7 @@ def index(request):
                     logger.info(f"Prefix: {prefix}")
                     logger.info(f"Contains: {contains}")
                     logger.info(f"Username: '{request.user.username}'")
-                    archive_client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5, session=request.session)
+                    archive_client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5, request=request)
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
                                                                            value = query_value,
