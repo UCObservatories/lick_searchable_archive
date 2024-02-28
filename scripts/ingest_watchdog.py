@@ -366,9 +366,10 @@ class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter
     writing_delay:  How long to wait (in seconds) after a file is created to send a close event.
     stat:           Function used to stat files.
     listdir:        Function used to scan directories.
+    event_filter:   Optional collection of :class:`watchdog.events.FileSystemEvent` to watch
     """
-    def __init__(self, event_queue, watch, timeout, writing_delay, stat=os.stat, listdir=os.scandir):
-        super().__init__(event_queue, watch, timeout, stat=logging_stat, listdir=logging_scandir)
+    def __init__(self, event_queue, watch, timeout, writing_delay, stat=os.stat, listdir=os.scandir, event_filter=None):
+        super().__init__(event_queue, watch, timeout, stat=logging_stat, listdir=logging_scandir, event_filter=event_filter)
         self._writing_delay = datetime.timedelta(seconds=writing_delay)
         self._file_modify_map = OrderedDict()
         self._file_modify_lock = threading.Lock()
