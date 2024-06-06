@@ -134,7 +134,7 @@
     - /pg_data/backups
 - name: Copy backup script
   ansible.builtin.copy: 
-    src: scripts/postgres_scripts/archive_db_backup.sh
+    src: "{{ archive_source_dir }}/scripts/postgres_scripts/archive_db_backup.sh"
     dest: /var/lib/postgresql/scripts/archive_db_backup.sh
     owner: postgres
     group: postgres
@@ -148,6 +148,15 @@
     user: postgres
     job: "/var/lib/postgresql/scripts/archive_db_backup.sh"
   become: yes
+- name: Copy lick schedule db credentials
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/sched_db_user_info.txt"
+    dest: "{{ archive_config_dir }}/sched_db_user_info.txt"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0660
+  become: yes
+  notify: "restart web services"
 - name: Install sync_archive_users cronjob
   ansible.builtin.cron:
     job: "{{ venv_root }}/bin/python {{ venv_root }}/bin/sync_archive_users.py --log_path {{ archive_log_dir }} --log_level {{ 'INFO' if archive_config == 'ops' else 'DEBUG' }} > /dev/null 2>&1"

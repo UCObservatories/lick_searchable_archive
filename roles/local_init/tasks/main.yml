@@ -3,7 +3,7 @@
 # to the remote
 - name: Find pycache directories
   ansible.builtin.find:
-    paths: "{{ playbook_dir }}"
+    paths: "{{ archive_source_dir }}"
     recurse: true
     file_type: directory
     patterns: __pycache__

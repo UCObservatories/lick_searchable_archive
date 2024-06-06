@@ -4,14 +4,11 @@ from astropy.io.fits.verify import VerifyWarning
 
 from pathlib import Path
 
-# Import test_utils to load the test archive configuration file
-import test_utils
-
-from lick_archive.metadata.reader import open_fits_file, read_row
-from lick_archive.data_dictionary import IngestFlags,Instrument
-
 
 def test_open_fits_file():
+    from lick_archive.metadata.reader import open_fits_file
+    from lick_archive.data_dictionary import IngestFlags
+
     test_data_dir = Path(__file__).parent / 'test_data'
 
     hdul, ingest_flags = open_fits_file(test_data_dir / '2012-01' / '18' / 'shane' / 'good_2012_01_18_r1002.fits')
@@ -59,17 +56,20 @@ def test_open_fits_file():
         hdul, ingest_flags = open_fits_file(test_data_dir / 'i_do_not_exist.fits')
 
 def test_read_row():
+    from lick_archive.metadata.reader import read_file
+    from lick_archive.data_dictionary import Instrument
+
     test_data_dir = Path(__file__).parent / 'test_data'
 
     with pytest.raises(ValueError, match = 'Unknown FITS file:'):
-        row = read_row(test_data_dir / 'not_from_lick_fits.fits' )
+        row = read_file(test_data_dir / 'not_from_lick_fits.fits' )
 
     with pytest.raises(ValueError, match = 'Unknown file format:'):
         with pytest.warns(VerifyWarning):
-            row = read_row(test_data_dir / 'not_fits_text.txt' )
+            row = read_file(test_data_dir / 'not_fits_text.txt' )
     
     with pytest.raises(FileNotFoundError):
-        row = read_row(test_data_dir / 'i_do_not_exist.fits')
+        row = read_file(test_data_dir / 'i_do_not_exist.fits')
 
-    row = read_row(test_data_dir / '2012-01' / '18' / 'shane' / 'good_2012_01_18_r1002.fits')
+    row = read_file(test_data_dir / '2012-01' / '18' / 'shane' / 'good_2012_01_18_r1002.fits')
     assert row.instrument ==  Instrument.KAST_RED

@@ -7,7 +7,7 @@ import datetime
 from pathlib import Path
 import os
 
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework.pagination import PageNumberPagination
@@ -22,6 +22,7 @@ from lick_archive.data_dictionary import Instrument
 from lick_archive.db.pgsphere import SCircle
 from lick_archive.django_utils import log_request_debug
 from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.authorization.date_utils import get_observing_night
 
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
@@ -399,9 +400,8 @@ class QueryAPIFilterBackend:
         filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'],
                                     request.validated_query.get('filters', None))
 
-        self._add_proprietary_access_filter(filters, request)
-
         queryset = queryset.filter(**filters)
+        self._add_proprietary_access_filter(queryset, request)
 
         # Add sort attributes if needed
         if request.validated_query['count'] is False and len(request.validated_query['sort']) > 0:
@@ -475,14 +475,24 @@ class QueryAPIFilterBackend:
 
         return filters
 
-    def _add_proprietary_access_filter(self, filters, request):
+    def _add_proprietary_access_filter(self, queryset, request):
         """Add a filter to enforce a proprietary access period.
         
         Args:
             filters (dict): A filter dictionary to add the  
         """
-        if not (request.user.is_authenticated and request.user.is_superuser):
-            filters['public_date__lte'] =  datetime.date.today()
+        if request.user.is_superuser:
+            # superusers get no filtering
+            return queryset
+        else:
+            public_date_filter = Q(public_date__lte = get_observing_night(datetime.datetime.now(tz=datetime.timezone.utc)))
+            if not request.user.is_authenticated:
+                # Unknown users can only see public data
+                return queryset.filter(public_date_filter)
+            else:
+                # Authorized users can also see their proprietary data.
+                authorized_user_filter = Q(user_access__file_id__exact = request.user.obid)
+                return queryset.filter(public_date_filter | authorized_user_filter)
 
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
         """Build a range filter for a field.

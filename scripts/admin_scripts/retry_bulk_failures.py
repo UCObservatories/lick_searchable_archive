@@ -10,7 +10,7 @@ from pathlib import Path
 from lick_archive.script_utils import setup_logging, get_unique_file
 from lick_archive.db.db_utils import create_db_engine, insert_one, check_exists
 from lick_archive.db.archive_schema import Main
-from lick_archive.metadata.reader import read_row
+from lick_archive.metadata.reader import read_file
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def retry_one_file(error_file, failed_file):
 
     try:
         logger.info(f"Reading metadata from {failed_file}.")
-        row = read_row(failed_file)
+        row = read_file(failed_file)
         logger.info(f"Finished reading metadata from {failed_file}.")
     except Exception as e:
         with open(error_file, "a") as f:

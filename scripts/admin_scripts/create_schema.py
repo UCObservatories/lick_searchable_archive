@@ -38,9 +38,11 @@ def main(args):
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_write_user))
         session.execute(text("GRANT SELECT, INSERT, UPDATE ON main TO " + args.read_write_user))
         session.execute(text("GRANT SELECT, UPDATE ON main_id_seq TO "  + args.read_write_user))
+        session.execute(text("GRANT SELECT, INSERT, UPDATE ON user_data_access TO " + args.read_write_user))
     if args.read_only_user is not None:
-        session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_write_user))
+        session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_only_user))
         session.execute(text("GRANT SELECT ON main TO " + args.read_only_user))
+        session.execute(text("GRANT SELECT ON user_data_access TO " + args.read_only_user))
 
     session.commit()
 

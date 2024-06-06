@@ -9,9 +9,9 @@ import enum
 from collections.abc import Mapping
 import copy
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, not_
 
-from django.db.models import F
+from django.db.models import F, Q
 
 from rest_framework.exceptions import APIException
 from rest_framework.serializers import ValidationError, BaseSerializer
@@ -114,10 +114,113 @@ class SQLAlchemyQuerySet:
         Raises:
         ValidationError: Thrown for unknown attribute names.
         """
-        if not hasattr(self._sql_alchemy_table, name):
-            raise ValidationError({error_field_name:f'Unknown field {name}.'})
+        if "." in name:
+            # A compound name
+            attr_names = name.split(".")
+        else:
+            attr_names = [name]
+        # Start with the base table and descend down the references if this is a compound name
+        table = self._sql_alchemy_table
+        for attr_name in attr_names:
+            if not hasattr(table, attr_name):
+                raise ValidationError({error_field_name:f'Unknown field {attr_name} in {table.__table__.name}.'})
+            table = getattr(table, name)
 
-        return getattr(self._sql_alchemy_table, name)
+        # The last reference should not be a table but rather the the desired attribute
+        return table
+
+
+    def _parse_filter_keyword_argument(self, filter):
+        """Parse the Django keyword argument style of query filter into an SQLAlchemy
+        expression.
+
+        Args:
+            filter (tuple): A tuple containing the keyword argument name and value.
+                                For example: ('id__gt', 100)
+
+        Return: An SQLAlchemy query expression.
+        """
+        # The expression should have a keyword argument name and a value
+        if not isinstance(filter, tuple) and len(filter) !=2:
+            logger.error(f"Unknown filter expression {filter}")
+            raise APIException("Failed building query.")
+        
+        key, value = filter
+
+        # Split the field and operator from the keyword argument name
+        filter_expression = key.split('__')
+        if len(filter_expression) == 3:
+            # A table join, we only support two levels deep
+            # e.g. Parent.child.attribute
+            field = ".".join(filter_expression[0:2])
+
+        elif len(filter_expression) == 2:
+             field = filter_expression[0]
+        else:
+            logger.error(f"Unknown filter expression {key} on value {value}")
+            raise APIException("Failed building query.")
+        logger.debug(f"Adding filter {filter_expression[0]} {filter_expression[1]} {value}")
+
+        # Convert the field name to an SQLAlchemy attribute
+        sql_alchemy_field = self._get_orm_attrib(field, "building query")
+
+        # Convert the operation to an SQL Alchemy expression
+        op = filter_expression[-1]
+
+        if op == "lt":
+            return sql_alchemy_field < value
+        elif op == "lte":
+            return sql_alchemy_field <= value
+        elif op == "gt":
+            return sql_alchemy_field > value
+        elif op == "in":
+            return sql_alchemy_field.in_(value)
+        elif op == "exact" or op == "iexact":
+            # Look for NULL entries if the value is None or an empty string
+            if value is None or (isinstance(value, str) and len(value.strip())==0):
+                return sql_alchemy_field.is_(None)
+            elif op == "iexact":
+                return func.lower(sql_alchemy_field) == func.lower(value)
+            else:
+                return sql_alchemy_field == value
+        elif op == "startswith":
+            return sql_alchemy_field.startswith(value, autoescape=True)
+        elif op == "istartswith":
+            return sql_alchemy_field.istartswith(value, autoescape=True)
+        elif op == "contains":
+            return sql_alchemy_field.contains(value, autoescape=True)
+        elif op == "icontains":
+            return sql_alchemy_field.icontains(value, autoescape=True)
+        elif op == "range":
+            return sql_alchemy_field.between(value[0], value[1])
+        elif op == "contained_in":
+            return sql_alchemy_field.op("<@")(value)
+        else:
+            logger.error(f"Unknown filter op {op} in key {key} on value {value}")
+            raise APIException("Failed building query.")
+    
+    def _parse_q_expression(self, expression):
+
+        # Recursively parse the child expressions
+        subexpressions = [self._parse_filter_keyword_argument(child) if isinstance(child,tuple) else self._parse_q_expression(child) for child in expression.children]
+
+        if len(subexpressions) == 0:
+            logger.error("Empty Q expression")
+            raise APIException("Failed building query.")
+
+        elif len(subexpressions) == 1:
+            # If there's one child just return it, possibly negated
+            if expression.negated:
+                return not_(subexpressions[0])
+            else:
+                return subexpressions[0]
+            
+        else:
+            if expression.connector != 'OR':
+                logger.error("Only OR is currently supported in Q expressions.")
+                raise APIException("Failed building query.")
+            return or_(*subexpressions)
+
 
     def order_by(self, sort_fields=[]):
         """Returns a new QuerySet ordered by the given sort fields.
@@ -160,10 +263,13 @@ class SQLAlchemyQuerySet:
         else:
             return False
 
-    def filter(self, **kwargs):
+    def filter(self, *args, **kwargs):
         """Return a copy of this QuerySet with the passed in filters applied.
         
         Args:
+        args (list):    Django Q expressions used for a more complex query. These are
+                        AND'd alongside the other filters, although the individual expressions
+                        can contain an OR.
         kwargs (dict):  This method supports a subset of the Django filter keyword arguments. Specifically
                         <field>__lt, <field>__gt, <field>__exact, <field>__startswith,
                         and <field>__range.
@@ -177,57 +283,14 @@ class SQLAlchemyQuerySet:
                                              result_attributes=self.result_attributes, 
                                              where_filters=copy.copy(self.where_filters), 
                                              sort_attributes=self.sort_attributes)
-        for key in kwargs:
-            # Go through the keyword argument and split the field name from the operation
-            filter_expression = key.split('__')
-            if len(filter_expression) != 2:
-                logger.error(f"Unknown filter expression {key} on value {kwargs[key]}")
+        for expression in args:
+            if not isinstance(expression, Q):
+                logger.error(f"Unknown Q expression {expression}")
                 raise APIException("Failed building query.")
-            logger.debug(f"Adding filter {filter_expression[0]} {filter_expression[1]} {kwargs[key]}")
+            return_queryset.where_filters.append(self._parse_q_expression(expression))
 
-            # Convert the field name to an SQLAlchemy attribute
-            field = filter_expression[0]
-            if not hasattr(self._sql_alchemy_table, field):
-                logger.error(f"Unknown filter field {field} in key {key} on value {kwargs[key]}")
-                raise APIException("Failed building query.")
-            sql_alchemy_field = self._get_orm_attrib(field, "building query")
-
-            # Convert the operation to an SQL Alchemy expression
-            op = filter_expression[1]
-            value = kwargs[key]
-
-            if op == "lt":
-                return_queryset.where_filters.append(sql_alchemy_field < value)
-            elif op == "lte":
-                return_queryset.where_filters.append(sql_alchemy_field <= value)
-            elif op == "gt":
-                return_queryset.where_filters.append(sql_alchemy_field > value)
-            elif op == "in":
-                return_queryset.where_filters.append(sql_alchemy_field.in_(value))
-            elif op == "exact" or op == "iexact":
-                # Look for NULL entries if the value is None or an empty string
-                if kwargs[key] is None or (isinstance(value, str) and len(value.strip())==0):
-                    return_queryset.where_filters.append(sql_alchemy_field.is_(None))                
-                elif op == "iexact":
-                    return_queryset.where_filters.append(func.lower(sql_alchemy_field) == func.lower(value))
-                else:
-                    return_queryset.where_filters.append(sql_alchemy_field == value)
-            elif op == "startswith":
-                return_queryset.where_filters.append(sql_alchemy_field.startswith(value, autoescape=True))
-            elif op == "istartswith":
-                return_queryset.where_filters.append(sql_alchemy_field.istartswith(value, autoescape=True))
-            elif op == "contains":
-                return_queryset.where_filters.append(sql_alchemy_field.contains(value, autoescape=True))
-            elif op == "icontains":
-                return_queryset.where_filters.append(sql_alchemy_field.icontains(value, autoescape=True))
-            elif op == "range":
-                return_queryset.where_filters.append(sql_alchemy_field.between(value[0], value[1]))
-            elif op == "contained_in":
-                return_queryset.where_filters.append(sql_alchemy_field.op("<@")(value))
-            else:
-                logger.error(f"Unknown filter op {op} in key {key} on value {kwargs[key]}")
-                raise APIException("Failed building query.")
-
+        for key, value in kwargs.items():
+            return_queryset.where_filters.append(self._parse_filter_keyword_argument((key,value)))
         return return_queryset
 
     def values(self, *fields, **expressions):

@@ -5,11 +5,11 @@ logger = logging.getLogger(__name__)
 from lick_archive.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-from lick_archive.sched_db import ScheduleDB
+from lick_archive.lick_schedule import ScheduleDB
 
 
 def test_get_observers():
-    sched_db = ScheduleDB(lick_archive_config)
+    sched_db = ScheduleDB()
 
     observers = sched_db.get_observers()
 

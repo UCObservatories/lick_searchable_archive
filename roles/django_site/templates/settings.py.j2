@@ -64,7 +64,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
 {% if "archive_admin" in archive_apps or "archive_auth" in archive_apps %}
     # For the admin page
-    'django.contrib.admin',
+    'django.contrib.admin.apps.SimpleAdminConfig',
 {% endif %}
 {% if "backend" in group_names %}
     'rest_framework',

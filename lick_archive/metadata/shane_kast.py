@@ -6,7 +6,7 @@ from datetime import datetime
 import logging
 
 from lick_archive.metadata.abstract_reader import AbstractReader
-from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_date, get_shane_lamp_status, get_ra_dec
+from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_name, get_shane_lamp_status, get_ra_dec
 from lick_archive.db.archive_schema import  Main
 from lick_archive.data_dictionary import FrameType, IngestFlags, Instrument, Telescope
 
@@ -166,7 +166,7 @@ class ShaneKastReader(AbstractReader):
         date_obs = safe_header(header, 'DATE-OBS')
         if date_obs is None:
             logger.debug(f"Used file path for date for file {file_path}.")
-            filename_date = parse_file_date(file_path)
+            filename_date, instr = parse_file_name(file_path)
             # Use noon Lick time (aka UTC-8)
             m.obs_date = datetime.strptime(f"{filename_date}T12:00:00-08:00", '%Y-%m-%dT%H:%M:%S%z')
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE

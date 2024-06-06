@@ -4,95 +4,10 @@ Common utility functions for reading metadata from fits files
 
 import logging
 logger = logging.getLogger(__name__)
-import calendar
-from datetime import date, timedelta, datetime
-
+from pathlib import Path
+from datetime import date
 from lick_archive.db.pgsphere import SPoint
 from astropy.io import fits
-
-
-
-def calculate_public_date(file_date : date|datetime, proprietary_period : str) -> date:
-    """Calculate the date a file's proprietary period 
-    expires given it's date and the proprietary period.
-    
-    This function attempts to be friendly in terms of how the propreitary
-    period is specified. It attempts to do intuitive arithmetic 
-    by years or months, and accepts units as singular or plural strings.
-
-    For example::
-
-        2023-01-01 + "1 month"  = 2023-02-01
-        2024-01-31 + "1 month"  = 2024-03-01  # Skip to next month because Feb 2024 doesn't have 31 days
-        2024-01-31 + "2 months" = 2024-03-31
-        2024-02-29 + "1 years"  = 2025-03-01  # Feb 2025 is not a leap year, so skip to the next month
-        2024-02-29 + "4 years"  = 2028-02-29  
-
-    Args:
-        file_date:  The observation date of the file.
-        period:     The proprietary period as a string. The format of this string is "<n> <units>" where
-                    n is an integer, and <units> is one of "years", "year", "month", "months", "days", "day".
-                    Units is case insensitive.
-
-    Return:
-        The date the files becomes public.
-    """
-
-    if isinstance(file_date, datetime):
-        file_date = file_date.date()
-
-    # Parse out the period and units
-    period_list = proprietary_period.split()
-    if len(period_list) !=2:
-        raise ValueError(f"Invalid proprietary period {proprietary_period}")
-    
-    try:
-        period = int(period_list[0])
-    except ValueError:
-        raise ValueError(f"Proprietary period does not contain a valid positive integer {proprietary_period}")
-
-    if period < 1:
-        raise ValueError(f"Proprietary period must be a positive integer {proprietary_period}")            
-
-    units=period_list[1]
-
-    # If the units are in days, just use the built intimedelta
-    if units.lower() in ['days', 'day']:
-        return file_date + timedelta(days=period)
-    else:
-        # Figure out the total # of years and months in the period
-        if units.lower() in ['years', 'year']:
-            period_years = period
-            period_months = 0
-        elif units.lower() in ['months', 'month']:
-            period_years = int(period/12)
-            period_months = period%12
-        else:
-            raise ValueError(f"Incorrect proprietary period units given: {proprietary_period}")
-
-        public_year = file_date.year + period_years
-        public_month = file_date.month + period_months
-
-        # Wrap months around to the next year
-        if public_month > 12:
-            public_year += 1
-            public_month -= 12
-
-        # Make sure the date isn't beyond the end of the month
-        # I wasn't sure how to handle this, so I decided to make it
-        # the first of the next month, so that Feb 29
-        # is handled as March 1st on subsequent non-leap years
-        weekday_of_first, days_in_month = calendar.monthrange(public_year,public_month)
-        if file_date.day > days_in_month:
-            public_day = 1
-            public_month += 1
-            if public_month==13:
-                public_year += 1
-                public_month = 1
-        else:
-            public_day = file_date.day
-
-        return date(year=public_year, month=public_month, day=public_day)
 
 
 def safe_header(header, key):
@@ -107,14 +22,17 @@ def safe_strip(string_or_none):
     if string_or_none is not None:
         return string_or_none.strip()
 
-def parse_file_date(filename):
+def parse_file_name(filename : Path | str):
     """
-    Parse lick archive filenames to get the date of the file was stored under.
+    Parse lick archive filenames to get the date and instrument from the path the file was stored under.
     The format of the filename is expected to be 'YYYY-MM/DD/instrument/file
     """
+    if isinstance(filename, str):
+        filename = Path(str)
     day = filename.parent.parent.name
     year_month = filename.parent.parent.parent.name
-    return f'{year_month}-{day}'
+    instr = filename.parent.name
+    return f'{year_month}-{day}', instr
 
 def get_shane_lamp_status(header):
     """Translate the LAMPSTAX header keywords in shane files to an array

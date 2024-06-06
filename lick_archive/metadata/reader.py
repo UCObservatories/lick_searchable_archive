@@ -4,6 +4,7 @@ Reads metadata from files for ingest into the archive.
 import logging
 from pathlib import Path
 import sys
+from datetime import datetime, timezone
 
 from lick_archive.metadata.abstract_reader import AbstractReader
 from astropy.io import fits
@@ -17,7 +18,7 @@ from lick_archive.metadata import metadata_utils
 from lick_archive.data_dictionary import IngestFlags
 from lick_archive.db.archive_schema import Main
 from lick_archive.archive_config import ArchiveConfigFile
-
+from lick_archive.authorization import user_access
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 logger = logging.getLogger(__name__)
@@ -97,15 +98,15 @@ def open_fits_file(file_path):
 
 
 
-def read_row(file_path):
+def read_file(file_path):
     """
-    Read a row of metadata from a file.
+    Reads metadata from a file.
         
     Args:
-    file_path (pathlib.Path, or str):
-        The path of the file to read. This should be in the Lick Archive directory
-        format (YYYY-MM/DD/<instrument>/<file>), as the directory name may be used
-        to help identifying the instrument that created the file.
+        file_path (pathlib.Path, or str):
+            The path of the file to read. This should be in the Lick Archive directory
+            format (YYYY-MM/DD/<instrument>/<file>), as the directory name may be used
+            to help identifying the instrument that created the file.
     """
     if isinstance(file_path, str):
         file_path = Path(file_path)
@@ -120,13 +121,6 @@ def read_row(file_path):
                 # supported for ingest
                 raise ValueError(f"Unknown FITS file: {file_path}")
 
-            # Set the file size row
-            try:
-                st_info = file_path.stat() if not file_path.is_symlink() else file_path.lstat()
-                row.file_size = st_info.st_size
-            except Exception as e:
-                logger.error(f"Failed to get filesize for {file_path}, leaving as None",exc_info=True)
-                row.file_size = None
             return row
         else:
             # When non-fits file formats are supported, they would be dealt with here
@@ -166,18 +160,19 @@ def read_hdul(file_path, hdul, ingest_flags):
     # if it can
     for child in AbstractReader.__subclasses__():
         if child.can_read(file_path, hdul):
-            row = child().read_row(file_path, hdul, ingest_flags)
-            populate_auth_data(row)
-            return row
+            row = child().read_row(file_path, hdul, ingest_flags)            
+
+            # Try to set the file size and mtime, but leave them as None if needed
+            try:
+                st_info = file_path.stat() if not file_path.is_symlink() else file_path.lstat()
+                row.file_size = st_info.st_size
+                row.mtime = datetime.fromtimestamp(st_info.st_mtime)
+            except Exception as e:
+                logger.warning(f"Failed to get file size/modification time info for {file_path}, leaving as None",exc_info=True)
+                row.file_size = None
+                row.mtime = None
+
+            return user_access.set_auth_metadata(row)
 
     return None
 
-def populate_auth_data(row : Main) -> None:
-    """Populate the database row for a file with authorizatin information.
-    Currently this just uses a default proprietary period.
-    
-    Args:
-        row: The SQLAlchemy database row for the file.
-    """
-    
-    row.public_date = metadata_utils.calculate_public_date(row.obs_date, lick_archive_config.ingest.default_proprietary_period)

@@ -8,7 +8,7 @@
   become_user: "{{ archive_service_user }}"
 - name: Copy admin scripts
   ansible.builtin.copy: 
-    src: scripts/admin_scripts/
+    src: "{{ archive_source_dir }}/scripts/admin_scripts/"
     dest: "{{ venv_root }}/bin/"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"

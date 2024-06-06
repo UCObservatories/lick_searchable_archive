@@ -32,6 +32,8 @@ Code Quality
 * Have a "http" debug level that spews out header/cookie/session info on requests, but
   is disabled by default to stop spewage to logs? Or is "debug" enough.
 * Update ingest_watchdog to use new configuration class.
+* Improve script consistency regarding main() and get_parser. 
+* Cleanup script argparse help output
 
 API Cleanup
 -----------

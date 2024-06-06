@@ -8,6 +8,8 @@ db_query_user: archive_query
 db_ingest_user: archive_ingest
 python_version: "3.10"
 package_install_dir: "{{ venv_root }}/lib/python{{ python_version }}/site-packages"
+kroot: /opt/kroot/rel/default/
+lroot: /usr/local/lick/
 archive_log_dir: "/var/log/lick_archive"
 archive_config_dir: "{{ venv_root }}/etc"
 log_rotate_frequency: weekly

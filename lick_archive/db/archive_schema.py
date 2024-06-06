@@ -3,9 +3,9 @@ Uses SQL Alchemy's ORM
 """
 from enum import Enum as PythonEnum
 from datetime import datetime, date
-
+from typing import List
 from sqlalchemy import Column, Float, String, Integer, Table, BigInteger, ForeignKey, Date, TIMESTAMP, Text
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase,relationship, Mapped
 from sqlalchemy import Index
 from sqlalchemy import Enum as SqlAlchemyEnum
 
@@ -14,23 +14,21 @@ from astropy.coordinates import SkyCoord
 
 from lick_archive.db.pgsphere import SPoint
 from lick_archive.db.bitstring import BitString
-from lick_archive.data_dictionary import data_dictionary, IngestFlags, LargeInt, LargeStr
+from lick_archive.data_dictionary import data_dictionary, IngestFlags, LargeInt, LargeStr, MAX_PUBLIC_DATE
 
 
 class Base(DeclarativeBase):
     pass
 
 
-version = 1.0
-
 # We build the Main table using SQL Alchemy's Core API so we can build it from the data dictionary
 
 _primary_key = "id"
 _unique = ['filename']
-_required = ['filename', 'telescope', 'instrument', 'obs_date', 'frame_type', 'public_date']
+_required = ['id', 'filename', 'telescope', 'instrument', 'obs_date', 'frame_type', 'public_date']
 
 # Define a default publication date far into the future, for help migrating existing data without a date
-_defaults = {'public_date': date(9999,12,31).isoformat()}
+_defaults = {'public_date': MAX_PUBLIC_DATE.isoformat()}
 
 def _map_type(python_type):
     type_map = {int :        Integer,
@@ -63,6 +61,7 @@ main = Table("main", Base.metadata,*main_columns)
 
 class Main(Base):
     __table__ = main
+    user_access: Mapped[List["UserDataAccess"]] = relationship(back_populates="file_metadata")    
 
 Index('index_m_obs_date', Main.obs_date)
 Index('index_m_instrument', Main.instrument)
@@ -71,28 +70,12 @@ Index('index_m_frame', Main.frame_type)
 Index('index_m_coord', Main.coord, postgresql_using='gist')
 
 
-class VersionHistory(Base):
-    __tablename__ = 'version_history'
-
-    id = Column(Integer, primary_key=True)
-    version = Column(String)
-    event = Column(String)
-    install_date = Column(TIMESTAMP(True))
-
-Index('index_vh_install_date', VersionHistory.install_date)
-
 class UserDataAccess(Base):
     __tablename__ = "user_data_access"
 
     file_id = Column(ForeignKey("main.id"), primary_key=True)
     obid = Column(Integer, primary_key=True)
-    reason = Column(String)
-"""
-class CoverDataAccess(Base):
-    __tablename__ = "cover_data_access"
+    reason = Column(Text)
 
-    file_id = Column(ForeignKey("main.id"), primary_key=True)
-    cover_id = Column(String, primary_key=True)
-    reason = String()
-"""
+    file_metadata: Mapped[Main] = relationship(back_populates="user_access")
 

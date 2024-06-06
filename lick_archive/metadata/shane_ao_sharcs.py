@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy import cast
 
 from lick_archive.metadata.abstract_reader import AbstractReader
-from lick_archive.metadata.metadata_utils import safe_header, parse_file_date, get_shane_lamp_status, get_ra_dec, calculate_public_date
+from lick_archive.metadata.metadata_utils import safe_header, parse_file_name, get_shane_lamp_status, get_ra_dec
 from lick_archive.db.archive_schema import  Main
 from lick_archive.data_dictionary import FrameType, IngestFlags, Telescope, Instrument
 
@@ -31,8 +31,8 @@ class ShaneAO_ShARCS(AbstractReader):
 
         Returns (bool): True if the file is ShaneAO/Sharcs data, False if it is not.
         """
-        if "AO" in str(file_path.parent):
-            filename_date = parse_file_date(file_path)
+        filename_date, instr = parse_file_name(file_path)
+        if instr == "AO":
             file_date_parts = filename_date.split("-")
             file_date = date(year=int(file_date_parts[0]), month=int(file_date_parts[1]), day=int(file_date_parts[2]))
             # Based inspecting data in the archive, there's no ShARCS data before april 2014
@@ -134,7 +134,7 @@ class ShaneAO_ShARCS(AbstractReader):
         # Check for weird out of sync DATE-OBS
         if m.obs_date is None:
             ingest_flags = ingest_flags | IngestFlags.AO_NO_DATE_BEG
-            filename_date = parse_file_date(file_path)
+            filename_date, instr = parse_file_name(file_path)
             date_obs = safe_header(header, 'DATE-OBS')
             if date_obs is not None and date_obs == filename_date:
                 time_obs = safe_header(header, 'TIME-OBS')

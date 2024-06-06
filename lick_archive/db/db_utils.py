@@ -2,10 +2,14 @@
 Helper functions for working with databases via SQL Alchemy
 """
 
-from pathlib import Path
+from collections.abc import Iterator, Sequence, Mapping
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Callable
 
-from sqlalchemy import create_engine, select, func, inspect, update
+from sqlalchemy import create_engine, Engine, select, func, inspect, update, Result
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.sql.expression import Select
 import psycopg2
 from tenacity import retry, stop_after_delay, wait_exponential, retry_if_not_exception_type, after_log
 
@@ -13,6 +17,77 @@ from lick_archive.db.archive_schema import Main
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class BatchedDBOperation():
+    def __init__(self, engine : Engine, batch_size : int):
+        self.engine = engine
+        self.batch_size = batch_size
+        self._batch = []
+        self.success = 0
+        self.success_retries = 0
+        self.total = 0
+        self.failures=[]
+        self.session = open_db_session(self.engine)
+
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type,exc_val,exc_tb):
+        self.flush()
+        return False
+
+
+    def insert(self, new_metadata):
+        self.total += 1
+        self._batch.append((insert_file_metadata,{"row": new_metadata},"insert"))
+        if len(self._batch) >= self.batch_size:
+            self.flush()            
+
+    def update(self, id, new_metadata):
+        self.total += 1
+        self._batch.append((update_file_metadata,{"id": id, "row": new_metadata},"update"))
+        if len(self._batch) >= self.batch_size:
+            self.flush()            
+
+    def flush(self):
+        retry=False
+        with self.session.begin():
+            try:
+                for callable, kwargs, op_type in self._batch:
+                    callable(self.session, **kwargs)
+                self.session.commit()
+                self.success+=len(self._batch)
+            except Exception as e:
+                try:
+                    self.session.rollback()
+                except Exception as e:
+                    logger.error(f"Failed rolling back batch, continuing to retry.", exc_info=True)
+                retry=True
+
+        if retry:
+            self._retry_batch()
+
+        self._batch = []
+  
+    def _retry_batch(self):
+        # Start with a new session
+        try:
+            for callable, kwargs, op_type in self._batch:            
+                self.session = open_db_session(self.engine)
+                with self.session.begin():                       
+                    try:
+                        callable(self.session, **kwargs)
+                        self.session.commit()
+                        self.success += 1
+                        self.success_retries += 1
+                    except Exception as e:
+                        self.failures.append((kwargs["row"].filename,op_type,f"{e.__class__.__name__}: {e}"))
+                        logger.error("Failed retrying individual operation.", exc_info=True)
+                        self.session.rollback()
+        except Exception as e:
+            logger.error("Failed retrying entire batch.", exc_info=True)
+
 
 @retry(reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
 def create_db_engine(user='archive', database='archive',url=None):
@@ -41,67 +116,34 @@ def open_db_session(engine):
     return session
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def insert_one(engine, row):
+def insert_file_metadata(session : Session, row : Main):
     """
     Insert one row of metadata using a new database session. This function uses exponential backoff
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
     will never succeed.
     """
     logger.info(f"Inserting row.")
-    session = open_db_session(engine)
     session.add(row)
-    session.commit()
     logger.debug("Row inserted")
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def update_one(engine, row, attributes):
+def update_file_metadata(session : Session, id: int, row : Main):
     """
-    Updates one row of metadata using a new database session. This function uses exponential backoff
+    Updates one row of metadata using a database session. This function uses exponential backoff
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
     will never succeed.
     """
     logger.info(f"Updating row.")
-    session = open_db_session(engine)
     table = row.__class__
+    attributes = [attr for attr in dir(table) if attr != "id" and not attr.startswith("_")]
     values = {attr: getattr(row, attr) for attr in attributes}
-    stmt = update(row.__class__).where(table.id == row.id).values(**values)
+    stmt = update(row.__class__).where(table.id == id).values(**values)
      
     session.execute(stmt)
-    session.commit()
     logger.debug("row updated.")
 
 
-@retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def insert_batch(session, batch):
-    """Insert a batch of metadata using a database session. This function uses exponential backoff
-    retries for deailing with database issues. We do not retry UniqueViolations because such a failure
-    will never succeed."""
-    logger.info(f"Inserting batch of length {len(batch)}")
-    session.bulk_save_objects(batch)
-    session.commit()
-    logger.debug("Batch inserted.")
 
-@retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError) & retry_if_not_exception_type(AttributeError),
-       reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), 
-       after=after_log(logger, logging.DEBUG))
-def update_batch(session, batch, attributes):
-    """Update a batch of metadata using a database session. This function uses exponential backoff
-    retries for deailing with database issues. We do not retry exceptions that will never succeed.
-    
-    Args:
-        session (:obj:`sql.alchemy.orm.session.Session`): The database session to use.
-        batch (list of Any): List of mapped SQL Alchemy objects to update
-        attributes (list of str): The attribute names to update. The primary key must be in this list.
-
-    """
-    logger.info(f"Updating batch of length {len(batch)}")
-
-    if len(batch) > 0:
-        # We need to convert each object to a dict
-        batch_for_update = [{attr: getattr(metadata, attr) for attr in attributes} for metadata in batch]
-        session.execute(update(batch[0].__class__), batch_for_update)
-        session.commit()
-        logger.debug("Batch updated.")
 
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
@@ -161,22 +203,22 @@ def convert_object_to_dict(mapped_object):
     i = inspect(mapped_object)
     return {key: getattr(mapped_object, key) for key in i.attrs.keys()}
 
-def get_file_metadata(session : Session, file : str | Path) -> Main | None:
-    """Return the metadata for a single file.
-    
+@retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
+def get_single_result(results : Result) -> Main:
+    """Wraps fetching a result from a query in a retryable function"""
+
+    result = results.fetchone()
+    return None if result is None else result[0]
+
+def find_file_metadata(session : Session, query : Select) -> Iterator[Main]:
+    """Return the metadata for files matching a query.
+
     Args:
         session: The SQLAlchemy session to use for querying the database.
-        file:    The full path of the file
+        query:   An SQL Alchemy query to query with.
         
-    Return: The metadata object for the file, or None if the file didn't exist.
+    Return: An iterator for the metadata objects in the database.
     """
 
-    stmt = select(Main).where(Main.filename == str(file))
-
-    results = list(execute_db_statement(session, stmt).scalars())
-    if len(results) > 1:
-        raise ValueError(f"File {file} was not unique in the database!")
-    elif len(results) == 0:
-        return None
-    else:
-        return results[0]
+    with execute_db_statement(session, query) as results:
+        yield get_single_result(results)

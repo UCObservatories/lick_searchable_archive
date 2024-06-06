@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 from lick_archive.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-from lick_archive.sched_db import ScheduleDB
+from lick_external.sched_db import ScheduleDB
 
 # Setup django before importing any django classes
-from lick_archive.script_utils import setup_django, setup_django_logging
+from lick_archive.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from django.db import transaction
@@ -51,7 +51,7 @@ def main(args):
 
     # Get the users from the schedule database
     try:
-        sched_db_client = ScheduleDB(lick_archive_config)
+        sched_db_client = ScheduleDB()
         sched_users = sched_db_client.get_observers()
     except Exception as e:
         logger.error(f"Failed to connect to schedule db.", exc_info=True)

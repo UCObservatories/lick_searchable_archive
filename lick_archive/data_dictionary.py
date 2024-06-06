@@ -43,6 +43,8 @@ class FrameType(enum.Enum):
     bias    = "bias"
     science = "science"
     arc     = "arc"
+    calib   = "calibration"
+    focus   = "focus"
     unknown = "unknown"
 
 class IngestFlags(enum.IntFlag):
@@ -60,12 +62,31 @@ class IngestFlags(enum.IntFlag):
     INVALID_CHAR        = 1024     # An invalid character (such as '\x00') was found in the header.
 
 class Telescope(enum.Enum):
-    SHANE = "Shane"
+    SHANE  = "Shane"
+    APF    = "APF"
+    NICKEL = "Nickel"
 
 class Instrument(enum.Enum):
-    KAST_RED =  "Kast Red"
+    # If the values for these enum's change, the values in archive_config.ini also need to be changed.
+    # TODO, merge Kast Red/Kast Blue?
+    KAST_RED  = "Kast Red"
     KAST_BLUE = "Kast Blue"
-    SHARCS =    "ShaneAO/ShARCS"
+    SHARCS    = "ShaneAO/ShARCS"
+    ALL_SKY   = "All Sky"
+    AO_SAMPLE = "AOsample"
+    AO_TEL    = "AOtelemetry"
+    APF_CAM   = "APF Cam"
+    APF       = "APF"
+    APF_GUIDE = "APF Guide"
+    CAT       = "CAT"
+    GEMINI    = "Gemini"
+    HAM120    = "Ham 120"
+    HAM_CAM1  = "HamCam 1"
+    HAM_CAM2  = "HamCam 2"
+    NICKEL    = "Nickel"
+    PEAS      = "PEAS"
+    PFCAM     = "PF Cam"
+    SKYCAM2   = "SkyCam 2"
 
 # Constants to prevent typos in group names
 class Category(OrderedEnum):
@@ -82,6 +103,9 @@ class LargeStr(str):
     """A string that is too large for a standard database ``varchar`` type."""
     pass
 
+
+MAX_PUBLIC_DATE = date(9999, 12, 31)
+MIN_PUBLIC_DATE = date(1970, 1, 1)
 
 data_dictionary = Table(names=[     'db_name',            'human_name',               'type',      'category',                 'description'],
                         dtype=[     '<U63',               'U',                        'O',         Category,                        'U'],
@@ -103,6 +127,7 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['observer',           'Observers',                str,         Category.COMMON,      'The name or names of the person taking the observation.'],
                                    ['ingest_flags',       'Ingest Bit Flags',         IngestFlags, Category.COMMON,      'A bit field value indicating any issues during ingest. See TBD.'],
                                    ['file_size',          'File size',                LargeInt,    Category.COMMON,      'The size of the file (in bytes).'],
+                                   ['mtime',              'File Modification Time',   datetime,    Category.COMMON,      'The date and time the file was last modified.' ], 
                                    ['public_date',        'Date File Becomes Public', date,        Category.COMMON,      'The date the file became/will become accesible to the public.'],
                                    ['header',             'Header',                   LargeStr,    Category.COMMON,      'The full header information from the file in plain text format.'],
                                    ['slit_name',          'Slit Name',                str,         Category.SHANE_KAST,  'The slit name.'],

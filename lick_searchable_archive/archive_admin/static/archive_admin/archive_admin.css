@@ -3,3 +3,8 @@
 .timezonewarning {
     display: none;
 }
+
+/* Override width on inline labels so that radio box lists look right */
+.inline-group .aligned label {
+    width: auto;
+}

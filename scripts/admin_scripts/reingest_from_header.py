@@ -3,147 +3,115 @@
 import argparse
 import sys
 from pathlib import Path
-from datetime import date, datetime, timezone
-import re
+from datetime import datetime, timezone
+from functools import partial
+
 import logging
+logger = logging.getLogger(__name__)
 
-from sqlalchemy import select
-
-from lick_archive.data_dictionary import data_dictionary, IngestFlags
+from lick_archive.data_dictionary import IngestFlags
 from lick_archive.db.archive_schema import Main
 
+# Setup django before importing any django files
+from lick_archive.django_utils import setup_django, setup_django_logging
+setup_django()
+
 from lick_archive.metadata.reader import read_hdul
-from lick_archive.db.db_utils import create_db_engine, open_db_session, execute_db_statement, update_batch
-from lick_archive.script_utils import setup_logging
+from lick_archive.db.db_utils import create_db_engine, update_file_metadata, BatchedDBOperation
+from lick_archive.script_utils import get_log_path, get_unique_file
+from lick_archive import resync_utils
 from lick_archive.metadata.metadata_utils import get_hdul_from_string
 
-logger = logging.getLogger(__name__)
+
+
 
 def get_parser():
     """
     Parse command line arguments with argparse.
     """
-    parser = argparse.ArgumentParser(description='Re-ingest metadata for files using the header data already in the database.',
-                                     epilog="Example:\n    $ echo \"select id from main where filename like '/data/data/2019-05/14%';\" | psql -U -f - > id_file.txt\n    $ reingest_from_header.py id_file.txt\n", 
-                                     formatter_class=argparse.RawDescriptionHelpFormatter, exit_on_error=True)
-    parser.add_argument("id_file", type=str, help="File name of a file with the database ids to update.")
+    parser = argparse.ArgumentParser(description='Re-ingest metadata for files using the header data already in the database.')
+
+    parser.add_argument("--id_file", type=Path, help="File name of a file with the database ids to update.")
+    parser.add_argument("--ids", type=str, help="File name of a file with the database ids to update.")
+    parser.add_argument("--files", type=str, help="File name of a file with the database ids to update.")
+    parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all.')
+    parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')   
     parser.add_argument("--db_name", default="archive", type=str, help = 'Name of the database to update. Defaults to "archive"')
     parser.add_argument("--db_user", default="archive", type=str, help = 'Name of the database user. Defaults to "archive"')
     parser.add_argument("--batch_size", type=int, default=10000, help='Number of rows to update in the database at once, defaults to 10,000')
     parser.add_argument("--log_path", "-l", type=str, help="Directory to write log file to." )
     parser.add_argument("--log_level", "-L", type=str, choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"], default="DEBUG", help="Logging level to use.")
     return parser
-
-def rebuild_metadata_batch(db_engine, batch):
-    """
-    Rebuild the SQLAlchemy database object for each file in a batch.
-
-    Args:
-        db_engine (:obj:`sqlalchemy.engine.Engine`): The database engine to query the header information from.
-        batch (list of int): The database ids of the files to rebuild.
-
-    Return:
-        list of dict: The rebuilt metadata for each file in batch. If there are any errors,
-                      this list might be smaller than the original batch. 
-    """
-    metadata_batch = []
-
-    session=open_db_session(db_engine)
-    query = select(Main.id, Main.filename, Main.ingest_flags, Main.header).where(Main.id.in_(batch))
-    results = execute_db_statement(session, query).all()
-    logger.info(f"Regenerating metadata for {len(results)}")
-    for row in results:
-        try:
-            hdul = get_hdul_from_string([row.header])
-        except Exception as e:
-            logger.error(f"Failed to get hdul from header string for {row.id} / {row.filename}", exc_info=True)
-            continue
-
-        ingest_flags = IngestFlags(int(row.ingest_flags,2))
-        # Turn off flags not related to opening the fits file, so they can be reset by the re-reading of the header
-        ingest_flags &= (IngestFlags.NO_FITS_END_CARD | IngestFlags.NO_FITS_SIMPLE_CARD | IngestFlags.FITS_VERIFY_ERROR | IngestFlags.INVALID_CHAR)
-        try:
-            metadata = read_hdul(row.filename, hdul, ingest_flags)
-
-            # Make sure the new metadata object knows it's id
-            metadata.id = row.id
-            metadata_batch.append(metadata)
-
-        except Exception as e:
-            logger.error(f"Failed to rebuild metadata for {row.id} / {row.filename}", exc_info=True)
-            continue
-        logger.debug(f"Successfully read metadata for {row.id} / {row.filename}")
-    return metadata_batch
-
-def update_metadata_batch(db_engine, metadata_batch):
-    """
-    Update the archive database with a batch of metadata.
-
-    Args:
-        db_engine (:obj:`sqlalchemy.engine.Engine`): The database engine for the archive database.
-        metadata_batch (list of dict): The rebuilt metadata to update with.
-    """
-
-    # We don't need to include the header in the update
-    index = data_dictionary['db_name'] != 'header'
-    attributes = data_dictionary['db_name'][index]
-
-    try:
-        session = open_db_session(db_engine)
-        logger.info("Updating batch of metadata.")
-        update_batch(session, metadata_batch, attributes)
-    except Exception as e:
-        logger.error("Failed to update batch, retyring row by row")
-        for metadata in metadata_batch:
-            try:
-                session = open_db_session(db_engine)
-                logger.info(f"Retrying {metadata.id} / {metadata.filename}")
-                update_batch(session, [metadata], attributes)
-            except Exception as e:
-                logger.error(f"Failed to update {metadata.id} / {metadata.filename}", exc_info=True)
-
-
-
     
 
 def main(args):
 
-    setup_logging(args.log_path, "reingest_from_headers", args.log_level)
-        
-    # Read the id list
-    id_list = []
-    line = 1
-    with open(args.id_file, "r") as f:
-        for line in f:
-            for id in line.strip().split():
-                try:
-                    id_list.append(int(id))
-                except ValueError as e:
-                    print(f"Failed to convert id '{id}' to integer: {e}", file=sys.stderr)
-                    return 1
-    id_list = list(sorted(set(id_list)))
-    if len(id_list) == 0:
-        print("No ids to update.", file=sys.stderr)
-        return 2
-
-    logger.info(f"Updating {len(id_list)} unique ids.")
-
     try:
-        db_engine = create_db_engine(args.db_user, args.db_name)
-    except Exception:
-        logger.error(f"Failed to connect to database '{args.db_name}' with user '{args.db_user}'", exc_info=True)
-        return 3
+        # Setup logging and an ingest_failures file.
+        start_time = datetime.now(timezone.utc)
+        logfile=get_log_path("reingest_from_header", args.log_path)
+        setup_django_logging(logfile,args.log_level,stdout_level="INFO")
 
-    batch = []
-    for i in range(len(id_list)):
-        batch.append(id_list[i])
-        if len(batch) == args.batch_size or i == len(id_list)-1:
-            metadata_batch = rebuild_metadata_batch(db_engine, batch)
-            update_metadata_batch(db_engine, metadata_batch)            
-            batch = []
-    
-    logger.info(f"Done.")
+        error_file = get_unique_file (Path("."), "resync_failures", "txt")
+        error_list=resync_utils.ErrorList("reingest_from_header", error_file)
+
+        # Setup the database connection    
+        db_engine = create_db_engine(args.db_user, args.db_name)
+
+        # Get the metadata specified on command line
+        metadata = resync_utils.get_metadata_from_command_line(db_engine, args)
+
+        if metadata is None:
+            return 1
+
+        # Update the file metadata in batches
+        with BatchedDBOperation(db_engine, args.batch_size) as batch:
+
+            for file_metadata in metadata:
+                try:
+                    new_metadata = regen_metadata_from_header(file_metadata)
+                except Exception as e:
+                    msg = f"Failed to regenerate auth metadata for file {file_metadata.filename}"
+                    logger.error(msg, exc_info=True)
+                    error_list.add_file(file_metadata.filename)
+                    continue
+
+                batch.update(file_metadata.id, new_metadata)
+
+        logger.info(f"Updated {batch.success} of {batch.total} files with {batch.total - batch.success} failures and {batch.success_retries} successful retries.")
+        logger.info(f"Duration: {datetime.now(timezone.utc) - start_time}")
+    except Exception as e:
+        logging.error("Caught exception at end of main.", exc_info = True)
+        return 1
+
     return 0
+
+
+
+def regen_metadata_from_header(metadata : Main) -> Main:
+    """Regenerate file metadata using the header information stored in the existing row.
+    
+    Args:
+        metadata : The existing row of metadata for the file.
+
+    Return:
+        new_metadata: The new metadata regenerated from the header.
+    """
+    hdul = get_hdul_from_string(Main.header)
+
+    ingest_flags = IngestFlags(int(Main.ingest_flags,2))
+    # Turn off flags not related to opening the fits file, so they can be reset by the re-reading of the header
+    ingest_flags &= (IngestFlags.NO_FITS_END_CARD | IngestFlags.NO_FITS_SIMPLE_CARD | IngestFlags.FITS_VERIFY_ERROR | IngestFlags.INVALID_CHAR)
+
+    new_metadata = read_hdul(metadata.filename, hdul, ingest_flags)
+
+    # Make sure the new metadata object knows it's id
+    new_metadata.id = metadata.id
+
+    # Set file properties that aren't in the header
+    new_metadata.file_size = metadata.file_size
+    new_metadata.mtime = metadata.mtime
+    return new_metadata
 
 
 if __name__ == '__main__':

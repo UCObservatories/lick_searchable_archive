@@ -40,6 +40,7 @@ def test_red_headers():
     row = reader.read_row(path, hdul)
     assert row.telescope == Telescope.SHANE
     assert row.instrument == Instrument.KAST_RED
+    assert row.filename == str(path)
     assert row.obs_date == datetime(2012, 1, 3, 6, 12, 31, 110000, tzinfo=timezone.utc)
     assert row.ingest_flags == '00000000000000000000000000000001'
     assert row.exptime == 1.0

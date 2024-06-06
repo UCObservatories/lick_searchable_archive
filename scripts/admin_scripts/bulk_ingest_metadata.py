@@ -9,7 +9,7 @@ from datetime import date, datetime, timezone
 import re
 import logging
 
-from lick_archive.metadata.reader import read_row
+from lick_archive.metadata.reader import read_file
 from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_one, insert_batch
 from lick_archive.script_utils import setup_logging, get_unique_file, parse_date_range, get_files_for_daterange
 
@@ -53,11 +53,11 @@ def main(args):
 
     start_time = datetime.now(timezone.utc)
 
+    # Setup database, logging, and an ingest_failures file.
     setup_logging(args.log_path, "bulk_ingest", args.log_level)
     logger.info(f"Bulk Started Ingest on {args.archive_root}")
 
     try:
-        # Setup database, logging, and an ingest_failures file.
         engine = create_db_engine()
         error_file = get_unique_file (Path("."), "ingest_failures", "txt")
         supported_instruments = ['shane', 'AO']
@@ -78,7 +78,7 @@ def main(args):
         for file in files:
             try:
                 logger.debug(f"Reading metadata from {file}.")
-                next_row = read_row(file)
+                next_row = read_file(file)
             except Exception as e:
                 with open(error_file, "a") as f:
                     print(f"Failed to read {file}: {e}", file=f)

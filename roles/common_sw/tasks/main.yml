@@ -61,12 +61,26 @@
   become: yes
   become_user: "{{ archive_service_user }}"
   notify: "common config changed"
+- name: Add KROOT and LROOT to archive.pth file
+  ansible.builtin.template:
+    mode: 0660
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    src: templates/archive.pth.j2
+    dest: "{{ package_install_dir }}/archive.pth"
+  become: yes
+  notify: "common config changed"
 - name: Copy common lick_archive python code
   ansible.builtin.copy: 
-    src: lick_archive
+    src: "{{ archive_source_dir }}/{{ item }}"
     dest: "{{ package_install_dir }}"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0660
+    directory_mode: 0770
   become: yes
   become_user: "{{ archive_service_user }}"
+  loop: ["lick_archive", "lick_external"]
   notify: "common config changed"
 - name: Create config directory
   ansible.builtin.file:
@@ -96,7 +110,7 @@
   become: yes
 - name: Copy dev environment tests
   ansible.builtin.copy: 
-    src: test/dev_test
+    src: "{{ archive_source_dir }}/test/dev_test"
     dest: "{{ venv_root }}/"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
@@ -112,6 +126,7 @@
   become: yes
   become_user: "{{ archive_service_user }}"
   when: archive_config == "dev"
+  notify: "restart web services"
 - name: Create archive ini file
   ansible.builtin.template:
     mode: 0660
@@ -120,4 +135,4 @@
     src: templates/archive_config.ini.j2
     dest: "{{ archive_config_dir }}/archive_config.ini"
   become: yes
-  notify: "restart web services"
+  notify: "common config changed"

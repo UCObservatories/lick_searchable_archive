@@ -1,12 +1,44 @@
-"""A set of utility functions for use in django apps"""
+"""A set of utility functions related to django."""
+
 import logging
 import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-from django.core import validators
-from django.core.exceptions import ValidationError
 import unicodedata
+
+def setup_django():
+    """Setup the django environment when running from a command line script."""
+    import sys
+    django_root = Path(__file__).parent.parent / "lick_searchable_archive"
+    sys.path.insert(0, str(django_root))
+    import os
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'lick_searchable_archive.settings'
+    
+    import django
+    django.setup()
+
+def setup_django_logging(log_file : Path | str, log_level : int | str, stdout_level=int | str | None):
+    """Override Django logging to use a new path and loggging level.
+    Intended to allow command line scripts to use Django code but
+    log to a different location than Django web apps."""
+
+    from django.conf import settings
+    from django.utils.log import configure_logging
+    # Override logging setup to use a new path or logging level
+    log_settings = settings.LOGGING
+    if log_file is not None:
+        log_settings['handlers']['django_log']['filename'] = str(log_file)
+
+    if log_level is not None:
+        log_settings['handlers']['django_log']['level'] = log_level
+    if stdout_level is not None:
+        log_settings['handlers']['stdout'] = {"class": "logging.StreamHandler"}
+        log_settings['loggers']['']['handlers'].append('stdout')
+    configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
+
+
 
 def validate_username(username):
     """A Django validator for archive user names
@@ -21,6 +53,9 @@ def validate_username(username):
     Raises:
         :obj:`django.core.exceptions.ValidationError` Raised if validation failed.
     """
+    from django.core import validators
+    from django.core.exceptions import ValidationError
+
     # First apply django validators
     validators.ProhibitNullCharactersValidator()(username)
     validators.MinLengthValidator(1)(username)
@@ -42,6 +77,7 @@ def validate_username(username):
     return
 
 def log_request_debug(request):
+    """Log debug information about an incomming Django request."""
     if logger.isEnabledFor(logging.DEBUG):
         for key in request.META.keys():
             if "password" in key.lower():

@@ -328,15 +328,19 @@ def parse_and_validate_config(parsed_config):
     return IngestWatchdogConfig(data_root, startup_age, method, polling_config, inotify_age, instrument_dirs, 
                                 ingest_config)
 
-def logging_scandir(path):
+
+def sorted_logging_scandir(path):
     """
-    A scandir wrapper to log debug information about when the watchdog scans a directory.
+    A scandir wrapper to log debug information about when the watchdog scans a directory and to sort the results from scandir.
 
     Args:
-    path (str): The path to scan.
+        path (str): The path to scan.
+
+    Return:
+        list[os.DirEntry]: A sorted list of the entries in the scanned directory.
     """
     logger.debug(f"Scanning {path}")
-    return os.scandir(path)
+    return sorted(os.scandir(path), key = lambda x: x.name)
 
 
 def logging_stat(path):
@@ -369,7 +373,7 @@ class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter
     event_filter:   Optional collection of :class:`watchdog.events.FileSystemEvent` to watch
     """
     def __init__(self, event_queue, watch, timeout, writing_delay, stat=os.stat, listdir=os.scandir, event_filter=None):
-        super().__init__(event_queue, watch, timeout, stat=logging_stat, listdir=logging_scandir, event_filter=event_filter)
+        super().__init__(event_queue, watch, timeout, stat=stat, listdir=listdir, event_filter=event_filter)
         self._writing_delay = datetime.timedelta(seconds=writing_delay)
         self._file_modify_map = OrderedDict()
         self._file_modify_lock = threading.Lock()
@@ -568,7 +572,9 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         # by the observer wtih the shortest interval
         for search in sorted(self.config.polling.searches, key = lambda x: x.interval):        
 
-            observer = PollingWithSimulatedCloseObserver(search.interval, self.config.polling.write_delay, os.stat, logging_scandir)
+            # For polling observers we use a sorted list of directory entries, so that override.*.access files are returned
+            # in the correct order.
+            observer = PollingWithSimulatedCloseObserver(search.interval, self.config.polling.write_delay, os.stat, sorted_logging_scandir)
             self._observer_list.append(observer)
             path_info_list = self._get_paths_for_age(current_date, search.age)
             for path_info in path_info_list:

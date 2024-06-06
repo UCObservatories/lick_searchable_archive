@@ -7,7 +7,7 @@
 - name: Install Django Applications
   hosts: backend
   roles:
-    - common
+    - base
     - django_apps
 
   handlers:

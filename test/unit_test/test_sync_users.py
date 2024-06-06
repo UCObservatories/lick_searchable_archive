@@ -296,8 +296,7 @@ def test_duplicate_username():
 
 @django_db_setup
 def test_sync_users_main(monkeypatch, tmp_path):
-    from lick_archive.sched_db import ScheduleDB
-    import lick_archive.script_utils
+    from lick_external.sched_db import ScheduleDB
     def mock_init(*args,**kwargs):
         return
 

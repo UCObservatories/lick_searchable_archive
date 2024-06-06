@@ -3,45 +3,48 @@ import os
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import configparser
 
 import pytest
 
-basic_django_setup = pytest.mark.usefixtures("django_log_to_tmp_path")
-django_db_setup = pytest.mark.usefixtures("django_log_to_tmp_path", "django_db")
-
-# Force archive config to load the test version rather than the default config
-from lick_archive.archive_config import ArchiveConfigFile
-ArchiveConfigFile.from_file(Path(__file__).parent / "archive_test_config.ini")
-
-from lick_archive.db.archive_schema import Main
-from lick_archive.data_dictionary import api_capabilities
+basic_django_setup = pytest.mark.usefixtures("archive_config", "django_log_to_tmp_path")
+django_db_setup = pytest.mark.usefixtures("archive_config", "django_log_to_tmp_path", "django_db")
 
 
-class MockDatabase(contextlib.AbstractContextManager):
 
-    def __init__(self, base_class, rows=None):
+def MockDatabase(base_class, rows=None):
 
-        self.base_class = base_class
+    # This functions wraps a MockDatabaseClass so that the below imports
+    # aren't made until after the archive configuration is set
+    from lick_archive.db.archive_schema import Main
+    from lick_archive.data_dictionary import api_capabilities
+    class MockDatabaseClass(contextlib.AbstractContextManager):
 
-        # Create an in memory engine
-        self.engine = create_engine('sqlite://')
+        def __init__(self, base_class, rows=None):
 
-        # Create the schema
-        self.base_class.metadata.create_all(self.engine)
+            self.base_class = base_class
 
-        if rows is not None:
-            # Session for inserting rows
-            self.Session = sessionmaker(bind=self.engine)
-            session = self.Session()
+            # Create an in memory engine
+            self.engine = create_engine('sqlite://')
 
-            session.bulk_save_objects(rows)
-            session.commit()
-            session.close()
+            # Create the schema
+            self.base_class.metadata.create_all(self.engine)
+
+            if rows is not None:
+                # Session for inserting rows
+                self.Session = sessionmaker(bind=self.engine)
+                session = self.Session()
+
+                session.bulk_save_objects(rows)
+                session.commit()
+                session.close()
 
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.base_class.metadata.drop_all(self.engine)
-        return False
+        def __exit__(self, exc_type, exc_value, traceback):
+            self.base_class.metadata.drop_all(self.engine)
+            return False
+
+    return MockDatabaseClass(base_class, rows)
 
 def create_mock_view(engine, request=None):
 
@@ -49,7 +52,9 @@ def create_mock_view(engine, request=None):
     from rest_framework.generics import ListAPIView
     from lick_searchable_archive.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
     from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
-
+    from lick_archive.data_dictionary import api_capabilities
+    from lick_archive.db.archive_schema import Main
+    
     class MockView(QueryAPIMixin,ListAPIView):
         """A test view for testing the query api"""
 
@@ -96,3 +101,9 @@ def create_validated_request(path, data, view):
     # Store the validated results in the request to be passed to paginators and filters
     request.validated_query = serializer.validated_data
     return request
+
+class mock_external_schedule:
+    schedconfig = configparser.ConfigParser()
+    def ownercompute(*args, **kwargs):
+        pass
+

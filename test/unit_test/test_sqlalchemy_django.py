@@ -63,7 +63,7 @@ def test_queryset_get_orm_attrib():
     # Invalid attribute
     with pytest.raises(ValidationError) as exc_info:
         queryset._get_orm_attrib("not_real_attrib", "results")
-    assert exc_info.value.detail['results'] == "Unknown field not_real_attrib."
+    assert "Unknown field not_real_attrib" in exc_info.value.detail['results']
 
 
 def test_queryset_filter():
@@ -118,7 +118,7 @@ def test_queryset_filter():
             # Unsupported op
             filtered_queryset = queryset.filter(ingest_flags__and="00000000000000000000000000000001")
 
-        with pytest.raises(APIException, match="Failed building query."):
+        with pytest.raises(APIException, match="Unknown field bad_field."):
             # Unknown field
             filtered_queryset = queryset.filter(bad_field__exact=3)
 
