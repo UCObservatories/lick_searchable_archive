@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 from django import forms
 from django.utils.html import format_html
 
-from lick_archive.data_dictionary import Instrument, Category, api_capabilities
+from lick_archive.data_dictionary import Category, api_capabilities, supported_instruments
 from lick_archive.archive_config import ArchiveConfigFile
 
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -74,7 +74,7 @@ class QueryForm(forms.Form):
                                               choices = UI_ALLOWED_RESULT,        
                                               required=False,
                                               widget=forms.SelectMultiple(attrs={"class": "search_fields_input_big"}))
-    instruments = forms.MultipleChoiceField(initial = [x.name for x in Instrument], choices=[(x.name, x.value) for x in Instrument], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
+    instruments = forms.MultipleChoiceField(initial = [x.name for x in supported_instruments], choices=[(x.name, x.value) for x in supported_instruments], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
     page=forms.IntegerField(min_value=1,  initial=1,widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
     page_size=forms.IntegerField(min_value=1, max_value=1000, initial=50, required=True, widget=forms.NumberInput(attrs={"class": "search_fields_input_small"}))
     coord_format=forms.ChoiceField(initial="sexigesimal", required=True, choices=[("sexigesimal", "sexigesimal"), ("decimal", "decimal degrees")])    

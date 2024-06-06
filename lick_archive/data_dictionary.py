@@ -148,3 +148,4 @@ api_capabilities = {'required': data_dictionary[[True if db_name in ['filename',
                     'result':   data_dictionary[[True if db_name not in ['coord', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],
                     }
 
+supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS]
