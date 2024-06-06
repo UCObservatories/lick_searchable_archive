@@ -4,10 +4,10 @@ lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 def test_spoint_select():
     """Test generating select statements using SPoint"""
     from sqlalchemy import select
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.db.pgsphere import SPoint
     p = SPoint(45.5,45.5)
-    stmt = select(Main).where(Main.coord == p )
+    stmt = select(FileMetadata).where(FileMetadata.coord == p )
     s = str(stmt)
     assert "coord = spoint(:spoint_1, :spoint_2)" in s
 
@@ -23,7 +23,7 @@ def test_spoint_insert_result_delete():
     """Test inserting an SPoint, retrieving it from the database,
        and deleting it."""
     from sqlalchemy import select,delete
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import FrameType
     from lick_archive.db.pgsphere import SPoint
     from lick_archive.db import db_utils
@@ -32,11 +32,11 @@ def test_spoint_insert_result_delete():
     p = SPoint(45.5,45.5)
 
     # Delete any rows prior to re-adding them
-    del_stmt = delete(Main).where(Main.coord == p, Main.filename == 'data/2023-09/26/shane/dev_test.fits')
+    del_stmt = delete(FileMetadata).where(FileMetadata.coord == p, FileMetadata.filename == 'data/2023-09/26/shane/dev_test.fits')
     session.execute(del_stmt)
     session.commit()
     # Add a test row
-    test_row = Main(telescope = 'Shane', instrument='Kast Blue', obs_date='2023-09-26 12:00:00',
+    test_row = FileMetadata(telescope = 'Shane', instrument='Kast Blue', obs_date='2023-09-26 12:00:00',
                     frame_type=FrameType.unknown, filename='data/2023-09/26/shane/dev_test.fits',
                     ingest_flags='00000000000000000000000000000001',
                     coord=p)
@@ -45,7 +45,7 @@ def test_spoint_insert_result_delete():
     session.commit()
 
     # Test returning an SPoint from a select
-    stmt2 = select(Main.id, Main.filename, Main.coord).where(Main.coord == p, Main.filename == 'data/2023-09/26/shane/dev_test.fits')
+    stmt2 = select(FileMetadata.id, FileMetadata.filename, FileMetadata.coord).where(FileMetadata.coord == p, FileMetadata.filename == 'data/2023-09/26/shane/dev_test.fits')
     results = session.execute(stmt2).all()
     assert len(results) == 1
     assert isinstance(results[0][2], SPoint)
@@ -59,7 +59,7 @@ def test_spoint_insert_result_delete():
 def test_cone_search():
     """Test a cone search for known Feige110 data."""
     from sqlalchemy import select
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import Instrument
     from lick_archive.db.pgsphere import SCircle
     from lick_archive.db import db_utils
@@ -73,7 +73,7 @@ def test_cone_search():
     session = db_utils.open_db_session(engine)
 
     c = SCircle(center=SkyCoord(ra=349.9933320184400, dec= -05.1656030952400, unit="deg"),radius=Angle("1 arcmin"))
-    stmt3= select(Main).where(Main.coord.op("<@")(c),Main.instrument.in_([Instrument.KAST_RED, Instrument.KAST_BLUE]))
+    stmt3= select(FileMetadata).where(FileMetadata.coord.op("<@")(c),FileMetadata.instrument.in_([Instrument.KAST_RED, Instrument.KAST_BLUE]))
     # Make sure the SCircle converts to SQL correctly
     assert "scircle(spoint(6.108536003747469,-0.09015678186314822),0.0002908882086657216)" in str(stmt3.compile(compile_kwargs={"literal_binds":True}))
 
@@ -86,11 +86,11 @@ def test_cone_search():
 def test_spoint_ddl_gen():
     """Test DDL generates the SPOINT column correctly"""
     from sqlalchemy.schema import CreateTable
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.db import db_utils
     engine = db_utils.create_db_engine()
 
-    assert "SPOINT" in str(CreateTable(Main.__table__).compile(engine))
+    assert "SPOINT" in str(CreateTable(FileMetadata.__table__).compile(engine))
 
 
 

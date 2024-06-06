@@ -10,7 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from lick_archive.data_dictionary import IngestFlags
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 
 # Setup django before importing any django files
 from lick_archive.django_utils import setup_django, setup_django_logging
@@ -88,7 +88,7 @@ def main(args):
 
 
 
-def regen_metadata_from_header(metadata : Main) -> Main:
+def regen_metadata_from_header(metadata : FileMetadata) -> FileMetadata:
     """Regenerate file metadata using the header information stored in the existing row.
     
     Args:
@@ -97,9 +97,9 @@ def regen_metadata_from_header(metadata : Main) -> Main:
     Return:
         new_metadata: The new metadata regenerated from the header.
     """
-    hdul = get_hdul_from_string(Main.header)
+    hdul = get_hdul_from_string(FileMetadata.header)
 
-    ingest_flags = IngestFlags(int(Main.ingest_flags,2))
+    ingest_flags = IngestFlags(int(FileMetadata.ingest_flags,2))
     # Turn off flags not related to opening the fits file, so they can be reset by the re-reading of the header
     ingest_flags &= (IngestFlags.NO_FITS_END_CARD | IngestFlags.NO_FITS_SIMPLE_CARD | IngestFlags.FITS_VERIFY_ERROR | IngestFlags.INVALID_CHAR)
 

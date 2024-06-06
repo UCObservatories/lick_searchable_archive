@@ -7,20 +7,20 @@ import urllib.parse
 from django.http import QueryDict
 
 from test_utils import MockDatabase, create_mock_view, create_validated_request, basic_django_setup
-from lick_archive.db.archive_schema import Base, Main
+from lick_archive.db.archive_schema import Base, FileMetadata
 from lick_archive.data_dictionary import FrameType
 
 # Test rows shared between most tests
-test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+test_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.arc,     object="NA", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 1", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000',                       
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 2", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000',                       
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 3", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
 ]
@@ -84,22 +84,22 @@ def test_one_page_of_results(tmp_path):
 def test_multi_page_result(tmp_path):
     "Test multiple pages of results from a query."
 
-    additional_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    additional_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.arc,     object="None", filename="testfile5.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
-                        Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                        FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.science, object="object 5", filename="testfile6.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
-                        Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                        FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.science, object="object 6", filename="testfile7.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
-                        Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                        FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.science, object="object 5", filename="testfile8.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
-                        Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                        FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.science, object="object 3", filename="testfile9.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
-                        Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                        FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                              frame_type=FrameType.science, object="object 4", filename="testfile10.fits",  ingest_flags='00000000000000000000000000000000',
                              public_date=date(1970, 1, 1)),
     ]

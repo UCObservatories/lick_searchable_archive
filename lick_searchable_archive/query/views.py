@@ -11,7 +11,7 @@ from rest_framework.exceptions import APIException
 
 from lick_archive.db.db_utils import create_db_engine
 from lick_archive.data_dictionary import api_capabilities
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.archive_config import ArchiveConfigFile
 
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -33,7 +33,7 @@ class QueryView(QueryAPIMixin, ListAPIView):
 
 
     def get_queryset(self):
-        return SQLAlchemyQuerySet(_db_engine, Main)
+        return SQLAlchemyQuerySet(_db_engine, FileMetadata)
 
 class PlainTextRenderer(BaseRenderer):
     """A renderer for rendering FITS headers in plain text."""
@@ -75,7 +75,7 @@ class HeaderView(QueryAPIMixin, RetrieveAPIView):
     allowed_sort_attributes = ["id"]
 
     def get_queryset(self):
-        return SQLAlchemyQuerySet(_db_engine, Main)
+        return SQLAlchemyQuerySet(_db_engine, FileMetadata)
 
 
 

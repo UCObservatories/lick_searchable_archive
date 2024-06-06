@@ -8,7 +8,7 @@ from .models import IngestNotification
 logger=get_task_logger(__name__)
 
 from lick_archive.db.db_utils import create_db_engine, open_db_session, check_exists, insert_file_metadata, BatchedDBOperation
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata.reader import read_file
 from lick_archive.authorization.override_access import OverrideAccessFile
 from archive_auth.models import save_oaf_to_db
@@ -34,7 +34,7 @@ def ingest_new_files(new_ingests):
     with BatchedDBOperation(_db_engine,lick_archive_config.ingest.insert_batch_size) as insert_batch:
         for file in remaining_files:
             try:               
-                if not check_exists(_db_engine, Main.id, Main.filename == file, session=session):
+                if not check_exists(_db_engine, FileMetadata.id, FileMetadata.filename == file, session=session):
                     logger.info(f"Reading metadata for {file}.")
                     file_metadata = read_file(file)      
                     insert_batch.insert(file_metadata)

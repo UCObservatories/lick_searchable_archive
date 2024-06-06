@@ -13,7 +13,7 @@ from sqlalchemy.sql.expression import Select
 import psycopg2
 from tenacity import retry, stop_after_delay, wait_exponential, retry_if_not_exception_type, after_log
 
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 
 import logging
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ def open_db_session(engine):
     return session
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def insert_file_metadata(session : Session, row : Main):
+def insert_file_metadata(session : Session, row : FileMetadata):
     """
     Insert one row of metadata using a new database session. This function uses exponential backoff
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
@@ -127,7 +127,7 @@ def insert_file_metadata(session : Session, row : Main):
     logger.debug("Row inserted")
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def update_file_metadata(session : Session, id: int, row : Main):
+def update_file_metadata(session : Session, id: int, row : FileMetadata):
     """
     Updates one row of metadata using a database session. This function uses exponential backoff
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
@@ -204,13 +204,13 @@ def convert_object_to_dict(mapped_object):
     return {key: getattr(mapped_object, key) for key in i.attrs.keys()}
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def get_single_result(results : Result) -> Main:
+def get_single_result(results : Result) -> FileMetadata:
     """Wraps fetching a result from a query in a retryable function"""
 
     result = results.fetchone()
     return None if result is None else result[0]
 
-def find_file_metadata(session : Session, query : Select) -> Iterator[Main]:
+def find_file_metadata(session : Session, query : Select) -> Iterator[FileMetadata]:
     """Return the metadata for files matching a query.
 
     Args:

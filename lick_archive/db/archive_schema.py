@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
     pass
 
 
-# We build the Main table using SQL Alchemy's Core API so we can build it from the data dictionary
+# We build the FileMetadata table using SQL Alchemy's Core API so we can build it from the data dictionary
 
 _primary_key = "id"
 _unique = ['filename']
@@ -57,25 +57,25 @@ main_columns = [Column(dd_row['db_name'], _map_type(dd_row['type']),
                        server_default=_defaults.get(dd_row['db_name'],None),
                        ) 
                 for dd_row in data_dictionary]
-main = Table("main", Base.metadata,*main_columns)
+file_metadata = Table("file_metadata", Base.metadata,*main_columns)
 
-class Main(Base):
-    __table__ = main
+class FileMetadata(Base):
+    __table__ = file_metadata
     user_access: Mapped[List["UserDataAccess"]] = relationship(back_populates="file_metadata")    
 
-Index('index_m_obs_date', Main.obs_date)
-Index('index_m_instrument', Main.instrument)
-Index('index_m_object', Main.object)
-Index('index_m_frame', Main.frame_type)
-Index('index_m_coord', Main.coord, postgresql_using='gist')
+Index('index_m_obs_date', FileMetadata.obs_date)
+Index('index_m_instrument', FileMetadata.instrument)
+Index('index_m_object', FileMetadata.object)
+Index('index_m_frame', FileMetadata.frame_type)
+Index('index_m_coord', FileMetadata.coord, postgresql_using='gist')
 
 
 class UserDataAccess(Base):
     __tablename__ = "user_data_access"
 
-    file_id = Column(ForeignKey("main.id"), primary_key=True)
+    file_id = Column(ForeignKey("file_metadata.id"), primary_key=True)
     obid = Column(Integer, primary_key=True)
     reason = Column(Text)
 
-    file_metadata: Mapped[Main] = relationship(back_populates="user_access")
+    file_metadata: Mapped[FileMetadata] = relationship(back_populates="user_access")
 

@@ -11,7 +11,7 @@ import calendar
 from sqlalchemy import select, func
 
 from lick_archive.db import db_utils
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 
 def parse_day_arg(date_string):
     """Parse a date string in one of our accepted command line formats.
@@ -116,7 +116,7 @@ def main():
     db_session = db_utils.open_db_session(db_engine)
 
     # First part of the count statement
-    db_count_stmt = select(func.count(Main.id))
+    db_count_stmt = select(func.count(FileMetadata.id))
 
     # TODO, Have these values in a config file?
     instruments = ['AO', 'shane']
@@ -151,7 +151,7 @@ def main():
             if not args.quiet:
                 print(f"Scanning database for files in {directory.relative_to(archive_root)}")
 
-            result = db_utils.execute_db_statement(db_session, db_count_stmt.where(Main.filename.like(str(directory)+"%")))
+            result = db_utils.execute_db_statement(db_session, db_count_stmt.where(FileMetadata.filename.like(str(directory)+"%")))
             results[dt][instr][1] = result.scalar()
 
         dt += datetime.timedelta(days=1)

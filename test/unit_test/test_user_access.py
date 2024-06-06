@@ -65,10 +65,10 @@ def test_set_auth_metadata(monkeypatch):
         m.setattr(user_access, "set_access_metadata", mock_set_access_metadata)
 
         # File metadata to test with
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
 
-        file_metadata = Main(filename = "2012-01/02/shane/r36.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=2, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -133,12 +133,12 @@ def test_set_auth_metadata(monkeypatch):
 
 def test_set_access_metadata():
 
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import Telescope, Instrument, FrameType
     from lick_archive.authorization.user_access import Access, Visibility, set_access_metadata
 
     # File metadata to test with
-    file_metadata = Main(filename = "2012-01/02/shane/r36.fits", 
+    file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
                          telescope=Telescope.SHANE, 
                          instrument=Instrument.KAST_RED,
                          obs_date=datetime(year=2012, month=1, day=2, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -228,11 +228,11 @@ def test_set_access_metadata():
 @django_db_setup
 def test_identify_access_rule1_query_failure(monkeypatch):
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/02/shane/r36.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=2, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -255,7 +255,7 @@ def test_identify_access_rule1_query_failure(monkeypatch):
 def test_identify_access_rule1_all_observers(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -267,7 +267,7 @@ def test_identify_access_rule1_all_observers(monkeypatch, override_access_in_db)
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/shane/r1234.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/shane/r1234.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -287,7 +287,7 @@ def test_identify_access_rule1_all_observers(monkeypatch, override_access_in_db)
 def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -299,7 +299,7 @@ def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/shane/b34.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/shane/b34.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -316,7 +316,7 @@ def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
 def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -328,7 +328,7 @@ def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/shane/r34.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/shane/r34.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -346,7 +346,7 @@ def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
 def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -359,7 +359,7 @@ def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/shane/r2345.jpg", 
+        file_metadata = FileMetadata(filename = "2012-01/18/shane/r2345.jpg", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -378,12 +378,12 @@ def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db
 
 @django_db_setup
 def test_identify_access_public_fixed_owner():
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import Telescope, Instrument, FrameType
     from lick_archive.authorization import user_access
 
     # File metadata to test with
-    file_metadata = Main(filename = "2012-01/18/AOsample/s2345.fits", 
+    file_metadata = FileMetadata(filename = "2012-01/18/AOsample/s2345.fits", 
                         telescope=Telescope.SHANE, 
                         instrument=Instrument.AO_SAMPLE,
                         obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -402,7 +402,7 @@ def test_identify_access_public_fixed_owner():
 def test_identify_access_private_fixed_owner(monkeypatch):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -414,7 +414,7 @@ def test_identify_access_private_fixed_owner(monkeypatch):
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/PEAS/s2345.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/PEAS/s2345.fits", 
                              telescope=Telescope.SHANE, 
                              instrument=Instrument.PEAS,
                              obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -444,7 +444,7 @@ def test_identify_access_private_fixed_owner(monkeypatch):
 def test_identify_access_rule3(monkeypatch):
 
     with monkeypatch.context() as m:
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
@@ -456,7 +456,7 @@ def test_identify_access_rule3(monkeypatch):
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         # File metadata to test with
-        file_metadata = Main(filename = "2012-01/18/AOsample/s2345.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/AOsample/s2345.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.SHARCS,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -479,14 +479,14 @@ def test_identify_access_rule4_query_failure(tmp_path, monkeypatch):
         from lick_archive.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
         lick_archive_config.authorization.gshow_path = Path(__file__).parent / "mock_gshow.py"
 
 
-        file_metadata = Main(filename = "2012-01/18/AOsample/s2345.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/AOsample/s2345.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.SHARCS,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -509,7 +509,7 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
         from lick_archive.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
         import lick_external
@@ -526,7 +526,7 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
 
         # Test for something with no beginning and end date in the header
         # for that we need a header
-        file_metadata = Main(filename = "2018-11/20/AO/s0066.fits", 
+        file_metadata = FileMetadata(filename = "2018-11/20/AO/s0066.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.SHARCS,
                             obs_date=datetime(year=2018, month=11, day=20, hour=20, minute=1, second=1,tzinfo=timezone.utc),
@@ -571,7 +571,7 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
         # OBJECT  = 'HACN143arc        '                                                  
         # Test for something with no beginning and end date in the header
         # for that we need a header
-        file_metadata = Main(filename = "2019-05/02/shane/r684.fits", 
+        file_metadata = FileMetadata(filename = "2019-05/02/shane/r684.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2019, month=5, day=2, hour=20, minute=1, second=1,tzinfo=timezone.utc),
@@ -628,7 +628,7 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
         from lick_archive.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
         import lick_external
@@ -640,7 +640,7 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
         # DATE-BEG= '2019-05-03T09:28:29.74' / OBSERVATION BEGIN                          
         # DATE-END= '2019-05-03T09:28:30.74' / OBSERVATION END                            
         # OBJECT  = 'HACN143arc        '                                                  
-        file_metadata = Main(filename = "2019-05/02/shane/r684.fits", 
+        file_metadata = FileMetadata(filename = "2019-05/02/shane/r684.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2019, month=5, day=2, hour=20, minute=1, second=1,tzinfo=timezone.utc),
@@ -709,12 +709,12 @@ def test_apply_ownerhints(monkeypatch):
         m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
 
         from lick_archive.authorization.user_access import Access, Visibility, apply_ownerhints
-        from lick_archive.db.archive_schema import Main
+        from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         import lick_external
 
         # Get some file metadata to test with
-        file_metadata = Main(filename = "2012-01/02/shane/r36.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=2, hour=1, minute=1, second=1,tzinfo=timezone.utc),

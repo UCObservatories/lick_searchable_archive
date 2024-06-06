@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone
 from typing import Sequence
 import re
 
-from lick_archive.metadata import FileMetadata, UserAccessMetadata
+from lick_archive.db.archive_schema import FileMetadata, UserDataAccess
 from lick_archive.authorization import override_access
 from lick_archive.authorization.date_utils import get_file_begin_end_times, get_observing_night, calculate_public_date
 from lick_archive.data_dictionary import FrameType, MAX_PUBLIC_DATE
@@ -111,7 +111,7 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
 
     reason_string = "\n".join(access.reason)
     for ownerid in access.ownerids:
-        file_metadata.user_access.append(UserAccessMetadata(obid=ownerid, reason = reason_string))
+        file_metadata.user_access.append(UserDataAccess(obid=ownerid, reason = reason_string))
 
     logger.info(f"Setting access metadata for {file_metadata.filename}. Public date: {file_metadata.public_date}\nReason:\n{reason_string}")
     return file_metadata

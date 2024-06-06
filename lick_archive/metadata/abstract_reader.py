@@ -49,7 +49,7 @@ class AbstractReader:
         ingest_flags (data_dictionary.IngestFlags):
             Any ingest bit flags that were set during the process of opening a FITS file.
 
-        Returns (archive_schema.Main): A row of metadata read from the file.
+        Returns (archive_schema.FileMetadata): A row of metadata read from the file.
 
         Raises: Exception raised if the file is corrupt or lacks required metadata.
         """

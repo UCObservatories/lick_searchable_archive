@@ -16,7 +16,7 @@ def MockDatabase(base_class, rows=None):
 
     # This functions wraps a MockDatabaseClass so that the below imports
     # aren't made until after the archive configuration is set
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import api_capabilities
     class MockDatabaseClass(contextlib.AbstractContextManager):
 
@@ -53,7 +53,7 @@ def create_mock_view(engine, request=None):
     from lick_searchable_archive.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
     from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
     from lick_archive.data_dictionary import api_capabilities
-    from lick_archive.db.archive_schema import Main
+    from lick_archive.db.archive_schema import FileMetadata
     
     class MockView(QueryAPIMixin,ListAPIView):
         """A test view for testing the query api"""
@@ -72,7 +72,7 @@ def create_mock_view(engine, request=None):
             self.format_kwarg = "json"
 
         def get_queryset(self):
-            return SQLAlchemyQuerySet(self.engine, Main)
+            return SQLAlchemyQuerySet(self.engine, FileMetadata)
 
     return MockView(engine,request)
 

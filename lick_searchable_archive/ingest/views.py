@@ -22,7 +22,7 @@ from lick_archive.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 from lick_archive.django_utils import log_request_debug
 from lick_archive.db import db_utils
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 
 # SQLAlchemy likes its engine to have a global lifetime.
 _db_engine = db_utils.create_db_engine(user=lick_archive_config.database.db_query_user, database=lick_archive_config.database.archive_db)
@@ -69,7 +69,7 @@ class IngestCounts(generics.RetrieveAPIView):
     
     def get_ingest_counts(self, ingest_path : str) -> int:
         """Count the number of ingested files in a path"""
-        stmt = select(func.count()).where(Main.filename.startswith(ingest_path, autoescape=True))
+        stmt = select(func.count()).where(FileMetadata.filename.startswith(ingest_path, autoescape=True))
 
         try:
             with db_utils.open_db_session(_db_engine) as session:

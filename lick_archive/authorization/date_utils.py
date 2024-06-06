@@ -3,8 +3,8 @@ logger = logging.getLogger(__name__)
 
 from datetime import date, datetime, timezone, timedelta
 import calendar
-
-from lick_archive.metadata import FileMetadata, metadata_utils
+from lick_archive.db.archive_schema import FileMetadata
+from lick_archive.metadata import metadata_utils
 
 from lick_archive.archive_config import ProprietaryPeriod, ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config

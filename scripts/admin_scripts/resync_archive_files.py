@@ -19,7 +19,7 @@ setup_django()
 
 from lick_archive.resync_utils import SyncType, ErrorList, get_dirs_for_daterange
 from lick_archive.db.db_utils import create_db_engine, find_file_metadata, BatchedDBOperation
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata.reader import read_file
 from lick_archive.authorization.override_access import OverrideAccessFile
 
@@ -134,7 +134,7 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
     for file_to_resync in other_files:
         
         # See if this is an insert or update
-        file_metadata = list(find_file_metadata(db_batch.session,select(Main).where(Main.filename==str(file_to_resync))))
+        file_metadata = list(find_file_metadata(db_batch.session,select(FileMetadata).where(FileMetadata.filename==str(file_to_resync))))
 
         if len(file_metadata) == 0:
             sync_type = SyncType.INSERT

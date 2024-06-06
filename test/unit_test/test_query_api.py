@@ -13,24 +13,24 @@ from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 from datetime import date
 
-from lick_archive.db.archive_schema import Base, Main
+from lick_archive.db.archive_schema import Base, FileMetadata
 from lick_archive.data_dictionary import FrameType
 
 
 # Test rows shared between most tests
-test_rows = [ Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+test_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.arc,     object=None, filename="/data/testfile1.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 1", filename="/data/testfile2.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
-              Main(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
+              FileMetadata(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
                    frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000',
                    public_date=date(1970, 1, 1)),
 ]

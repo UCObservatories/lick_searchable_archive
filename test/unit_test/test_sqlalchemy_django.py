@@ -14,7 +14,7 @@ from django.db.models import F, Value
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
-from lick_archive.db.archive_schema import Base, Main
+from lick_archive.db.archive_schema import Base, FileMetadata
 from lick_archive.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.db.pgsphere import SCircle, SPoint
 
@@ -26,7 +26,7 @@ from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyORMS
 
 def test_sqlalchemy_orm_serializer():
 
-    # Create a test Main object from unit test data
+    # Create a test FileMetadata object from unit test data
     test_data_dir = Path(__file__).parent / 'test_data'
 
     file = '2014-05_20_AO_s0002-hdu0.txt'
@@ -55,10 +55,10 @@ def test_sqlalchemy_orm_serializer():
         serializer.to_representation(row)
 
 def test_queryset_get_orm_attrib():
-    queryset = SQLAlchemyQuerySet(None, Main)
+    queryset = SQLAlchemyQuerySet(None, FileMetadata)
 
     # Valid attribute
-    assert queryset._get_orm_attrib("obs_date", "results") == Main.obs_date
+    assert queryset._get_orm_attrib("obs_date", "results") == FileMetadata.obs_date
 
     # Invalid attribute
     with pytest.raises(ValidationError) as exc_info:
@@ -68,18 +68,18 @@ def test_queryset_get_orm_attrib():
 
 def test_queryset_filter():
 
-    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object=None, filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 1", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 2", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="object 3", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        queryset = SQLAlchemyQuerySet(mock_db.engine, FileMetadata)
 
         # Cover "exact" and "range"
         filtered_queryset = queryset.filter(frame_type__exact=FrameType.science,
@@ -124,18 +124,18 @@ def test_queryset_filter():
 
 def test_queryset_order_by():
 
-    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        queryset = SQLAlchemyQuerySet(mock_db.engine, FileMetadata)
 
         # Cover ascending sort
         filtered_queryset = queryset.order_by(["object"])
@@ -155,18 +155,18 @@ def test_queryset_order_by():
 
 def test_queryset_values():
 
-    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        queryset = SQLAlchemyQuerySet(mock_db.engine, FileMetadata)
 
         # Values should return mapping values, with the filename subsittued in for "test_ref"
         # We also sort by object so we can be sure of the order
@@ -188,18 +188,18 @@ def test_queryset_values():
 
 
 def test_queryset_slicing():
-    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        queryset = SQLAlchemyQuerySet(mock_db.engine, FileMetadata)
 
         # Test with entire ORM objects
         queryset_sorted = queryset.order_by("object")
@@ -285,18 +285,18 @@ def test_queryset_slicing():
             queryset_sorted = queryset.order_by("object")[1:3:2]
 
 def test_queryset_count():
-    test_rows = [ Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+    test_rows = [ FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.arc,     object="Object C", filename="testfile1.fits",  ingest_flags='00000000000000000000000000000000'),
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object D", filename="testfile2.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object B", filename="testfile3.fits",  ingest_flags='00000000000000000000000000000000'),                       
-                  Main(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                  FileMetadata(telescope=Telescope.SHANE, instrument=Instrument.KAST_BLUE, obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
                        frame_type=FrameType.science, object="Object A", filename="testfile4.fits",  ingest_flags='00000000000000000000000000000000'),                       
                 ]
 
     with MockDatabase(Base, test_rows) as mock_db:
-        queryset = SQLAlchemyQuerySet(mock_db.engine, Main)
+        queryset = SQLAlchemyQuerySet(mock_db.engine, FileMetadata)
 
         # Test total count
         assert queryset.count() == 4

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import select, Engine
 
 from lick_archive.db import db_utils
-from lick_archive.db.archive_schema import Main
+from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.authorization.override_access import OverrideAccessFile
 from lick_archive.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -66,7 +66,7 @@ class ErrorList:
                 print(f"{filename}|{sync_type}|{msg}", file=f)
 
 
-def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace) -> None| Iterator[Main|None]:
+def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace) -> None| Iterator[FileMetadata|None]:
     """Get database metadata using the conventions for resync script command line arguments.
     
         - `--date_range`  A date range (see :function:`parse_date_range`)
@@ -109,7 +109,7 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
     return metadata
 
 
-def get_metadata_from_files(db_engine : Engine, files : list[str | Path]) -> Iterator[Main|None]:
+def get_metadata_from_files(db_engine : Engine, files : list[str | Path]) -> Iterator[FileMetadata|None]:
     """Query the database for metadata from a list of filenames.
     
     Args:
@@ -120,9 +120,9 @@ def get_metadata_from_files(db_engine : Engine, files : list[str | Path]) -> Ite
     """
     with db_utils.open_db_session(db_engine) as session:
         for file in files:
-            yield db_utils.find_file_metadata(session, select(Main).where(Main.filename==str(file)))
+            yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.filename==str(file)))
 
-def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[Main|None]:
+def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[FileMetadata|None]:
     """Query the database for metadata from a list of ids.
     
     Args:
@@ -133,9 +133,9 @@ def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[Main|
     """
     with db_utils.open_db_session(db_engine) as session:
         for id in ids:
-            yield db_utils.find_file_metadata(session, select(Main).where(Main.id==id))
+            yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.id==id))
 
-def get_metadata_from_date_range(db_engine : Engine, date_range : str, instruments: list[str]) -> Iterator[Main]:
+def get_metadata_from_date_range(db_engine : Engine, date_range : str, instruments: list[str]) -> Iterator[FileMetadata]:
     archive_root = lick_archive_config.ingest.archive_root_dir
     instrument_dirs = get_valid_instrument_dirs(instruments)
     start_date, end_date = parse_date_range(date_range)
@@ -146,7 +146,7 @@ def get_metadata_from_date_range(db_engine : Engine, date_range : str, instrumen
             for instr_dir in instrument_dirs:
                 dir_to_query = str(archive_root / current_date.strftime("%Y-%m/%d") / instr_dir / '%')
 
-                yield db_utils.find_file_metadata(session, select(Main).where(Main.filename.like(dir_to_query)))
+                yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.filename.like(dir_to_query)))
 
 
 
@@ -259,7 +259,7 @@ def read_id_file(file : Path|str) -> list[int]:
     Args:
         file: The file to read the ids from.
 
-    Return: A sorted list of database ids, these are the primary key for the Main table.
+    Return: A sorted list of database ids, these are the primary key for the FileMetadata table.
     """
     # Read the id list
     id_list = []

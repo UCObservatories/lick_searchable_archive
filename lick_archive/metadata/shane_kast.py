@@ -7,7 +7,7 @@ import logging
 
 from lick_archive.metadata.abstract_reader import AbstractReader
 from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_name, get_shane_lamp_status, get_ra_dec
-from lick_archive.db.archive_schema import  Main
+from lick_archive.db.archive_schema import  FileMetadata
 from lick_archive.data_dictionary import FrameType, IngestFlags, Instrument, Telescope
 
 logger = logging.getLogger(__name__)
@@ -123,14 +123,14 @@ class ShaneKastReader(AbstractReader):
         ingest_flags (archive_schema.IngestFlags):
             Any ingest bit flags that were set during the process of opening a FITS file.
 
-        Returns (archive_schema.Main): A row of metadata read from the file.
+        Returns (archive_schema.FileMetadata): A row of metadata read from the file.
 
         Raises: Exception raised if the file is corrupt or lacks required metadata.
         """
 
         header = hdul[0].header
        
-        m = Main()
+        m = FileMetadata()
         m.telescope = Telescope.SHANE
 
         # The newer shane kast examples I've seen have 
