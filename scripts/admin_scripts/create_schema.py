@@ -4,7 +4,7 @@ import argparse
 import sys
 from datetime import datetime, timezone
 from sqlalchemy import text, func, select
-from lick_archive.db.archive_schema import Base, VersionHistory, version
+from lick_archive.db.archive_schema import Base
 
 from lick_archive.db.db_utils import create_db_engine, open_db_session, execute_db_statement
 
@@ -28,20 +28,15 @@ def main(args):
     Base.metadata.create_all(engine)
 
     session = open_db_session(engine)
-    version_count = execute_db_statement(session, select(func.count(VersionHistory.version))).scalar()
-    if version_count > 0:
-        session.add(VersionHistory(version=version, event="Update DB", install_date=datetime.now(timezone.utc)))
-    else:
-        session.add(VersionHistory(version=version, event="Create DB", install_date=datetime.now(timezone.utc)))
 
     if args.read_write_user is not None:
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_write_user))
-        session.execute(text("GRANT SELECT, INSERT, UPDATE ON main TO " + args.read_write_user))
-        session.execute(text("GRANT SELECT, UPDATE ON main_id_seq TO "  + args.read_write_user))
+        session.execute(text("GRANT SELECT, INSERT, UPDATE ON file_metadata TO " + args.read_write_user))
+        session.execute(text("GRANT SELECT, UPDATE ON file_metadata_id_seq TO "  + args.read_write_user))
         session.execute(text("GRANT SELECT, INSERT, UPDATE ON user_data_access TO " + args.read_write_user))
     if args.read_only_user is not None:
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_only_user))
-        session.execute(text("GRANT SELECT ON main TO " + args.read_only_user))
+        session.execute(text("GRANT SELECT ON file_metadata TO " + args.read_only_user))
         session.execute(text("GRANT SELECT ON user_data_access TO " + args.read_only_user))
 
     session.commit()

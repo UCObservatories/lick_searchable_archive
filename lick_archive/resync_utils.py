@@ -1,8 +1,9 @@
 """Utility functions specific to the command line scripts used to resync the archive metadata database."""
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 import argparse
 from collections.abc import Iterator
+from contextlib import closing
 import re
 import enum
 
@@ -140,15 +141,16 @@ def get_metadata_from_date_range(db_engine : Engine, date_range : str, instrumen
     instrument_dirs = get_valid_instrument_dirs(instruments)
     start_date, end_date = parse_date_range(date_range)
 
-    with db_utils.open_db_session(db_engine) as session:
-        current_date = start_date
-        while current_date <= end_date:
-            for instr_dir in instrument_dirs:
-                dir_to_query = str(archive_root / current_date.strftime("%Y-%m/%d") / instr_dir / '%')
-
-                yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.filename.like(dir_to_query)))
-
-
+    current_date = start_date
+    while current_date <= end_date:
+        for instr_dir in instrument_dirs:
+            dir_to_query = str(archive_root / current_date.strftime("%Y-%m/%d") / instr_dir / '%')
+            logger.info(f"Querying: {dir_to_query}")
+            with closing(db_utils.open_db_session(db_engine)) as session:
+                results = list(db_utils.execute_db_statement(session, select(FileMetadata).where(FileMetadata.filename.like(dir_to_query))).scalars())
+            for result in results:
+                yield result
+        current_date += timedelta(days=1)
 
 def get_valid_instrument_dirs(instrument_dirs : list[str]) -> list[str]:
     """Validate a list of instrument subdirectory names from the command line.       
@@ -162,7 +164,7 @@ def get_valid_instrument_dirs(instrument_dirs : list[str]) -> list[str]:
     Return: A list of the validated instrument directories.
         
     """
-    if len(instrument_dirs) == 0 or "all" in instrument_dirs:
+    if instrument_dirs is None or len(instrument_dirs) == 0 or "all" in instrument_dirs:
         # Use all supported directories
         instrument_dirs = lick_archive_config.ingest.supported_directories
     else:

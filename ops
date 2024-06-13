@@ -1,22 +1,33 @@
 [all:vars]
 archive_config=ops
-
-[archive_main_server]
-quarry.ucolick.org
-
-[archive_main_server:vars]
 remote_watchdog=False 
-archive_apps=['rest_framework', 'ingest', 'query', 'frontend']
+# Front end user facing connection info
+frontend_scheme="https"
+frontend_host= "quarry.ucolick.org"
 
-[watchdog]
-quarry.ucolick.org remote_watchdog=False
+# API access from frontend/backend
+api_scheme=http
+api_server=localhost
+api_port=8000
+# Where ansible should copy from 
+archive_source_dir=/home/dusty/work/lick_searchable_archive
+# Connection info Lick Observatory schedule database
+schedule_db_host=pg-master
+schedule_db_name=info
+# Set this to "restarted" to restart everything after deploy
+# "stopped"
+archive_service_state=stopped
 
-[frontend]
-quarry.ucolick.org remote_watchdog=False
-
-[webserver]
+[backend]
 quarry.ucolick.org
 
-[webserver:vars]
-frontend_scheme: "https"
-frontend_host: "quarry.ucolick.org"
+[backend:vars]
+archive_apps=['ingest', 'query', 'archive_admin', 'archive_auth','frontend']
+services=['job_queue', 'ingest_watchdog']
+host_type=single_host
+gshow_path=/opt/kroot/rel/default/bin/gshow
+# Gunicorn settings for frontend
+frontend_proxy_server="localhost"
+frontend_proxy_port=8000
+
+

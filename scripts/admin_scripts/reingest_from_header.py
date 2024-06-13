@@ -17,7 +17,7 @@ from lick_archive.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from lick_archive.metadata.reader import read_hdul
-from lick_archive.db.db_utils import create_db_engine, update_file_metadata, BatchedDBOperation
+from lick_archive.db.db_utils import create_db_engine, BatchedDBOperation
 from lick_archive.script_utils import get_log_path, get_unique_file
 from lick_archive import resync_utils
 from lick_archive.metadata.metadata_utils import get_hdul_from_string
@@ -76,7 +76,7 @@ def main(args):
                     error_list.add_file(file_metadata.filename)
                     continue
 
-                batch.update(file_metadata.id, new_metadata)
+                batch.update(file_metadata.id, new_metadata, new_metadata.user_access)
 
         logger.info(f"Updated {batch.success} of {batch.total} files with {batch.total - batch.success} failures and {batch.success_retries} successful retries.")
         logger.info(f"Duration: {datetime.now(timezone.utc) - start_time}")

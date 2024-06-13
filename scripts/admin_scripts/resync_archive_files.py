@@ -134,40 +134,39 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
     for file_to_resync in other_files:
         
         # See if this is an insert or update
-        file_metadata = list(find_file_metadata(db_batch.session,select(FileMetadata).where(FileMetadata.filename==str(file_to_resync))))
+        file_metadata = find_file_metadata(db_batch.session,select(FileMetadata).where(FileMetadata.filename==str(file_to_resync)))
 
-        if len(file_metadata) == 0:
+        if file_metadata is None:
             sync_type = SyncType.INSERT
 
-        elif len(file_metadata) == 1:
+        else:
             # See if the update can be skipped
             if not args.force():
                 st_info = file_to_resync.stat()
                 mtime = datetime.fromtimestamp(st_info.mtime,tz=timezone.utc)
                 if st_info.st_size == file_metadata.file_size and mtime == file_metadata.mtime:
                     continue
-
+                else:
+                    if st_info.st_size != file_metadata.file_size:
+                        logger.info(f"File {file_metadata.filename} has differing file_size. Current: {st_info.st_size} DB: {file_metadata.file_size}")
+                    if mtime != file_metadata.mtime:
+                        logger.info(f"File {file_metadata.filename} has differing mtime. Current: {mtime} DB: {file_metadata.mtime}")
             sync_type = SyncType.UPDATE
 
-        else:
-            msg = f"Multiple files in db matching {file_to_resync}? Is the database corrupted?"
-            error_list.add_file(file_to_resync, msg)
-            logger.error(msg, exc_info=True)
-            continue
 
         # Get the new metadata from the file
         try:
             new_file_metadata = read_file(file_to_resync)
         except Exception as e:
             msg = f"Failed reading metadata from new file {file_to_resync}"
-            error_list.add_file(file_to_resync, SyncType.INSERT,msg)
+            error_list.add_file(file_to_resync, sync_type,msg)
             logger.error(msg, exc_info=True)
             continue
 
         if sync_type == SyncType.INSERT:
             db_batch.insert(new_file_metadata)
         else:
-            db_batch.update(file_metadata.id, new_file_metadata)
+            db_batch.update(file_metadata.id, new_file_metadata,new_file_metadata.user_access)
 
 
 

@@ -54,7 +54,7 @@ class DBOverrideAccessFile(models.Model):
 
 class DBOverrideAccessRule(models.Model):
     pattern = models.CharField(max_length=80, blank=False, null=False)
-    type = models.CharField(max_length=15, blank=True, null=True, default=None, verbose_name="Observation Type", choices=[(None, 'Not Set')] + [(x.value, x.value.title) for x in FrameType])
+    type = models.CharField(max_length=15, blank=True, null=True, default=None, verbose_name="Observation Type", choices=[(None, 'Not Set')] + [(x.value, x.value.title()) for x in FrameType])
     access = models.CharField(max_length=13, blank=True, null=True, default=None, verbose_name="Access", choices=[(None, 'Not Set'), ('public', 'Public'), ('all-observers', 'All Observers from that night'), ('ownerhints', 'Based on Ownerhints')])
     file = models.ForeignKey(DBOverrideAccessFile, related_name="rules", on_delete=models.CASCADE, blank=False)
 

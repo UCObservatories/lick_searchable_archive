@@ -3,35 +3,24 @@
     name: apache2
     state: present
   become: yes
-- name: Enable Apache Modules
-  community.general.apache2_module:
-    name: "{{ item }}"
-    state: present
-  become: yes
-  notify: "restart web server"
-  loop: 
-    - proxy
-    - proxy_http
-    - ssl
-    - headers
-- name: Copy SSL cert
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_cert | basename }}"
-    dest: "{{ ssl_cert }}"
-    owner: root
-    group: root
-    mode: 0644
-  become: yes
-  notify: "restart web server"
-- name: Copy SSL private key
-  ansible.builtin.copy:
-    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_private_key | basename }}"
-    dest: "{{ ssl_private_key }}"
-    owner: root
-    group: ssl-cert
-    mode: 0640
-  become: yes
-  notify: "restart web server"
+#- name: Copy SSL cert
+#  ansible.builtin.copy:
+#    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_cert | basename }}"
+#    dest: "{{ ssl_cert }}"
+#    owner: root
+#    group: root
+#    mode: 0644
+#  become: yes
+#  notify: "restart web server"
+#- name: Copy SSL private key
+#  ansible.builtin.copy:
+#    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_private_key | basename }}"
+#    dest: "{{ ssl_private_key }}"
+#    owner: root
+#    group: ssl-cert
+#    mode: 0640
+#  become: yes
+#  notify: "restart web server"
 - name: Copy Archive Virtual Host settings
   ansible.builtin.template:
     mode: 0644
@@ -48,6 +37,17 @@
     state: "link"
   become: yes
   notify: "restart web server"
+- name: Enable Apache Modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: present
+  become: yes
+  notify: "restart web server"
+  loop: 
+    - proxy
+    - proxy_http
+    - ssl
+    - headers
 - name: Create Archive WWW directory
   ansible.builtin.file:
     owner: root

@@ -47,10 +47,10 @@ def main(args : argparse.Namespace) -> int:
         setup_logging(args.log_path, "resync_date_range", args.log_level)
 
         error_file = get_unique_file (Path("."), "resync_failures", "txt")
-        error_list=ErrorList("resync_date_range", error_file)
+        error_list=ErrorList(error_file)
 
         # Setup the database connection    
-        db_engine = create_db_engine(args.db_user, args.db_name)
+        db_engine = create_db_engine(args.username, args.dbname)
 
         # Get the metadata specified on command line
         metadata = get_metadata_from_command_line(db_engine, args)
@@ -89,7 +89,7 @@ def main(args : argparse.Namespace) -> int:
                 if not args.ignore_mtime and mtime != file_metadata.mtime:
                     needs_update = True
                     logger.info(f"Updating {file_path} mtime from {file_metadata.mtime} to {mtime} ")
-                    file_metadata.mtime = mtime
+                    file_metadata.mtime = datetime.fromtimestamp(mtime)
 
                 if needs_update:
                     needed_update += 1

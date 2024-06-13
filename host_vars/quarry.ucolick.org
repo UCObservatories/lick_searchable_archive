@@ -7,9 +7,7 @@ archive_data_root: /data/data
 archive_data_mount: /data
 archive_nfs_name: mhadmin
 archive_nfs_group: mhdata
-api_proxy_server: "localhost"
-frontend_scheme: "https"
-frontend_host: "quarry.ucolick.org"
-frontend_url: "{{ frontend_scheme }}://{{ frontend_host }}/{{ archive_url_path_prefix }}/index.html"
-ssl_cert: /etc/ssl/certs/server_cert.pem
-ssl_private_key: /etc/ssl/private/server_privkey.pem
+archive_service_group: mhdata
+archive_service_gid: 1039
+ssl_cert: /etc/ssl/certs/quarry_ucolick_org_reversed.cer
+ssl_private_key: /etc/ssl/private/quarry_ucolick_org.key

@@ -12,6 +12,16 @@ from sqlalchemy import select, func
 
 from lick_archive.db import db_utils
 from lick_archive.db.archive_schema import FileMetadata
+from lick_archive.authorization.override_access import OverrideAccessFile
+
+from lick_archive.archive_config import ArchiveConfigFile
+lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+
+# Setup django before importing any django classes
+from lick_archive.django_utils import setup_django, setup_django_logging
+setup_django()
+
+from archive_auth.models import DBOverrideAccessFile
 
 def parse_day_arg(date_string):
     """Parse a date string in one of our accepted command line formats.
@@ -94,9 +104,13 @@ def main():
                                                             '* By Month Number (1-12) or name.\n'
                                                             '* By Day (MM/DD or (YYYY-MM-DD)\n'
                                                             '* Day range: (YYYY-MM-DD YYYY-MM-DD)')
-    parser.add_argument("-d", "--directory", default="/data/data/", type=str, help = 'The directlry where the archive is mounted.')
+    parser.add_argument("-d", "--directory", default="/data/data/", type=str, help = 'The directory where the archive is mounted.')
     parser.add_argument("-q", "--quiet", action="store_true", help="Only display the ingest report, do not display status messages.")   
     args = parser.parse_args()
+
+    # Setup django logging, but with minimum info
+    setup_django_logging(Path.cwd() / "ingest_stats.log", "ERROR")
+
 
     try:
 
@@ -118,9 +132,9 @@ def main():
     # First part of the count statement
     db_count_stmt = select(func.count(FileMetadata.id))
 
-    # TODO, Have these values in a config file?
-    instruments = ['AO', 'shane']
-    excluded_ext = ['.access']
+    # The sections counted for each day. There's one per instrument + the override.access
+    # files
+    instruments = lick_archive_config.ingest.supported_directories
 
     if not args.quiet:        
         print(f"Scanning for files from {start_date} to {end_date}")
@@ -146,14 +160,21 @@ def main():
                 print(f"Scanning filesystem for files in {directory.relative_to(archive_root)}")
 
             if directory.is_dir():
-                results[dt][instr][0] = len([f for f in directory.iterdir() if f.is_file() and f.suffix not in excluded_ext])
+                file_count = 0
+                for file in directory.iterdir():
+                    if file.is_file():
+                        if not OverrideAccessFile.check_filename(file) and file.name.endswith(".access"):
+                            # Some weird editor backup override.access files exist, skip those
+                            continue
+                        file_count += 1
 
-            if not args.quiet:
+                results[dt][instr][0] = file_count
+
+            if not args.quiet:                
                 print(f"Scanning database for files in {directory.relative_to(archive_root)}")
 
             result = db_utils.execute_db_statement(db_session, db_count_stmt.where(FileMetadata.filename.like(str(directory)+"%")))
-            results[dt][instr][1] = result.scalar()
-
+            results[dt][instr][1] = result.scalar() + DBOverrideAccessFile.objects.filter(night=dt,instrument_dir=instr).count()
         dt += datetime.timedelta(days=1)
     
     # Now print a report.
@@ -171,7 +192,6 @@ def main():
             
             print(report_fmt.format(dt.isoformat(), instr, results[dt][instr][0], results[dt][instr][1], result))
         
-
 
 if __name__ == '__main__':
     sys.exit(main())

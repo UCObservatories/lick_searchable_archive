@@ -140,7 +140,7 @@ Upgrading database to a new schema
 
    This backup can be used to rollback if needed.    
 
-2. Create a second backup of the main table only::
+2. Create a second backup of the tables that need migrating only::
    
        $ cd /pg_data/saved_backups
        $ pg_dump  -U postgres archive --no-owner --no-comments --table main --data-only | gzip > archive_db_YYYYMMDD_description.dump.gz
@@ -151,8 +151,6 @@ Upgrading database to a new schema
     psql (14.9 (Ubuntu 14.9-0ubuntu0.22.04.1))
     Type "help" for help.
 
-    archive=> drop table user_data_access;
-    DROP TABLE
     archive=> drop table main;
     DROP TABLE
     archive=> exit

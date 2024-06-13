@@ -76,7 +76,7 @@ def main(args):
                         error_list.add_file(file_metadata.filename)
                         continue
 
-                    batch.update(file_metadata.id, new_metadata)
+                    batch.update(file_metadata.id, new_metadata, new_metadata.user_access)
 
                 logger.info(f"Updated {batch.success} of {batch.total} files with {batch.total - batch.success} failures and {batch.success_retries} successful retries.")
         logger.info(f"Updated {successful_oaf} of {total_oaf} override access files with {total_oaf - successful_oaf} failures.")
