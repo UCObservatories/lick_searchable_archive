@@ -13,13 +13,6 @@ class ArchiveUser(AbstractUser):
     obid = models.IntegerField(blank=True,null=True,unique=True)
     stamp = models.DateTimeField(default=django.utils.timezone.now)
 
-#class ArchiveGroup(Group):
-#    class Meta:
-#        proxy = True
-#        verbose_name = verbose_name_plural = "Groups"
-#    # Right now this just exists to organize the admin group, but could be used in the future
-#    pass
-
 class DBOverrideAccessFile(models.Model):
     """A Django ORM representation of an archive override.access file. 
     

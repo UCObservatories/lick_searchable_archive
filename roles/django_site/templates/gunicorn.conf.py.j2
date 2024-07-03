@@ -29,6 +29,9 @@ accesslog = "{{ archive_log_dir }}/gunicorn_access.log"
 errorlog = "{{ archive_log_dir }}/gunicorn_error.log"
 capture_output = True
 
+# Make logs group writeable so that scripts/tools run as admin users can
+# write logs
+umask=2
 
 # Hook to print stack trace if a worker aborts.
 def worker_abort(worker):

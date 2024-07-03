@@ -77,4 +77,4 @@ class IngestCounts(generics.RetrieveAPIView):
                 return result
         except Exception as e:
             logger.error(f"Failed to run archive ingest count query: {e}", exc_info=True)
-            raise APIException(detail="Failed to run count query on archive database.", status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise APIException(detail="Failed to run count query on archive database.")

@@ -42,7 +42,7 @@ def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints
     # Use ownerhintcompute from the lroot schedule module to search for each ownerhint
     for ownerhint in ownerhints:
         if ownerhint == "all-observers":
-            ownerhint = " "
+            ownerhint = ""
 
         # Build the input arguments
         telescope_info = ScheduleDB().get_telescope_info(telescope)

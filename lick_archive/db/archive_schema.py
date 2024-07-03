@@ -34,7 +34,7 @@ def _map_type(python_type):
     type_map = {int :        Integer,
                 str :        String,
                 float :      Float,
-                datetime:    TIMESTAMP,
+                datetime:    TIMESTAMP(timezone=True),
                 date:        Date,
                 SkyCoord:    SPoint,
                 IngestFlags: BitString,
@@ -61,7 +61,7 @@ file_metadata = Table("file_metadata", Base.metadata,*main_columns)
 
 class FileMetadata(Base):
     __table__ = file_metadata
-    user_access: Mapped[List["UserDataAccess"]] = relationship(back_populates="file_metadata")    
+    user_access: Mapped[List["UserDataAccess"]] = relationship(back_populates="file_metadata",cascade="all, delete-orphan")    
 
 Index('index_m_obs_date', FileMetadata.obs_date)
 Index('index_m_instrument', FileMetadata.instrument)
@@ -77,5 +77,5 @@ class UserDataAccess(Base):
     obid = Column(Integer, primary_key=True)
     reason = Column(Text)
 
-    file_metadata: Mapped[FileMetadata] = relationship(back_populates="user_access")
+    file_metadata: Mapped[FileMetadata] = relationship(back_populates="user_access", cascade="all")
 

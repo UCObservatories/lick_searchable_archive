@@ -166,7 +166,7 @@ def read_hdul(file_path, hdul, ingest_flags):
             try:
                 st_info = file_path.stat() if not file_path.is_symlink() else file_path.lstat()
                 row.file_size = st_info.st_size
-                row.mtime = datetime.fromtimestamp(st_info.st_mtime)
+                row.mtime = datetime.fromtimestamp(st_info.st_mtime,tz=timezone.utc)
             except Exception as e:
                 logger.warning(f"Failed to get file size/modification time info for {file_path}, leaving as None",exc_info=True)
                 row.file_size = None
