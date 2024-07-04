@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Callable
 
-from sqlalchemy import create_engine, Engine, select, func, inspect, update, delete, Result
+from sqlalchemy import create_engine, Engine, select, func, inspect, update, delete, insert, Result
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import Select
 import psycopg2
@@ -152,8 +152,8 @@ def update_file_metadata(session : Session, id: int, row : FileMetadata, user_ac
         logger.debug(f"Deleted old user access information, now adding  {len(user_access)} entries...")
 
         for user_data_access in user_access:
-            user_data_access.file_id = id
-            session.add(user_data_access)
+            stmt = insert(UserDataAccess).values(file_id=id, obid=user_data_access.obid, reason=user_data_access.reason)
+            session.execute(stmt)
         logger.debug("User access information updated.")
 
 

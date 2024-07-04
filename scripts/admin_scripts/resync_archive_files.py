@@ -9,9 +9,11 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
+from contextlib import closing
 
 from sqlalchemy import select
 from lick_archive.script_utils import get_log_path, get_unique_file
+from lick_archive.db import db_utils
 
 # Setup django before importing any django classes
 from lick_archive.django_utils import setup_django, setup_django_logging
@@ -43,7 +45,7 @@ def get_parser():
                                                  'database, but this can be changed with the --force option'
                         )
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest, or "all" for everything. Examples: "2010-01-04", "2010-01-01:2011-12-31".')
-    parser.add_argument("--files", type=str, help="File name of a file with the database ids to update.")
+    parser.add_argument("--files", type=Path, nargs="+", help="Files to resync.")
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
     parser.add_argument("--force", default=False, action="store_true", help= "Force updates to always update existing files even if there's no change in the file size or mtime.")
     parser.add_argument("--archive_root", type=Path, help = 'Top level directory of the archived Lick data. If not given the value in the archive config file is used.')  
@@ -63,7 +65,7 @@ def main(args):
         setup_django_logging(logfile,args.log_level,stdout_level="INFO")
 
         error_file = get_unique_file (Path("."), "resync_failures", "txt")
-        error_list=ErrorList("resync_archive_files", error_file)
+        error_list=ErrorList(error_file)
 
         # Setup database connection
         db_engine = create_db_engine(database=args.db_name, user=args.db_user)
@@ -134,16 +136,17 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
     for file_to_resync in other_files:
         
         # See if this is an insert or update
-        file_metadata = find_file_metadata(db_batch.session,select(FileMetadata).where(FileMetadata.filename==str(file_to_resync)))
+        with closing(db_utils.open_db_session(db_batch.engine)) as session:
+            file_metadata = find_file_metadata(session,select(FileMetadata).where(FileMetadata.filename==str(file_to_resync)))
 
         if file_metadata is None:
             sync_type = SyncType.INSERT
 
         else:
             # See if the update can be skipped
-            if not args.force():
-                st_info = file_to_resync.stat()
-                mtime = datetime.fromtimestamp(st_info.mtime,tz=timezone.utc)
+            if not args.force:
+                st_info = file_to_resync.lstat() if file_to_resync.is_symlink() else file_to_resync.stat()
+                mtime = datetime.fromtimestamp(st_info.st_mtime,tz=timezone.utc)
                 if st_info.st_size == file_metadata.file_size and mtime == file_metadata.mtime:
                     continue
                 else:

@@ -97,7 +97,7 @@ def regen_metadata_from_header(metadata : FileMetadata) -> FileMetadata:
     Return:
         new_metadata: The new metadata regenerated from the header.
     """
-    hdul = get_hdul_from_string(FileMetadata.header)
+    hdul = get_hdul_from_string(metadata.header)
 
     ingest_flags = IngestFlags(int(FileMetadata.ingest_flags,2))
     # Turn off flags not related to opening the fits file, so they can be reset by the re-reading of the header

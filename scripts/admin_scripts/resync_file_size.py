@@ -71,7 +71,7 @@ def main(args : argparse.Namespace) -> int:
                 try:
                     stat_info = file_path.lstat() if file_path.is_symlink() else file_path.stat()
                     filesize = stat_info.st_size
-                    mtime = stat_info.st_mtime
+                    mtime = datetime.fromtimestamp(stat_info.st_mtime,tz=timezone.utc)
                 except Exception as e:
                     msg = f"Failed to stat {file_path}."
                     if not args.dry_run:
@@ -89,7 +89,7 @@ def main(args : argparse.Namespace) -> int:
                 if not args.ignore_mtime and mtime != file_metadata.mtime:
                     needs_update = True
                     logger.info(f"Updating {file_path} mtime from {file_metadata.mtime} to {mtime} ")
-                    file_metadata.mtime = datetime.fromtimestamp(mtime)
+                    file_metadata.mtime = mtime
 
                 if needs_update:
                     needed_update += 1

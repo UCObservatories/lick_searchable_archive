@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 from sqlalchemy import select, Engine
+from sqlalchemy.orm import selectinload
 
 from lick_archive.db import db_utils
 from lick_archive.db.archive_schema import FileMetadata
@@ -121,7 +122,7 @@ def get_metadata_from_files(db_engine : Engine, files : list[str | Path]) -> Ite
     """
     with db_utils.open_db_session(db_engine) as session:
         for file in files:
-            yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.filename==str(file)))
+            yield db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.filename==str(file)))
 
 def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[FileMetadata|None]:
     """Query the database for metadata from a list of ids.
@@ -134,7 +135,7 @@ def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[FileM
     """
     with db_utils.open_db_session(db_engine) as session:
         for id in ids:
-            yield db_utils.find_file_metadata(session, select(FileMetadata).where(FileMetadata.id==id))
+            yield db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.id==id))
 
 def get_metadata_from_date_range(db_engine : Engine, date_range : str, instruments: list[str]) -> Iterator[FileMetadata]:
     archive_root = lick_archive_config.ingest.archive_root_dir
@@ -147,7 +148,7 @@ def get_metadata_from_date_range(db_engine : Engine, date_range : str, instrumen
             dir_to_query = str(archive_root / current_date.strftime("%Y-%m/%d") / instr_dir / '%')
             logger.info(f"Querying: {dir_to_query}")
             with closing(db_utils.open_db_session(db_engine)) as session:
-                results = list(db_utils.execute_db_statement(session, select(FileMetadata).where(FileMetadata.filename.like(dir_to_query))).scalars())
+                results = list(db_utils.execute_db_statement(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.filename.like(dir_to_query))).scalars())
             for result in results:
                 yield result
         current_date += timedelta(days=1)
