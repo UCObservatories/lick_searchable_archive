@@ -54,8 +54,11 @@ def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints
         ownercompute.ownerhintcompute(ownerHintDict,True)
 
         # The output was placed in ownerHintDict
-        cover_ids += ownerHintDict['COVERID'].split()
-        observer_ids += [ int(x) for x in ownerHintDict['OWNERIDS'].split()]
+        if ownerHintDict['COVERID'] is not None:
+            cover_ids += ownerHintDict['COVERID'].split()
+
+        if ownerHintDict['OWNERIDS'] is not None:
+            observer_ids += [ int(x) for x in ownerHintDict['OWNERIDS'].split()]
     return observer_ids, cover_ids
 
 

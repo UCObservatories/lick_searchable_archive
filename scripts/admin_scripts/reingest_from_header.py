@@ -31,9 +31,9 @@ def get_parser():
     """
     parser = argparse.ArgumentParser(description='Re-ingest metadata for files using the header data already in the database.')
 
-    parser.add_argument("--id_file", type=Path, help="File name of a file with the database ids to update.")
-    parser.add_argument("--ids", type=str, help="File name of a file with the database ids to update.")
-    parser.add_argument("--files", type=str, help="File name of a file with the database ids to update.")
+    parser.add_argument("--id_file", type=Path, help="A file containing database ids separated by whitespace.")
+    parser.add_argument("--ids", type=str, help="A list of database ids.")
+    parser.add_argument("--files", type=str, help="A list of filenames.")
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all.')
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')   
     parser.add_argument("--db_name", default="archive", type=str, help = 'Name of the database to update. Defaults to "archive"')
@@ -53,7 +53,7 @@ def main(args):
         setup_django_logging(logfile,args.log_level,stdout_level="INFO")
 
         error_file = get_unique_file (Path("."), "resync_failures", "txt")
-        error_list=resync_utils.ErrorList("reingest_from_header", error_file)
+        error_list=resync_utils.ErrorList(error_file)
 
         # Setup the database connection    
         db_engine = create_db_engine(args.db_user, args.db_name)
@@ -73,7 +73,7 @@ def main(args):
                 except Exception as e:
                     msg = f"Failed to regenerate auth metadata for file {file_metadata.filename}"
                     logger.error(msg, exc_info=True)
-                    error_list.add_file(file_metadata.filename)
+                    error_list.add_file(file_metadata.filename,resync_utils.SyncType.HEADER_UPDATE,msg)
                     continue
 
                 batch.update(file_metadata.id, new_metadata, new_metadata.user_access)
@@ -97,9 +97,9 @@ def regen_metadata_from_header(metadata : FileMetadata) -> FileMetadata:
     Return:
         new_metadata: The new metadata regenerated from the header.
     """
-    hdul = get_hdul_from_string(metadata.header)
+    hdul = get_hdul_from_string([metadata.header])
 
-    ingest_flags = IngestFlags(int(FileMetadata.ingest_flags,2))
+    ingest_flags = IngestFlags(int(metadata.ingest_flags,2))
     # Turn off flags not related to opening the fits file, so they can be reset by the re-reading of the header
     ingest_flags &= (IngestFlags.NO_FITS_END_CARD | IngestFlags.NO_FITS_SIMPLE_CARD | IngestFlags.FITS_VERIFY_ERROR | IngestFlags.INVALID_CHAR)
 

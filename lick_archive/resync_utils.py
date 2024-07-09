@@ -94,7 +94,10 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
 
     # Get the metadata using file names specified on command line
     elif args.files is not None and len(args.files) > 0:
-        metadata = get_metadata_from_files(args.files)
+        if isinstance(args.files,str) or isinstance(args.files, Path):
+            args.files = [args.files]
+
+        metadata = get_metadata_from_files(db_engine, args.files)
 
     # Get the metadata from a file containing database ids
     elif args.id_file is not None:
