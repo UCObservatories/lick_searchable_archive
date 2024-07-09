@@ -55,7 +55,7 @@
   become: yes
 - name: Create virtual python environment
   ansible.builtin.pip: 
-    name: tenacity, requests, astropy
+    name: tenacity, requests, astropy, python-dateutil
     virtualenv: "{{ venv_root }}"
     virtualenv_command: python{{ python_version }} -m venv
   become: yes

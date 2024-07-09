@@ -4,6 +4,7 @@ MetadataReader implementation for Shane AO/ShARCS data.
 from datetime import datetime, date
 import logging
 
+from dateutil.parser import parse
 from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy import cast
 
@@ -127,7 +128,7 @@ class ShaneAO_ShARCS(AbstractReader):
         if date_beg is not None:
             logger.debug("Found DATE-BEG")
             try:
-                m.obs_date = datetime.strptime(date_beg + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+                m.obs_date = parse(date_beg + "+00:00")
             except ValueError as e:
                 logger.error(f"Invalid format for DATE-BEG: {date_beg}")
 
@@ -140,7 +141,7 @@ class ShaneAO_ShARCS(AbstractReader):
                 time_obs = safe_header(header, 'TIME-OBS')
                 if time_obs is not None:
                     try:
-                        m.obs_date = datetime.strptime(f"{date_obs}T{time_obs}+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+                        m.obs_date = parse(f"{date_obs}T{time_obs}+00:00")
                         ingest_flags = ingest_flags | IngestFlags.AO_USE_DATE_OBS
                     except ValueError:
                         logger.error(f"Invalid format for DATE-OBS/TIME-OBS: {date_obs}/{time_obs}")
@@ -153,7 +154,7 @@ class ShaneAO_ShARCS(AbstractReader):
             logger.debug("Using directory date for observation date.")
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
             # Use noon Lick time (aka UTC-8)
-            m.obs_date = datetime.strptime(f"{filename_date}T12:00:00-08:00", '%Y-%m-%dT%H:%M:%S%z')
+            m.obs_date = parse(f"{filename_date}T12:00:00-08:00")
 
         m.coadds_done = safe_header(header, 'COADDONE')
         m.true_int_time = safe_header(header, 'TRUITIME')

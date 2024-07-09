@@ -5,6 +5,8 @@ MetadataReader implementation for Shane Kast data.
 from datetime import datetime
 import logging
 
+from dateutil.parser import parse
+
 from lick_archive.metadata.abstract_reader import AbstractReader
 from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_name, get_shane_lamp_status, get_ra_dec
 from lick_archive.db.archive_schema import  FileMetadata
@@ -168,11 +170,11 @@ class ShaneKastReader(AbstractReader):
             logger.debug(f"Used file path for date for file {file_path}.")
             filename_date, instr = parse_file_name(file_path)
             # Use noon Lick time (aka UTC-8)
-            m.obs_date = datetime.strptime(f"{filename_date}T12:00:00-08:00", '%Y-%m-%dT%H:%M:%S%z')
+            m.obs_date = parse(f"{filename_date}T12:00:00-08:00")
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
         else:
             # Parse the observation date as an iso date, adding +00:00 to make it UTC
-            m.obs_date = datetime.strptime(header['DATE-OBS'] + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+            m.obs_date = parse(date_obs + "+00:00")
 
         m.exptime           = safe_header(header, 'EXPTIME')
         if m.exptime is None:

@@ -1,6 +1,8 @@
 import logging
 logger = logging.getLogger(__name__)
 
+from dateutil.parser import parse
+
 from datetime import date, datetime, timezone, timedelta
 import calendar
 from lick_archive.db.archive_schema import FileMetadata
@@ -34,7 +36,7 @@ def calculate_public_date(file_date : date|datetime, prop_period : ProprietaryPe
     Return:
         The date the files becomes public.
     """
-
+    #TODO can I replace this with dateutil?
     if isinstance(file_date, datetime):
         file_date = file_date.date()
 
@@ -87,10 +89,10 @@ def get_file_begin_end_times(file_metadata : FileMetadata):
         header = metadata_utils.get_hdul_from_string([file_metadata.header])[0].header
 
         if 'DATE-BEG' in header:
-            beg_time = datetime.strptime(header["DATE-BEG"] + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+            beg_time = parse(header["DATE-BEG"] + "+00:00")
         
         if 'DATE-END' in header:
-            end_time = datetime.strptime(header["DATE-END"] + "+00:00", '%Y-%m-%dT%H:%M:%S.%f%z')
+            end_time = parse(header["DATE-END"] + "+00:00")
     except Exception as e:
         # TODO, if when we support Non-FITS files this should detect that and 
         # return without logging an error
