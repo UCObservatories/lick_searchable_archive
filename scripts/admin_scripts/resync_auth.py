@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 from lick_archive.db.db_utils import create_db_engine, BatchedDBOperation
 from lick_archive.script_utils import get_log_path, get_unique_file
-
 # Setup django before importing any django classes
 from lick_archive.django_utils import setup_django, setup_django_logging
 setup_django()
@@ -29,6 +28,9 @@ def get_parser():
     """
     parser = argparse.ArgumentParser(description='Re-evaluate the authoriztion of files and re-ingest any override access files.')
 
+    parser.add_argument("--id_file", type=Path, help="A file containing database ids separated by whitespace.")
+    parser.add_argument("--ids", type=str, help="A list of database ids.")
+    parser.add_argument("--files", type=str, help="A list of filenames.")
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all.')
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
     
@@ -52,7 +54,9 @@ def main(args):
         error_list=ErrorList(error_file)
 
         # Resync any override access files
-        total_oaf, successful_oaf = resync_override_access_files(args, error_list)
+        total_oaf = 0
+        successful_oaf = 0
+        synced_oaf_paths = set()
 
         if not args.override_only:
             # Setup the database connection    
@@ -66,8 +70,18 @@ def main(args):
 
             # Update the auth information in batches
             with BatchedDBOperation(db_engine, args.batch_size) as batch:
-
                 for file_metadata in metadata:
+                    
+                    # Make sure all override access files in a path have been synced before 
+                    # re-running the authorization code on any files in it
+                    file_path = Path(file_metadata.filename).parent
+                    if file_path not in synced_oaf_paths:
+                        total, success = resync_override_access_files(args, file_path, error_list)
+                        total_oaf += total
+                        successful_oaf += success
+                        synced_oaf_paths.add(file_path)
+
+                    # Re-generate auth metadata
                     try:
                         new_metadata = user_access.set_auth_metadata(file_metadata)
                     except Exception as e:
@@ -88,27 +102,26 @@ def main(args):
 
     return 0
 
-def resync_override_access_files(args :argparse.Namespace, error_list : ErrorList):
+def resync_override_access_files(args :argparse.Namespace, file_path: Path, error_list : ErrorList):
     logger.info(f"Resyncing Override Access Files: {args.date_range} : {args.instruments}")
     total = 0
     successful = 0
-    for dir in get_dirs_for_daterange(args.date_range, args.instruments):
-        for file in dir.iterdir():
-            if OverrideAccessFile.check_filename(file):
-                total+=1
-                try:            
-                    access_file = OverrideAccessFile.from_file(file)
-                except ValueError as e:
-                    logging.error(f"Invalid override access file {file} in dir {dir}: {e}")
-                    error_list.add_file(file,SyncType.OVERRIDE_FILE,str(e))
-                    continue
-                try:
-                    save_oaf_to_db(access_file)
-                    successful+=1
-                except Exception as e:
-                    msg = f"Failed to save {access_file} to db: {e.__class__.__name__}: {e}"
-                    error_list.add_file(file,SyncType.OVERRIDE_FILE,msg)
-                    logging.error(msg,exc_info=True)
+    for file in file_path.iterdir():
+        if OverrideAccessFile.check_filename(file):
+            total+=1
+            try:            
+                access_file = OverrideAccessFile.from_file(file)
+            except ValueError as e:
+                logging.error(f"Invalid override access file {file} in dir {dir}: {e}")
+                error_list.add_file(file,SyncType.OVERRIDE_FILE,str(e))
+                continue
+            try:
+                save_oaf_to_db(access_file)
+                successful+=1
+            except Exception as e:
+                msg = f"Failed to save {access_file} to db: {e.__class__.__name__}: {e}"
+                error_list.add_file(file,SyncType.OVERRIDE_FILE,msg)
+                logging.error(msg,exc_info=True)
     return total, successful
 
 if __name__ == '__main__':

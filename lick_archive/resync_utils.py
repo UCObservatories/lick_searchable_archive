@@ -106,6 +106,8 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
 
     # Get the metadata using a list of database ids            
     elif args.ids is not None and len(args.ids) > 0:
+        if isinstance(args.ids,str):
+            args.ids = [args.ids]
         metadata = get_metadata_from_ids(db_engine, args.ids)
     else:
         logger.error("Must specify one of --date_range, --files, --id_file, or --ids.")

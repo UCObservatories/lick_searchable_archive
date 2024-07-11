@@ -37,8 +37,9 @@ def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints
     cfgp.set('database', 'password', password)
     cfgp.set('database', 'timeout', '5')
 
-    cover_ids = []
-    observer_ids = []
+    # ownerhintcompute sometimes returns duplicates, we use a set for cover_ids/observer_ids to filter those out
+    cover_ids = set()
+    observer_ids = set()
     # Use ownerhintcompute from the lroot schedule module to search for each ownerhint
     for ownerhint in ownerhints:
         if ownerhint == "all-observers":
@@ -55,10 +56,10 @@ def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints
 
         # The output was placed in ownerHintDict
         if ownerHintDict['COVERID'] is not None:
-            cover_ids += ownerHintDict['COVERID'].split()
+            cover_ids |= set(ownerHintDict['COVERID'].split())
 
         if ownerHintDict['OWNERIDS'] is not None:
-            observer_ids += [ int(x) for x in ownerHintDict['OWNERIDS'].split()]
-    return observer_ids, cover_ids
+            observer_ids |= { int(x) for x in ownerHintDict['OWNERIDS'].split()}
+    return list(observer_ids), list(cover_ids)
 
 

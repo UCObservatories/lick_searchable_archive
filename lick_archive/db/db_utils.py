@@ -152,8 +152,13 @@ def update_file_metadata(session : Session, id: int, row : FileMetadata, user_ac
         logger.debug(f"Deleted old user access information, now adding  {len(user_access)} entries...")
 
         for user_data_access in user_access:
-            stmt = insert(UserDataAccess).values(file_id=id, obid=user_data_access.obid, reason=user_data_access.reason)
-            session.execute(stmt)
+            try:
+                stmt = insert(UserDataAccess).values(file_id=id, obid=user_data_access.obid, reason=user_data_access.reason)
+                session.execute(stmt)
+            except Exception as e:
+                logger.error(f"Failed to insert new user data access for id {id}", exc_info=True)                
+                logger.error(f"Values for failed isert are: file_id: '{id}' obid: '{user_data_access.obid}' reason: '{user_data_access.reason}'")
+                raise
         logger.debug("User access information updated.")
 
 
