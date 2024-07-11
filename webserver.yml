@@ -4,12 +4,9 @@
   roles:
     - local_init
 
-- name: Deploys lick searchable archive frontend
+- name: Install Webserver
   hosts: frontend
   roles:
     - common
-    - common_sw
-    - django_site
-    - django_apps
     - webserver
-  
+

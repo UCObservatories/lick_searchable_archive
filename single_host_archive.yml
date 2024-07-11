@@ -7,7 +7,7 @@
 - name: Deploys lick searchable archive to a single node
   hosts: backend
   roles:
-    - base
+    - common
     - common_sw
     - admin_tools
     - database
@@ -20,47 +20,3 @@
       include_role: 
         name: "{{ item }}"
       loop: "{{ services }}"
-  handlers:
-    - name: Stop/Restart celery
-      ansible.builtin.systemd:
-        name: celery.service
-        enabled: yes
-        daemon_reload: yes
-        state: "{{ archive_service_state }}"
-      become: yes
-      listen:
-        - "restart web services"
-        - "common config changed"
-
-    - name: Stop/Restart gunicorn
-      ansible.builtin.systemd:
-        name: gunicorn.service
-        enabled: yes
-        daemon_reload: no
-        state: "{{ archive_service_state }}"
-      become: yes
-      listen: 
-        - "restart web services"
-        - "common config changed"
-
-    - name: Stop/Restart Ingest Service
-      ansible.builtin.systemd:
-        name: ingest_watchdog.service
-        enabled: yes
-        daemon_reload: yes
-        state: "{{ archive_service_state }}"
-      become: yes
-      listen: 
-        - "restart watchdog"
-        - "common config changed"
-
-    - name: Stop/Restart Apache2
-      ansible.builtin.systemd:
-        name: apache2
-        enabled: yes
-        daemon_reload: yes
-        state: "{{ archive_service_state }}"
-      become: yes
-      listen:
-        - "restart web server"
-        - "common config changed"

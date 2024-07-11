@@ -8,6 +8,7 @@
   hosts: backend
   roles:
     - common
+    - common_sw
     - admin_tools
     - database
     - archive_mount_nfs
@@ -18,37 +19,3 @@
       include_role: 
         name: "{{ item }}"
       loop: "{{ services }}"
-  handlers:
-    - name: Restart celery
-      ansible.builtin.systemd:
-        name: celery.service
-        enabled: yes
-        daemon_reload: yes
-        state: restarted
-      become: yes
-      listen:
-        - "restart web services"
-        - "common config changed"
-
-    - name: Restart gunicorn
-      ansible.builtin.systemd:
-        name: gunicorn.service
-        enabled: yes
-        daemon_reload: no
-        state: restarted
-      become: yes
-      listen: 
-        - "restart web services"
-        - "common config changed"
-
-    - name: Restart Ingest Service
-      ansible.builtin.systemd:
-        name: ingest_watchdog.service
-        enabled: yes
-        daemon_reload: yes
-        state: restarted
-      become: yes
-      listen: 
-        - "restart watchdog"
-        - "common config changed"
-

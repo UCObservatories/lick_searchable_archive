@@ -8,16 +8,5 @@
   hosts: watchdog
   roles:
     - common
+    - common_sw
     - ingest_watchdog
-
-  handlers:
-    - name: Restart Ingest Service
-      ansible.builtin.systemd:
-        name: ingest_watchdog.service
-        enabled: yes
-        daemon_reload: yes
-        state: restarted
-      become: yes
-      listen: 
-        - "restart watchdog"
-        - "common config changed"
