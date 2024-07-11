@@ -54,37 +54,64 @@ def reason(rule, description):
     return f"Rule {rule}: {description}"
 
 def set_auth_metadata(file_metadata : FileMetadata) -> FileMetadata:
-    access = identify_access(file_metadata)
+    try:
+        access = identify_access(file_metadata)
 
-    if access.visibility==Visibility.PROPRIETARY:
-        # Set the public dates for the file if it's proprietary
-        public_dates = ScheduleDB().get_public_dates(file_metadata.telescope, access.observing_night, access.ownerids)
+        if access.visibility==Visibility.PROPRIETARY:
+            # Set the public date for the file if it's proprietary
+            public_date, reason, is_public = get_public_date(file_metadata, access.observing_night, access.ownerids)
+            
+            access.public_date = public_date
+            access.reason.append(reason("0", reason))
+            if is_public:
+                access.visibility=Visibility.PUBLIC
 
-        # Add default dates to public_dates if one isn't set
-        default_public_date = calculate_public_date(access.observing_night, lick_archive_config.authorization.default_proprietary_period)
-        public_dates = [(obid, d, False) if d is not None else (obid, default_public_date, True) for obid, d in public_dates]
-        public_dates.sort(key=lambda x : x[1])
-
-        obid, earliest_date, is_default = public_dates[0]
-
-        if get_observing_night(datetime.now(tz=timezone.utc)) >= earliest_date:
-            # The file is public now
+        elif access.visibility==Visibility.DEFAULT:
+            # Rule 6 (called 7 in old Rules.txt). No observers could be found for the file,
+            # so it's public
             access.visibility=Visibility.PUBLIC
-            if is_default is False:
-                access.reason.append(reason("0", f"File has passed observer {obid}'s proprietary end date of {earliest_date}"))
-            else:
-                access.reason.append(reason("0", f"File has passed default proprietary end date of {earliest_date}"))
-        else:
-            access.reason.append(reason("0", f"File is not public, earliest public date is {earliest_date} from observer {obid}."))
-            access.public_date = earliest_date
+            access.reason.append(reason("6", f"No observers found for file"))
 
-    elif access.visibility==Visibility.DEFAULT:
-        # Rule 6 (called 7 in old Rules.txt). No observers could be found for the file,
-        # so it's public
-        access.visibility=Visibility.PUBLIC
-        access.reason.append(reason("6", f"No observers found for file"))
+    except Exception as e:
+        # Any failure should be marked as unknown
+        logger.error(f"Unknown error ocurred in identifying the proprietary access period of the file '{file_metadata.filename}'", exc_info=True)
+        access.visibility = Visibility.UNKNOWN
+        access.reason.append(reason("0z", f"Unknown error ocurred in identifying the proprietary access period of the file."))
+
 
     return set_access_metadata(file_metadata, access)
+
+def get_public_date(file_metadata: FileMetadata, observing_night:date, ownerids:list[int]) -> tuple[date, str, bool]:
+    """Return the earliest public date for a file given it's ownerids"""
+
+    # Get the public dates for all ownerids
+    public_dates = ScheduleDB().get_public_dates(file_metadata.telescope, observing_night, ownerids)
+
+    # Add default dates to public_dates if one isn't set
+    default_public_date = calculate_public_date(observing_night, lick_archive_config.authorization.default_proprietary_period)
+    public_dates = [(obid, d, False) if d is not None else (obid, default_public_date, True) for obid, d in public_dates]
+    if len(public_dates) == 0:
+        # No public dates from the DB, treat all observers as having the default public_date
+        public_dates = [(obid, default_public_date, True) for obid in ownerids]
+
+    # Pick the earliest public_date
+    public_dates.sort(key=lambda x : x[1])
+    obid, earliest_date, is_default = public_dates[0]
+
+    is_public = False
+
+    # Make the file public if the earliest date has passed
+    if get_observing_night(datetime.now(tz=timezone.utc)) >= earliest_date:
+        # The file is public now
+        is_public = True
+        if is_default is False:
+            reason = f"File has passed observer {obid}'s proprietary end date of {earliest_date}"
+        else:
+            reason = f"File has passed default proprietary end date of {earliest_date}"
+    else:
+        reason = f"File is not public, earliest public date is {earliest_date} from observer {obid}."
+
+    return earliest_date, reason, is_public
 
 def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMetadata:
     
@@ -110,6 +137,7 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
         access.ownerids.append(ScheduleDB.UNKNOWN_USER)
 
     reason_string = "\n".join(access.reason)
+    file_metadata.user_access.clear()
     for ownerid in access.ownerids:
         file_metadata.user_access.append(UserDataAccess(obid=ownerid, reason = reason_string))
 
