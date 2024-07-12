@@ -59,10 +59,10 @@ def set_auth_metadata(file_metadata : FileMetadata) -> FileMetadata:
 
         if access.visibility==Visibility.PROPRIETARY:
             # Set the public date for the file if it's proprietary
-            public_date, reason, is_public = get_public_date(file_metadata, access.observing_night, access.ownerids)
+            public_date, reason_str, is_public = get_public_date(file_metadata, access.observing_night, access.ownerids)
             
             access.public_date = public_date
-            access.reason.append(reason("0", reason))
+            access.reason.append(reason("0", reason_str))
             if is_public:
                 access.visibility=Visibility.PUBLIC
 
