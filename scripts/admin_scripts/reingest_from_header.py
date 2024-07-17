@@ -33,7 +33,7 @@ def get_parser():
 
     parser.add_argument("--id_file", type=Path, help="A file containing database ids separated by whitespace.")
     parser.add_argument("--ids", type=str, help="A list of database ids.")
-    parser.add_argument("--files", type=str, help="A list of filenames.")
+    parser.add_argument("--files", type=str, nargs='+', help="A list of filenames.")
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all.')
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')   
     parser.add_argument("--db_name", default="archive", type=str, help = 'Name of the database to update. Defaults to "archive"')

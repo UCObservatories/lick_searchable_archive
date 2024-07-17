@@ -12,7 +12,7 @@ lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 
 @timed_cache(timedelta(hours=1))
-def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints : list[str] ) -> tuple[list[int],list[str]]:
+def compute_ownerhint(observing_night : date, telescope : Telescope, ownerhint : str ) -> tuple[list[int],list[str]]:
     """Attempt to find ownerids for a given telescope and observing night using ownerhints. It uses series of hueristics
     defined in the lroot schedule module.
 
@@ -38,28 +38,28 @@ def compute_ownerhints(observing_night : date, telescope : Telescope, ownerhints
     cfgp.set('database', 'timeout', '5')
 
     # ownerhintcompute sometimes returns duplicates, we use a set for cover_ids/observer_ids to filter those out
-    cover_ids = set()
-    observer_ids = set()
+    cover_ids = []
+    observer_ids = []
     # Use ownerhintcompute from the lroot schedule module to search for each ownerhint
-    for ownerhint in ownerhints:
-        if ownerhint == "all-observers":
-            ownerhint = ""
+    if ownerhint == "all-observers":
+        ownerhint = ""
 
-        # Build the input arguments
-        telescope_info = ScheduleDB().get_telescope_info(telescope)
-        ownerHintDict = {"teleId": telescope_info["teleid"], 
-                            "csid0": telescope_info["csid0"],
-                            "calnight": observing_night.isoformat(),
-                            "OWNRHINT": ownerhint
-                            }
-        ownercompute.ownerhintcompute(ownerHintDict,True)
+    # Build the input arguments
+    telescope_info = ScheduleDB().get_telescope_info(telescope)
+    ownerHintDict = {"teleId": telescope_info["teleid"], 
+                        "csid0": telescope_info["csid0"],
+                        "calnight": observing_night.isoformat(),
+                        "OWNRHINT": ownerhint
+                        }
+    ownercompute.ownerhintcompute(ownerHintDict,True)
 
-        # The output was placed in ownerHintDict
-        if ownerHintDict['COVERID'] is not None:
-            cover_ids |= set(ownerHintDict['COVERID'].split())
+    # The output was placed in ownerHintDict
+    if ownerHintDict['COVERID'] is not None:
+        cover_ids += ownerHintDict['COVERID'].split()
 
-        if ownerHintDict['OWNERIDS'] is not None:
-            observer_ids |= { int(x) for x in ownerHintDict['OWNERIDS'].split()}
-    return list(observer_ids), list(cover_ids)
+    if ownerHintDict['OWNERIDS'] is not None:
+        observer_ids += [ int(x) for x in ownerHintDict['OWNERIDS'].split()]
+
+    return observer_ids, cover_ids
 
 

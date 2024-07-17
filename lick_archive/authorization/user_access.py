@@ -9,10 +9,11 @@ from typing import Sequence
 import re
 
 from lick_archive.db.archive_schema import FileMetadata, UserDataAccess
+from lick_archive.metadata.metadata_utils import parse_file_name
 from lick_archive.authorization import override_access
 from lick_archive.authorization.date_utils import get_file_begin_end_times, get_observing_night, calculate_public_date
 from lick_archive.data_dictionary import FrameType, MAX_PUBLIC_DATE
-from lick_external import ScheduleDB, compute_ownerhints, get_keyword_ownerhints
+from lick_external import ScheduleDB, compute_ownerhint, get_keyword_ownerhints
 
 
 from lick_archive.archive_config import ArchiveConfigFile
@@ -75,8 +76,11 @@ def set_auth_metadata(file_metadata : FileMetadata) -> FileMetadata:
     except Exception as e:
         # Any failure should be marked as unknown
         logger.error(f"Unknown error ocurred in identifying the proprietary access period of the file '{file_metadata.filename}'", exc_info=True)
-        access.visibility = Visibility.UNKNOWN
-        access.reason.append(reason("0z", f"Unknown error ocurred in identifying the proprietary access period of the file."))
+        access = Access(file_metadata = file_metadata,
+                        observing_night=get_observing_night(datetime.now(timezone.utc)),
+                        visibility = Visibility.UNKNOWN,
+                        ownerids = [], coverids=[],
+                        reason = [reason("0z", f"Unknown error ocurred in identifying the proprietary access period of the file.")])
 
 
     return set_access_metadata(file_metadata, access)
@@ -146,9 +150,22 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
 
 def identify_access(file_metadata : FileMetadata) -> Access:
 
-    # The access data for the file, defaulting to "UNKNOWN"
+    # Use the directory as the observing night used for determining who can access the file
+    try:
+        dir_date, dir_instr = parse_file_name(file_metadata.filename)
+        observing_night = date.fromisoformat(dir_date)
+    except Exception as e:
+        logger.error(f"Failed to parse date out of file's path.", exc_info=True)
+        access = Access(file_metadata = file_metadata,
+                        observing_night=get_observing_night(datetime.now(timezone.utc)),
+                        visibility = Visibility.UNKNOWN,
+                        ownerids = [], coverids=[],
+                        reason = [reason("0", "Failed to parse observing night from pathname")])
+        return access
+
+    # The access data for the file
     access = Access(file_metadata = file_metadata,
-                    observing_night=get_observing_night(file_metadata.obs_date),
+                    observing_night=observing_night,
                     visibility = Visibility.DEFAULT,
                     ownerids = [], coverids=[],
                     reason = [])
@@ -187,8 +204,7 @@ def identify_access(file_metadata : FileMetadata) -> Access:
                 access.visibility = Visibility.PUBLIC
                 access.reason.append(reason("1b", f"Override access file gave public visibility."))
             else:
-                apply_ownerhints(access, "1b/c/d", override_rule.ownerhints)
-
+                apply_ownerhints(access, "1b/c/d", override_rule.ownerhints, allow_unscheduled=True)
         if access.visibility != Visibility.DEFAULT:
             # The override access had enough information to set the access, so return those results
             return access
@@ -279,45 +295,77 @@ def identify_access(file_metadata : FileMetadata) -> Access:
     return access
     
 
-def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str]):
+def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], allow_multiple=False, allow_unscheduled=False):
     """Apply ownerhints to a file to find it's owners"""
-    try:
-        if "all-observers" in ownerhints:
-            allow_multiple=True
+
+    if "all-observers" in ownerhints:
+        allow_multiple=True
+
+    # Convert public ownerhints to be "public"
+    public_ownerhint_pattern = lick_archive_config.authorization.public_ownerhint_pattern
+    if public_ownerhint_pattern is not None:
+        ownerhints = [oh if not re.match(public_ownerhint_pattern, oh) else "public" for oh in ownerhints]
+
+    all_obids = set()
+    all_coverids = set()
+
+    for ownerhint in ownerhints:
+        try:
+            # Query the schedule database for matching observer ids and cover ids
+            obids, coverids = compute_ownerhint(access.observing_night, access.file_metadata.telescope, ownerhint)            
+        except Exception as e:
+            logger.error(f"Failed to query schedule db for date {access.observing_night}, telescope: {access.file_metadata.telescope}: {e}", exc_info=True)
+            access.reason.append(reason(rule, f"Observing calendar ownerhint query failed: {e}"))
+            access.visibility = Visibility.UNKNOWN
+            return
+
+        # Use sets to eliminate duplicate ids
+        unique_obids = set(obids)
+        unique_coverids = set(coverids)
+
+        if ScheduleDB.UNKNOWN_USER in unique_obids:
+            if allow_unscheduled:
+                # No observer found for that ownerhint on that night, check for an unscheduled observer
+                unscheduled_obid = ScheduleDB().getOwnerhintMap().get(ownerhint,None)
+                if unscheduled_obid is not None:
+                    # Replace unknown ids with the unscheduled id
+                    unique_obids.remove(ScheduleDB.UNKNOWN_USER)
+                    unique_obids.add(unscheduled_obid)
+                    access.reason.append(reason(rule, f"Unscheduled observer {ownerhint} found. obsid {unscheduled_obid}"))
+                else:
+                    access.reason.append(reason(rule, f"Could not find observer for {ownerhint}"))
+            else:
+                access.reason.append(reason(rule, f"Could not find observer for {ownerhint}"))
         else:
-            allow_multiple=False
+            access.reason.append(reason(rule, f"Scheduled observer for {ownerhint}. obids {','.join([str(id) for id in unique_obids])}"))
 
-        # Convert public ownerhints to be "public"
-        public_ownerhint_pattern = lick_archive_config.authorization.public_ownerhint_pattern
-        if public_ownerhint_pattern is not None:
-            ownerhints = [oh if not re.match(public_ownerhint_pattern, oh) else "public" for oh in ownerhints]
+        if len(unique_coverids) > 1 and not allow_multiple:
+            access.reason.append(reason(rule, f"Observing calendar ownerhint query returned multiple users for ownerhint {ownerhint}, ignoring it."))
+            continue
 
-        # Query the schedule database for matching observer ids and cover ids
-        obids, coverids = compute_ownerhints(access.observing_night, access.file_metadata.telescope, ownerhints)
-    except Exception as e:
-        logger.error(f"Failed to query schedule db for date {access.observing_night}, telescope: {access.file_metadata.telescope}: {e}", exc_info=True)
-        access.reason.append(reason(rule, f"Observing calendar ownerhint query failed: {e}"))
-        access.visibility = Visibility.UNKNOWN
-        return
+        # Combine the observer ids and cover ids from each ownerhint
+        all_obids |= set(unique_obids)
+        all_coverids |= set(unique_coverids)
 
-    if len(obids)> 0:
-        if ScheduleDB.PUBLIC_USER in obids:
+    if len(all_obids)> 0:
+        if ScheduleDB.PUBLIC_USER in all_obids:
             access.visibility = Visibility.PUBLIC
             access.reason.append(reason(rule, "Observing calendar ownerhint query returned public user."))
 
-        elif ScheduleDB.UNKNOWN_USER in obids:
-            # Leave visibility at it's default value in case another rule can assign a value
-            access.visibility = Visibility.DEFAULT            
-            access.reason.append(reason(rule, f"Observing calendar ownerhint query returned unknown user."))
-        elif len(obids) > 1 and not allow_multiple:
-            access.visibility = Visibility.DEFAULT            
-            access.reason.append(reason(rule, f"Observing calendar ownerhint query returned multiple users."))
-        else:
-            access.ownerids = obids
-            access.visibility = Visibility.PROPRIETARY
+        else:            
+            # Eliminate any unknown users
+            if ScheduleDB.UNKNOWN_USER in all_obids:
+                all_obids.remove(ScheduleDB.UNKNOWN_USER)
+
+            if len(all_obids) == 0:
+                # There were no known users, leave visibility at it's default value in case another rule can assign a value
+                access.visibility = Visibility.DEFAULT            
+                access.reason.append(reason(rule, f"Observing calendar ownerhint query returned unknown user."))
+            else:
+                access.ownerids = list(all_obids)
+                access.visibility = Visibility.PROPRIETARY
 
     if len(coverids) > 0:
-        access.coverids = coverids
+        access.coverids = list(all_coverids)
 
-    access.reason.append(reason(rule, f"Found {len(obids)} observers and {len(coverids)} coverids from override access ownerhints: {','.join(ownerhints)}"))
-
+    access.reason.append(reason(rule, f"Found {len(all_obids)} observers and {len(all_coverids)} coverids from override access ownerhints: {','.join(ownerhints)}"))

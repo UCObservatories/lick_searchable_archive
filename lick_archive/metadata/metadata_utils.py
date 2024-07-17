@@ -28,7 +28,7 @@ def parse_file_name(filename : Path | str):
     The format of the filename is expected to be 'YYYY-MM/DD/instrument/file
     """
     if isinstance(filename, str):
-        filename = Path(str)
+        filename = Path(filename)
     day = filename.parent.parent.name
     year_month = filename.parent.parent.parent.name
     instr = filename.parent.name
