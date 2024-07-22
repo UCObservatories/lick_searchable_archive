@@ -123,8 +123,22 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
         file_metadata.coversheet = ";".join(access.coverids)
 
     if access.visibility == Visibility.PUBLIC:
-        # Public, treat it as if it became public the date it was taken
-        file_metadata.public_date = access.observing_night
+        # Public, 
+        if (access.public_date is None or
+            access.public_date > get_observing_night(datetime.now(tz=timezone.utc))):
+            # The file should be public, but there's no public date, or the public date is in the future and 
+            # therefore the file would not be public.
+            # Use the observing night as the public_date to force it to be public.
+            file_metadata.public_date = access.observing_night
+        else:
+            # The calculated public_date allows the file to be public, so keep it
+            file_metadata.public_date = access.public_date
+
+        # Make sure there's at least one user (the public user) so that the reason
+        # text is saved to the db
+        if len(access.ownerids) == 0:
+            access.ownerids = [ScheduleDB.PUBLIC_USER]
+
     elif access.visibility == Visibility.UNKNOWN:
         # Unknown should always have max public date
         file_metadata.public_date = MAX_PUBLIC_DATE
@@ -139,6 +153,7 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
     # Make sure unknown files have the UNKNOWN user as their owner
     if access.visibility == Visibility.UNKNOWN and ScheduleDB.UNKNOWN_USER not in access.ownerids:
         access.ownerids.append(ScheduleDB.UNKNOWN_USER)
+
 
     reason_string = "\n".join(access.reason)
     file_metadata.user_access.clear()
@@ -339,7 +354,7 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
         else:
             access.reason.append(reason(rule, f"Scheduled observer for {ownerhint}. obids {','.join([str(id) for id in unique_obids])}"))
 
-        if len(unique_coverids) > 1 and not allow_multiple:
+        if len(unique_obids) > 1 and not allow_multiple:
             access.reason.append(reason(rule, f"Observing calendar ownerhint query returned multiple users for ownerhint {ownerhint}, ignoring it."))
             continue
 

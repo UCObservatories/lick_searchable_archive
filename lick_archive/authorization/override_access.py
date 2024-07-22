@@ -4,7 +4,6 @@ Classes and data types related to Parsing and saving Override Access files.
 The Lick archive supports override access files used to override who can view files.
 These files are named "override.access" or "override.n.access", and are applied in order
 with override.access applied first.
-TODO reference Rules.txt?
 """
 
 from __future__ import annotations # To allow a class to return itself
@@ -205,12 +204,13 @@ def find_matching_rules(access_files : Sequence[OverrideAccessFile],
                         filename : str | Path) -> OverrideAccessRule:
     # Per rules, each rule within an access file is matched in order, and the first
     # one found is used
-    # But we allow later access files to override previous ones, so
-    # we sort the access files by reverse sequence_id_number
-    access_files_sorted = sorted(access_files, reverse=True, key=lambda x:x.sequence_id)
+    # But only the most recent override file is used 
 
     matching_rule = None
-    for access_file in access_files_sorted:
+    if len(access_files) > 0:
+        # Sort by sequence id and only use the most recent file
+        access_files_sorted = sorted(access_files, reverse=True, key=lambda x:x.sequence_id)
+        access_file = access_files_sorted[0]
         for access_rule in access_file.override_rules:
             if access_rule.matches(filename):
                 if matching_rule is None:
