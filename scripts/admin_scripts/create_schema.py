@@ -33,7 +33,7 @@ def main(args):
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_write_user))
         session.execute(text("GRANT SELECT, INSERT, UPDATE ON file_metadata TO " + args.read_write_user))
         session.execute(text("GRANT SELECT, UPDATE ON file_metadata_id_seq TO "  + args.read_write_user))
-        session.execute(text("GRANT SELECT, INSERT, UPDATE ON user_data_access TO " + args.read_write_user))
+        session.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON user_data_access TO " + args.read_write_user))
     if args.read_only_user is not None:
         session.execute(text("GRANT CONNECT ON DATABASE archive TO " + args.read_only_user))
         session.execute(text("GRANT SELECT ON file_metadata TO " + args.read_only_user))

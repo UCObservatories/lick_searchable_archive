@@ -136,6 +136,7 @@ def update_file_metadata(session : Session, id: int, row : FileMetadata, user_ac
     values = {attr: getattr(row, attr) for attr in attributes}
     try:
         stmt = update(FileMetadata).where(FileMetadata.id == id).values(values)
+        logger.debug(f"Running SQL: {stmt.compile()}")
         session.execute(stmt)
     except Exception as e:
         logger.error(f"Failed to update id {id}", exc_info=True)
@@ -148,12 +149,14 @@ def update_file_metadata(session : Session, id: int, row : FileMetadata, user_ac
     if user_access is not None:
         logger.debug("Deleting old user access information...")
         stmt = delete(UserDataAccess).where(UserDataAccess.file_id==id)
+        logger.debug(f"Running SQL: {stmt.compile()}")
         session.execute(stmt)
         logger.debug(f"Deleted old user access information, now adding  {len(user_access)} entries...")
 
         for user_data_access in user_access:
             try:
                 stmt = insert(UserDataAccess).values(file_id=id, obid=user_data_access.obid, reason=user_data_access.reason)
+                logger.debug(f"Running SQL: {stmt.compile()}")
                 session.execute(stmt)
             except Exception as e:
                 logger.error(f"Failed to insert new user data access for id {id}", exc_info=True)                
