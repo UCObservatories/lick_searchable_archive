@@ -119,7 +119,7 @@ def insert_file_metadata(session : Session, row : FileMetadata):
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
     will never succeed.
     """
-    logger.info(f"Inserting row.")
+    logger.debug(f"Inserting row.")
     session.add(row)
     logger.debug("Row inserted")
 
@@ -130,7 +130,7 @@ def update_file_metadata(session : Session, id: int, row : FileMetadata, user_ac
     retries for deailing with database issues. We do not retry UniqueViolations because such a failure
     will never succeed.
     """
-    logger.info(f"Updating row.")
+    logger.debug(f"Updating row.")
 
     attributes = [c.name for c in FileMetadata.__table__.columns if c.name not in ("id") ]
     values = {attr: getattr(row, attr) for attr in attributes}
