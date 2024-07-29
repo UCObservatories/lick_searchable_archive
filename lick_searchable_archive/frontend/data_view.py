@@ -46,7 +46,7 @@ def get_user_facing_result_fields(fields):
 
     """
     # Common field ordering
-    field_ordering = ["filename", "telescope", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "airmass", "object", "program", "observer", "coversheet", "public_date", "file_size", "header"]
+    field_ordering = ["filename", "telescope", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "airmass", "object", "program", "observer", "coversheet", "public_date", "file_size", "mtime", "header"]
 
     # Sort common fields by that ordering. We use UI_ALLOWED_RESULT to get the api field/user facing field pair
     sorted_common_fields = [field_tuple for field_tuple in sorted(UI_ALLOWED_RESULT[0][1], key=lambda x: field_ordering.index(x[0])) if field_tuple[0] in fields]

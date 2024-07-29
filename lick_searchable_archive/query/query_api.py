@@ -401,7 +401,7 @@ class QueryAPIFilterBackend:
                                     request.validated_query.get('filters', None))
 
         queryset = queryset.filter(**filters)
-        self._add_proprietary_access_filter(queryset, request)
+        queryset = self._add_proprietary_access_filter(queryset, request)
 
         # Add sort attributes if needed
         if request.validated_query['count'] is False and len(request.validated_query['sort']) > 0:
@@ -483,15 +483,18 @@ class QueryAPIFilterBackend:
         """
         if request.user.is_superuser:
             # superusers get no filtering
+            logger.info(f"Allowing all data for superuser.")
             return queryset
         else:
             public_date_filter = Q(public_date__lte = get_observing_night(datetime.datetime.now(tz=datetime.timezone.utc)))
             if not request.user.is_authenticated:
                 # Unknown users can only see public data
+                logger.info(f"Only allowing public data for public user.")
                 return queryset.filter(public_date_filter)
             else:
                 # Authorized users can also see their proprietary data.
                 authorized_user_filter = Q(user_access__file_id__exact = request.user.obid)
+                logger.info(f"Allowing public data and proprietary data for user {request.user.username} (obid: {request.user.obid})")
                 return queryset.filter(public_date_filter | authorized_user_filter)
 
     def _build_range_filter(self, filters, orm_field_name, value1, value2):
