@@ -45,6 +45,7 @@ def get_parser():
                                                  'database, but this can be changed with the --force option'
                         )
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest, or "all" for everything. Examples: "2010-01-04", "2010-01-01:2011-12-31".')
+    parser.add_argument("--dry_run", default = False, action="store_true", help="Run a dry run that does not do any updates but instead only logs what would have been updated.")
     parser.add_argument("--files", type=Path, nargs="+", help="Files to resync.")
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
     parser.add_argument("--force", default=False, action="store_true", help= "Force updates to always update existing files even if there's no change in the file size or mtime.")
@@ -126,7 +127,9 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
     # Update the override access files first
     for oaf in oafs:
         try:
-            save_oaf_to_db(oaf)
+            logger.info(f"Saving override access file: {oaf}")
+            if not args.dry_run:
+                save_oaf_to_db(oaf)
         except Exception as e:
             error_list.add_file(str(oaf),SyncType.OVERRIDE_FILE,str(e))
             logger.error(f"Failed to save {oaf} {e}", exc_info=True)
@@ -141,7 +144,7 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
 
         if file_metadata is None:
             sync_type = SyncType.INSERT
-
+            logger.info(f"New file {file_metadata.filename} discovered.")
         else:
             # See if the update can be skipped
             if not args.force:
@@ -167,10 +170,12 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
             continue
 
         if sync_type == SyncType.INSERT:
-            db_batch.insert(new_file_metadata)
+            if not args.dry_run:
+                db_batch.insert(new_file_metadata)
         else:
-            db_batch.update(file_metadata.id, new_file_metadata,new_file_metadata.user_access)
-
+            if not args.dry_run:
+                db_batch.update(file_metadata.id, new_file_metadata,new_file_metadata.user_access)
+            
 
 
 if __name__ == '__main__':
