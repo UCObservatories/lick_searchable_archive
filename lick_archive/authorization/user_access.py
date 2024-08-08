@@ -241,7 +241,7 @@ def identify_access(file_metadata : FileMetadata) -> Access:
             access.visibility = Visibility.PUBLIC
             access.reason.append(reason("2b", f"Fixed public owner {fixed_owner} for instrument {instr.value}."))
         else:
-            apply_ownerhints(access, "2b", fixed_owner)
+            apply_ownerhints(access, "2b", [fixed_owner])
 
             if access.visibility == Visibility.DEFAULT:
                 # This shouldn't happen, the fixed owner in the config file must not match what apply_ownerhints expects,
@@ -313,6 +313,9 @@ def identify_access(file_metadata : FileMetadata) -> Access:
 def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], allow_multiple=False, allow_unscheduled=False):
     """Apply ownerhints to a file to find it's owners"""
 
+    if len(ownerhints) == 0:
+        ownerhints = ["all-observers"]
+
     if "all-observers" in ownerhints:
         allow_multiple=True
 
@@ -352,9 +355,10 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
             else:
                 access.reason.append(reason(rule, f"Could not find observer for {ownerhint}"))
         else:
-            access.reason.append(reason(rule, f"Scheduled observer for {ownerhint}. obids {','.join([str(id) for id in unique_obids])}"))
+            if len(unique_obids) > 0:
+                access.reason.append(reason(rule, f"Scheduled observer for {ownerhint}. obids {','.join([str(id) for id in unique_obids])}"))
 
-        if len(unique_obids) > 1 and not allow_multiple:
+        if len(unique_obids) > 1 and not allow_multiple and ScheduleDB.PUBLIC_USER not in unique_obids:
             access.reason.append(reason(rule, f"Observing calendar ownerhint query returned multiple users for ownerhint {ownerhint}, ignoring it."))
             continue
 
@@ -380,7 +384,7 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
                 access.ownerids = list(all_obids)
                 access.visibility = Visibility.PROPRIETARY
 
-    if len(coverids) > 0:
+    if len(all_coverids) > 0:
         access.coverids = list(all_coverids)
 
     access.reason.append(reason(rule, f"Found {len(all_obids)} observers and {len(all_coverids)} coverids from override access ownerhints: {','.join(ownerhints)}"))

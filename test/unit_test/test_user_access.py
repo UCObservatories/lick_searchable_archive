@@ -12,21 +12,27 @@ class MockScheduleDB:
     mock_public_dates_data = {1: timedelta(days=-1000),
                               3: timedelta(days=1000),
                               4: timedelta(days=2000)}
+    UNKNOWN_USER = -101
+    PUBLIC_USER  = -100
 
     def get_public_dates(self, telescope, observing_night, observerids):
         # All mock dates are relative to the current date so the tests don't break in the future
         current_date = date.today()
         return [(obid, current_date + self.mock_public_dates_data[obid] if obid in self.mock_public_dates_data else None) for obid in observerids]
 
-def mock_compute_ownerhints(observing_night, telescope, ownerhints):
-    """Function to mock the lick_external compute_ownerhints function"""
+    def getOwnerhintMap(self):
+        return {"bob": 4}
+
+
+def mock_compute_ownerhint(observing_night, telescope, ownerhints):
+    """Function to mock the lick_external compute_ownerhint function"""
     import lick_external
 
     if "public" in ownerhints:
-        return ([lick_external.ScheduleDB.PUBLIC_USER] + mock_compute_ownerhints.desired_obids, mock_compute_ownerhints.desired_coverids)
+        return ([lick_external.ScheduleDB.PUBLIC_USER] + mock_compute_ownerhint.desired_obids, mock_compute_ownerhint.desired_coverids)
     elif "fail" in ownerhints:
         raise RuntimeError("Test Exception")                
-    return (mock_compute_ownerhints.desired_obids, mock_compute_ownerhints.desired_coverids)
+    return (mock_compute_ownerhint.desired_obids, mock_compute_ownerhint.desired_coverids)
 
 # Fixture to load override access files to the test sqlite3 db
 @pytest.fixture
@@ -55,7 +61,7 @@ def test_set_auth_metadata(monkeypatch):
     
     with monkeypatch.context() as m:
         from lick_archive.authorization import user_access
-        
+        from lick_archive.authorization import date_utils
         # Mock the schedule db get_public_dates 
         m.setattr(user_access, "ScheduleDB", MockScheduleDB)
 
@@ -95,17 +101,17 @@ def test_set_auth_metadata(monkeypatch):
         # Make sure the monkey patch worked and returned an Access object
         assert isinstance(result_access, user_access.Access)
         assert result_access.visibility == user_access.Visibility.PUBLIC
-        assert result_access.public_date is None
+        assert result_access.public_date == date(year=2014, month=1, day=2) # Two years after obs date
         assert result_access.reason[0].startswith("Rule 0: File has passed default proprietary end date")
 
-        # Test where the earliest public date is in the past
+        # Test where the earliest public date (on obid 1) is in the past 
         access.ownerids = [1,3,4]
         access.visibility = user_access.Visibility.PROPRIETARY
         access.reason = []
         result_access = user_access.set_auth_metadata(file_metadata)
 
         assert result_access.visibility == user_access.Visibility.PUBLIC
-        assert result_access.public_date is None
+        assert result_access.public_date == MockScheduleDB().get_public_dates("blah","blah",[1])[0][1]
         assert result_access.reason[0].startswith("Rule 0: File has passed observer 1's proprietary end date")
 
         # Test where it isn't public
@@ -136,6 +142,7 @@ def test_set_access_metadata():
     from lick_archive.db.archive_schema import FileMetadata
     from lick_archive.data_dictionary import Telescope, Instrument, FrameType
     from lick_archive.authorization.user_access import Access, Visibility, set_access_metadata
+    import lick_external
 
     # File metadata to test with
     file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
@@ -158,7 +165,8 @@ def test_set_access_metadata():
 
     assert updated_metadata.coversheet == "COVER1;COVER2"
     assert updated_metadata.public_date == date(year=2012,month=1,day=2)
-    assert len(file_metadata.user_access) == 0
+    assert len(file_metadata.user_access) == 1
+    assert file_metadata.user_access[0].obid == lick_external.ScheduleDB.PUBLIC_USER
 
     # Test a proprietary file
     access = Access(observing_night=date(year=2012, month=1, day=2),
@@ -184,7 +192,7 @@ def test_set_access_metadata():
     assert file_metadata.user_access[1].obid == 45
     assert file_metadata.user_access[1].reason == "Rule 1: blah blah\nRule 2: blah blah blah"
 
-    # Test an blank publicationd ate, which should be UNKNOWN
+    # Test an blank publicationd date, which should be UNKNOWN
     access = Access(observing_night=date(year=2012, month=1, day=2),
                     file_metadata = file_metadata,
                     visibility = Visibility.DEFAULT,
@@ -252,22 +260,23 @@ def test_identify_access_rule1_query_failure(monkeypatch):
         assert result_access.reason[0] == "Rule 1z: Failed when querying for override access."
 
 @django_db_setup
-def test_identify_access_rule1_all_observers(monkeypatch, override_access_in_db):
+def test_identify_access_rule1_all_observers(monkeypatch, tmp_path, override_access_in_db):
 
     with monkeypatch.context() as m:
+        m.chdir(tmp_path)
+
         from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [35, 88]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [35, 88]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
-
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
-        file_metadata = FileMetadata(filename = "2012-01/18/shane/r1234.fits", 
+        file_metadata = FileMetadata(filename = "2012-01/18/shane/b2345.fits", 
                             telescope=Telescope.SHANE, 
                             instrument=Instrument.KAST_RED,
                             obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
@@ -280,8 +289,8 @@ def test_identify_access_rule1_all_observers(monkeypatch, override_access_in_db)
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
         assert result_access.reason[0].startswith("Rule 1a: All observers from the night included")
         assert file_metadata.frame_type == FrameType.arc
-        assert result_access.ownerids == [35, 88]
-        assert result_access.coverids == ["COVER1", "COVER2"]
+        assert sorted(result_access.ownerids) == [35, 88]
+        assert sorted(result_access.coverids) == ["COVER1", "COVER2"]
 
 @django_db_setup
 def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
@@ -292,11 +301,11 @@ def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
         from lick_archive.authorization import user_access
 
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [35, 88]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [35, 88]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/18/shane/b34.fits", 
@@ -321,11 +330,11 @@ def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
         from lick_archive.authorization import user_access
 
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [3]
-        mock_compute_ownerhints.desired_coverids = ["COVER1"]
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [3]
+        mock_compute_ownerhint.desired_coverids = ["COVER1"]
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/18/shane/r34.fits", 
@@ -340,7 +349,8 @@ def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
         assert result_access.ownerids == [3]
         assert result_access.coverids == ["COVER1"]
-        assert result_access.reason[0].startswith("Rule 1b/c/d: Found 1 observers and 1 coverids")
+        assert result_access.reason[0].startswith("Rule 1b/c/d: Scheduled observer for ownerhint1")
+        assert result_access.reason[1].startswith("Rule 1b/c/d: Found 1 observers and 1 coverids")
 
 @django_db_setup
 def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db):
@@ -351,12 +361,12 @@ def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db
         from lick_archive.authorization import user_access
 
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [35, 88]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [35, 88]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
 
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/18/shane/r2345.jpg", 
@@ -407,11 +417,11 @@ def test_identify_access_private_fixed_owner(monkeypatch):
         from lick_archive.authorization import user_access
 
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [35]
-        mock_compute_ownerhints.desired_coverids = ["COVER1"]
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [35]
+        mock_compute_ownerhint.desired_coverids = ["COVER1"]
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/18/PEAS/s2345.fits", 
@@ -426,11 +436,12 @@ def test_identify_access_private_fixed_owner(monkeypatch):
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
         assert result_access.ownerids == [35]
         assert result_access.coverids == ["COVER1"]
-        assert result_access.reason[0].startswith("Rule 2b: Found 1 observers and 1 coverids")
+        assert result_access.reason[0].startswith("Rule 2b: Scheduled observer")
+        assert result_access.reason[1].startswith("Rule 2b: Found 1 observers and 1 coverids")
 
         # An unknown fixed owner
-        mock_compute_ownerhints.desired_obids = []
-        mock_compute_ownerhints.desired_coverids = []
+        mock_compute_ownerhint.desired_obids = []
+        mock_compute_ownerhint.desired_coverids = []
 
         result_access = user_access.identify_access(file_metadata)
 
@@ -449,11 +460,11 @@ def test_identify_access_rule3(monkeypatch):
         from lick_archive.authorization import user_access
 
 
-        # Mock compute_ownerhints
-        mock_compute_ownerhints.desired_obids = [35, 36]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
+        # Mock compute_ownerhint
+        mock_compute_ownerhint.desired_obids = [35, 36]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/18/AOsample/s2345.fits", 
@@ -466,10 +477,11 @@ def test_identify_access_rule3(monkeypatch):
         result_access = user_access.identify_access(file_metadata)
 
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
-        assert result_access.ownerids == [35,36]
-        assert result_access.coverids == ["COVER1", "COVER2"]
+        assert sorted(result_access.ownerids) == [35,36]
+        assert sorted(result_access.coverids) == ["COVER1", "COVER2"]
         assert result_access.reason[0].startswith("Rule 3: All observers from the night can access frame type: arc")
-        assert result_access.reason[1].startswith("Rule 3: Found 2 observers and 2 coverids")
+        assert result_access.reason[1].startswith("Rule 3: Scheduled observer for all-observers")
+        assert result_access.reason[2].startswith("Rule 3: Found 2 observers and 2 coverids")
 
 @django_db_setup
 def test_identify_access_rule4_query_failure(tmp_path, monkeypatch):
@@ -550,11 +562,11 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
         # This time was chosen because it is useful for later in this test
         file_metadata.mtime = datetime.fromisoformat("2019-05-03T09:28:32.740+00:00")
 
-        # Mock compute_ownerhints so rule 5 doesn't interfere
-        mock_compute_ownerhints.desired_obids = []
-        mock_compute_ownerhints.desired_coverids = []
+        # Mock compute_ownerhint so rule 5 doesn't interfere
+        mock_compute_ownerhint.desired_obids = []
+        mock_compute_ownerhint.desired_coverids = []
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         result_access = user_access.identify_access(file_metadata)
 
@@ -610,14 +622,15 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
         assert result_access.reason[1] == "Rule 4y: No owner found for ownerhint: hint2"
 
         # Now test with an actual owner found
-        mock_compute_ownerhints.desired_obids = [35]
-        mock_compute_ownerhints.desired_coverids = ["COVER1"]
+        mock_compute_ownerhint.desired_obids = [35]
+        mock_compute_ownerhint.desired_coverids = ["COVER1"]
         result_access = user_access.identify_access(file_metadata)
 
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
         assert result_access.ownerids == [35]
         assert result_access.coverids == ["COVER1"]
-        assert result_access.reason[0] == "Rule 4b: Found 1 observers and 1 coverids from override access ownerhints: hint2"
+        assert result_access.reason[0].startswith("Rule 4b: Scheduled observer for hint2")
+        assert result_access.reason[1] == "Rule 4b: Found 1 observers and 1 coverids from override access ownerhints: hint2"
 
 @django_db_setup
 def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
@@ -684,29 +697,31 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
         # Clear the timed cache of gshow output
         lick_external.get_keyword_ownerhints.cache.clear()
 
-        mock_compute_ownerhints.desired_obids = [36]
-        mock_compute_ownerhints.desired_coverids = ["COVER1"]
+        mock_compute_ownerhint.desired_obids = [36]
+        mock_compute_ownerhint.desired_coverids = ["COVER1"]
 
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         result_access = user_access.identify_access(file_metadata)
 
         assert result_access.visibility == user_access.Visibility.PROPRIETARY
         assert result_access.ownerids == [36]
         assert result_access.coverids == ["COVER1"]
-        assert result_access.reason[0] == "Rule 4a: Found 1 observers and 1 coverids from override access ownerhints: hint1"
+        assert result_access.reason[0].startswith("Rule 4a: Scheduled observer for hint1")
+        assert result_access.reason[1] == "Rule 4a: Found 1 observers and 1 coverids from override access ownerhints: hint1"
 
 
 
 def test_apply_ownerhints(monkeypatch):
 
     with monkeypatch.context() as m:
-        mock_compute_ownerhints.desired_obids = []
-        mock_compute_ownerhints.desired_coverids = []
+        mock_compute_ownerhint.desired_obids = []
+        mock_compute_ownerhint.desired_coverids = []
 
 
         from lick_archive.authorization import user_access
-        m.setattr(user_access, "compute_ownerhints", mock_compute_ownerhints)
+        m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
+        m.setattr(user_access, "ScheduleDB", MockScheduleDB)
 
         from lick_archive.authorization.user_access import Access, Visibility, apply_ownerhints
         from lick_archive.db.archive_schema import FileMetadata
@@ -739,49 +754,51 @@ def test_apply_ownerhints(monkeypatch):
 
 
         # Test with one ownerid found, and no ownerhints passed
-        mock_compute_ownerhints.desired_obids = [1]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
+        mock_compute_ownerhint.desired_obids = [1]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
         access.visibility = Visibility.DEFAULT
         access.reason = []
 
         apply_ownerhints(access, "1", [])
-        assert access.ownerids == mock_compute_ownerhints.desired_obids
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert access.ownerids == mock_compute_ownerhint.desired_obids
+        assert sorted(access.coverids) == mock_compute_ownerhint.desired_coverids
 
         assert access.visibility == Visibility.PROPRIETARY
-        assert access.reason[0].startswith("Rule 1: Found 1 observers and 2 coverids")
+        assert access.reason[0].startswith("Rule 1: Scheduled observer")
+        assert access.reason[1].startswith("Rule 1: Found 1 observers and 2 coverids")
 
-        # Test with two owner ids found, and no ownerhints passed
-        mock_compute_ownerhints.desired_obids = [1,2]
+        # Test with two owner ids found, and one ownerhint passed
+        mock_compute_ownerhint.desired_obids = [1,2]
         access.ownerids = []
         access.coverids = []
         access.reason = []
         access.visibility = Visibility.DEFAULT
-        apply_ownerhints(access, "1", [])
+        apply_ownerhints(access, "1", ['hint1'])
 
         assert access.ownerids == []
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert access.coverids == []
         assert access.visibility==Visibility.DEFAULT
-        assert access.reason[0] == "Rule 1: Observing calendar ownerhint query returned multiple users."
-        assert access.reason[1].startswith("Rule 1: Found 2 observers and 2 coverids")
+        assert access.reason[1] == "Rule 1: Observing calendar ownerhint query returned multiple users for ownerhint hint1, ignoring it."
+        assert access.reason[2].startswith("Rule 1: Found 0 observers and 0 coverids")
 
         # Test with two ownerids returned, and all-observers passed, no coverids
-        mock_compute_ownerhints.desired_coverids = []
-        mock_compute_ownerhints.desired_obids = [1,2]
+        mock_compute_ownerhint.desired_coverids = []
+        mock_compute_ownerhint.desired_obids = [1,2]
         access.ownerids = []
         access.coverids = []
         access.reason = []
         access.visibility = Visibility.DEFAULT
         apply_ownerhints(access, "1", ["all-observers"])
 
-        assert access.ownerids == mock_compute_ownerhints.desired_obids
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert sorted(access.ownerids) == mock_compute_ownerhint.desired_obids
+        assert access.coverids == mock_compute_ownerhint.desired_coverids
         assert access.visibility==Visibility.PROPRIETARY
-        assert access.reason[0].startswith("Rule 1: Found 2 observers and 0 coverids")    
+        assert access.reason[0].startswith("Rule 1: Scheduled observer")    
+        assert access.reason[1].startswith("Rule 1: Found 2 observers and 0 coverids")    
 
         # Test the "Public ownerhint pattern"
-        mock_compute_ownerhints.desired_obids = [1,2]
-        mock_compute_ownerhints.desired_coverids = ["COVER1", "COVER2"]
+        mock_compute_ownerhint.desired_obids = [1,2]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
         access.ownerids = []
         access.coverids = []
         access.reason = []
@@ -789,13 +806,61 @@ def test_apply_ownerhints(monkeypatch):
         apply_ownerhints(access, "1", ["hint1", "RECUR_X100"])
 
         assert access.ownerids == []
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert sorted(access.coverids) == mock_compute_ownerhint.desired_coverids
         assert access.visibility==Visibility.PUBLIC
-        assert access.reason[0] == "Rule 1: Observing calendar ownerhint query returned public user."    
-        assert access.reason[1].startswith("Rule 1: Found 3 observers and 2 coverids")    
+        assert access.reason[-2] == "Rule 1: Observing calendar ownerhint query returned public user."    
+        assert access.reason[-1].startswith("Rule 1: Found 3 observers and 2 coverids")    
+
+        # Test unscheduled user
+        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_coverids = []
+        access.ownerids = []
+        access.coverids = []
+        access.reason = []
+        access.visibility = Visibility.DEFAULT
+
+        apply_ownerhints(access, "1", ["bob"],allow_unscheduled=True)
+
+        assert access.ownerids == [4]
+        assert access.coverids == []
+        assert access.visibility == Visibility.PROPRIETARY 
+        assert access.reason[0] == "Rule 1: Unscheduled observer bob found. obsid 4"
+        assert access.reason[1].startswith("Rule 1: Found 1 observers and 0 coverids")
+
+        # Test unrecognized unscheduled observer
+        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_coverids = []
+        access.ownerids = []
+        access.coverids = []
+        access.reason = []
+        access.visibility = Visibility.DEFAULT
+        apply_ownerhints(access, "1", ["robert"],allow_unscheduled=True)
+
+        assert access.ownerids == []
+        assert access.coverids == []
+        assert access.visibility == Visibility.DEFAULT 
+        assert access.reason[0] == "Rule 1: Could not find observer for robert"
+        assert access.reason[1] == "Rule 1: Observing calendar ownerhint query returned unknown user."
+        assert access.reason[2].startswith("Rule 1: Found 0 observers and 0 coverids")
+
+        # Test Unknown user and one known user
+        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER, 3]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
+        access.ownerids = []
+        access.coverids = []
+        access.reason = []
+        access.visibility = Visibility.DEFAULT
+        apply_ownerhints(access, "1", ["all-observers"])
+
+        assert access.ownerids == [3]
+        assert sorted(access.coverids) == mock_compute_ownerhint.desired_coverids
+        assert access.visibility==Visibility.PROPRIETARY
+        assert access.reason[0] == "Rule 1: Could not find observer for all-observers"    
+        assert access.reason[1].startswith("Rule 1: Found 1 observers and 2 coverids")    
 
         # Test Unknown user
-        mock_compute_ownerhints.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER, 3]
+        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
         access.ownerids = []
         access.coverids = []
         access.reason = []
@@ -803,13 +868,14 @@ def test_apply_ownerhints(monkeypatch):
         apply_ownerhints(access, "1", ["all-observers"])
 
         assert access.ownerids == []
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert sorted(access.coverids) == mock_compute_ownerhint.desired_coverids
         assert access.visibility==Visibility.DEFAULT
-        assert access.reason[0] == "Rule 1: Observing calendar ownerhint query returned unknown user."    
-        assert access.reason[1].startswith("Rule 1: Found 2 observers and 2 coverids")    
+        assert access.reason[0] == "Rule 1: Could not find observer for all-observers"    
+        assert access.reason[1].startswith("Rule 1: Observing calendar ownerhint query returned unknown user.")    
+        assert access.reason[2].startswith("Rule 1: Found 0 observers and 2 coverids")    
 
         # Test no owners found
-        mock_compute_ownerhints.desired_obids = []
+        mock_compute_ownerhint.desired_obids = []
         access.ownerids = []
         access.coverids = []
         access.reason = []
@@ -817,7 +883,7 @@ def test_apply_ownerhints(monkeypatch):
         apply_ownerhints(access, "1", ["all-observers"])
 
         assert access.ownerids == []
-        assert access.coverids == mock_compute_ownerhints.desired_coverids
+        assert sorted(access.coverids) == mock_compute_ownerhint.desired_coverids
         assert access.visibility==Visibility.DEFAULT
         assert access.reason[0].startswith("Rule 1: Found 0 observers and 2 coverids")    
 

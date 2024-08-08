@@ -34,6 +34,10 @@ Code Quality
 * Update ingest_watchdog to use new configuration class.
 * Improve script consistency regarding main() and get_parser. 
 * Cleanup script argparse help output
+* Cleanup duplicated resync logic between ingest task (when override.access is run) and resync_utils module/scripts.
+* Cleanup override access, we currently keep all versions in db, but only need the latest. Do we really need the two
+  versions of the override access file class?
+
 
 API Cleanup
 -----------
@@ -44,7 +48,8 @@ API Cleanup
   api validation couldn't use a serializer like it does now. Also there'data
   have to be a fancy frontend to add new filter.
 * Remove archive_root from any paths returned by the API.
-
+* support VO TAP api?
+  
 Bugs
 ----
 * When using separate frontend and backend nodes, header requests won't see the

@@ -21,7 +21,7 @@ def compute_ownerhint(observing_night : date, telescope : Telescope, ownerhint :
     Args:
         observing_night: The observing night to query for.
         telescope:       The telescope to query for.
-        ownerhints:      Any ownerhints that are available to help find the ownerids. This can be an empty list.
+        ownerhint:      Any ownerhints that are available to help find the ownerids. This can be an empty string.
     """
     # Import the LROOT code for computing ownerhints
     from schedule import ownercompute, schedconfig

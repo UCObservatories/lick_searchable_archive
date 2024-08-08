@@ -99,8 +99,9 @@ def test_from_file():
     assert oaf.observing_night == date(year=2012, month=1, day=18)
     assert oaf.instrument_dir == "shane"
     assert oaf.sequence_id == 1
-    assert len(oaf.override_rules) == 1
+    assert len(oaf.override_rules) == 2
     assert oaf.override_rules[0].pattern=="r1234.fits"
+    assert oaf.override_rules[1].pattern=="r[12]*"
 
     # Test emtpy file. I'm not sure if this should error but right now it doesn't
     oaf = OverrideAccessFile.from_file(str(test_data_dir / subdir / "override.2.access"))
@@ -125,18 +126,19 @@ def test_matching_rules():
 
     # The way rule resolution works, this should hit the rule in override.1.access that sets the type to "arc"
     #import pdb; pdb.set_trace()
-    matching_rule = find_matching_rules([oaf0, oaf1, oaf2], "r1234.fits")
+    matching_rule = find_matching_rules([oaf0, oaf1], "r1234.fits")
 
     from lick_archive.data_dictionary import FrameType
     assert matching_rule is not None
     assert matching_rule.pattern == "r1234.fits"
     assert matching_rule.obstype == FrameType.arc
 
-    # The way rule resolution works, this should hit the rule in override.access that sets the ownerhints
-    matching_rule = find_matching_rules([oaf0, oaf1, oaf2], "r12345.fits")
+    # The way rule resolution works, this should not hit the rule in override.access that sets the ownerhints,
+    # but instead hit the rule in override.1.access
+    matching_rule = find_matching_rules([oaf0, oaf1], "r12345.fits")
     assert matching_rule is not None
     assert matching_rule.pattern == "r[12]*"
-    assert matching_rule.ownerhints == ["ownerhint1", "ownerhint2"]
+    assert matching_rule.ownerhints == ["ownerhint3", "ownerhint4"]
 
     # The way rule resolution works, this should hit the first rule in override.access that sets the type to flat
     matching_rule = find_matching_rules([oaf0], "r1234.fits")
