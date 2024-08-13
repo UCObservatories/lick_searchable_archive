@@ -3,7 +3,7 @@
 def test_cached_values():
 
     from datetime import timedelta
-    from lick_archive import timed_cache
+    from lick_archive.utils import timed_cache
 
     test_cached_values.times_called = 0
     @timed_cache.timed_cache(timedelta(hours=1))
@@ -33,7 +33,7 @@ def test_cached_values():
 
 def test_cache_timeout():
     from datetime import timedelta
-    from lick_archive import timed_cache
+    from lick_archive.utils import timed_cache
     import time
 
     test_cache_timeout.times_called = 0

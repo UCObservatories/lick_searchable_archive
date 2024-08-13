@@ -20,8 +20,8 @@ import watchdog.events
 import watchdog.observers.api
 import watchdog.observers.polling
 
-from lick_archive.script_utils import setup_service_logging
-from lick_archive.lick_archive_ingest_client import LickArchiveIngestClient
+from lick_archive.utils.script_utils import setup_service_logging
+from lick_archive.client.lick_archive_ingest_client import LickArchiveIngestClient
 
 logger = logging.getLogger(__name__)
 

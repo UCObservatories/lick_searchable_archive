@@ -9,7 +9,7 @@ Type=forking
 User= {{ archive_service_user }}
 Group= {{ archive_service_group }}
 EnvironmentFile={{ archive_config_dir }}/celery.env
-WorkingDirectory={{ package_install_dir }}/lick_searchable_archive/
+WorkingDirectory={{ package_install_dir }}/
 ExecStart=/bin/sh -c '${CELERY_BIN} -A $CELERY_APP multi start $CELERYD_NODES \
     --pidfile=${CELERYD_PID_FILE} --logfile=${CELERYD_LOG_FILE} \
     --loglevel="${CELERYD_LOG_LEVEL}" $CELERYD_OPTS'

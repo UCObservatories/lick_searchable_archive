@@ -10,17 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 from lick_archive.db.db_utils import create_db_engine, BatchedDBOperation
-from lick_archive.script_utils import get_log_path
+from lick_archive.utils.script_utils import get_log_path
 from lick_archive.db.archive_schema import UserDataAccess, FileMetadata
 from lick_archive.authorization.date_utils import get_observing_night
 from lick_archive.authorization.user_access import get_public_date
-from lick_external import ScheduleDB
+from lick_archive.external import ScheduleDB
 # Setup django before importing any django classes
-from lick_archive.django_utils import setup_django, setup_django_logging
+from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
 
-from lick_archive.resync_utils import SyncType, get_dirs_for_daterange, ErrorList, get_metadata_from_command_line
+from lick_archive.utils.resync_utils import SyncType, get_dirs_for_daterange, ErrorList, get_metadata_from_command_line
 from lick_archive.authorization.override_access import OverrideAccessFile
 from archive_auth.models import ArchiveUser
 from django.core.exceptions import ObjectDoesNotExist

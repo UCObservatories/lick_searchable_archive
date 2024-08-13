@@ -1,5 +1,5 @@
 # gunicorn settings, see https://docs.gunicorn.org/en/latest/settings.html#logging
-wsgi_app = "lick_searchable_archive.wsgi:application"
+wsgi_app = "lick_archive.archive_site.wsgi:application"
 
 # Create a pidfile
 pidfile="/var/run/gunicorn/gunicorn.pid"

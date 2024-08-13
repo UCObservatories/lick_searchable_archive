@@ -17,6 +17,7 @@ def MockDatabase(base_class, rows=None):
     # This functions wraps a MockDatabaseClass so that the below imports
     # aren't made until after the archive configuration is set
     from lick_archive.db.archive_schema import FileMetadata,UserDataAccess
+    from lick_archive.metadata.data_dictionary import api_capabilities
     class MockDatabaseClass(contextlib.AbstractContextManager):
 
         def __init__(self, base_class, rows=None):
@@ -60,9 +61,9 @@ def create_mock_view(engine, request=None):
 
     # We define the view in a function so the below imports happen after Django is initialized by the test case
     from rest_framework.generics import ListAPIView
-    from lick_searchable_archive.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
-    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
-    from lick_archive.data_dictionary import api_capabilities
+    from lick_archive.apps.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
+    from lick_archive.apps.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
+    from lick_archive.metadata.data_dictionary import api_capabilities
     from lick_archive.db.archive_schema import FileMetadata
     
     class MockView(QueryAPIMixin,ListAPIView):
@@ -105,7 +106,7 @@ def create_test_request(path, data,user=None,obid=None,is_superuser=None):
 def create_validated_request(path, data, view):
     request = create_test_request(path, data)
 
-    from lick_searchable_archive.query.query_api import QuerySerializer
+    from lick_archive.apps.query.query_api import QuerySerializer
 
     serializer = QuerySerializer(data=request.query_params, view=view)
     try:

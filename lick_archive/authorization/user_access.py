@@ -12,11 +12,11 @@ from lick_archive.db.archive_schema import FileMetadata, UserDataAccess
 from lick_archive.metadata.metadata_utils import parse_file_name
 from lick_archive.authorization import override_access
 from lick_archive.authorization.date_utils import get_file_begin_end_times, get_observing_night, calculate_public_date
-from lick_archive.data_dictionary import FrameType, MAX_PUBLIC_DATE
-from lick_external import ScheduleDB, compute_ownerhint, get_keyword_ownerhints
+from lick_archive.metadata.data_dictionary import FrameType, MAX_PUBLIC_DATE
+from lick_archive.external import ScheduleDB, compute_ownerhint, get_keyword_ownerhints
 
 
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 class Visibility(Enum):

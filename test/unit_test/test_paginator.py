@@ -8,7 +8,7 @@ from django.http import QueryDict
 
 from test_utils import MockDatabase, create_mock_view, create_validated_request, basic_django_setup
 from lick_archive.db.archive_schema import Base, FileMetadata
-from lick_archive.data_dictionary import FrameType
+from lick_archive.metadata.data_dictionary import FrameType
 
 # Test rows shared between most tests
 test_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
@@ -29,7 +29,7 @@ test_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date =
 def test_no_results(tmp_path):
     # Test a query that returns no results form the database
 
-    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_archive.apps.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
 
 
     with MockDatabase(Base) as mock_db:                
@@ -49,7 +49,7 @@ def test_no_results(tmp_path):
 def test_one_page_of_results(tmp_path):
     # Test pulling exactly one page from the database
 
-    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_archive.apps.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
 
 
     with MockDatabase(Base, test_rows) as mock_db:
@@ -104,7 +104,7 @@ def test_multi_page_result(tmp_path):
                              public_date=date(1970, 1, 1)),
     ]
 
-    from lick_searchable_archive.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
+    from lick_archive.apps.query.query_api import QueryAPIPagination,QueryAPIFilterBackend
 
     page_size = 3
 

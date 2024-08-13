@@ -15,9 +15,9 @@ import lick_archive.metadata.shane_kast
 import lick_archive.metadata.shane_ao_sharcs
 from lick_archive.metadata import metadata_utils
 
-from lick_archive.data_dictionary import IngestFlags
+from lick_archive.metadata.data_dictionary import IngestFlags
 from lick_archive.db.archive_schema import FileMetadata
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 from lick_archive.authorization import user_access
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 

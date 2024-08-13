@@ -25,11 +25,11 @@ class MockScheduleDB:
 
 
 def mock_compute_ownerhint(observing_night, telescope, ownerhints):
-    """Function to mock the lick_external compute_ownerhint function"""
-    import lick_external
+    """Function to mock the lick external compute_ownerhint function"""
+    from lick_archive import external
 
     if "public" in ownerhints:
-        return ([lick_external.ScheduleDB.PUBLIC_USER] + mock_compute_ownerhint.desired_obids, mock_compute_ownerhint.desired_coverids)
+        return ([external.ScheduleDB.PUBLIC_USER] + mock_compute_ownerhint.desired_obids, mock_compute_ownerhint.desired_coverids)
     elif "fail" in ownerhints:
         raise RuntimeError("Test Exception")                
     return (mock_compute_ownerhint.desired_obids, mock_compute_ownerhint.desired_coverids)
@@ -72,7 +72,7 @@ def test_set_auth_metadata(monkeypatch):
 
         # File metadata to test with
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
 
         file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
                             telescope=Telescope.SHANE, 
@@ -140,9 +140,9 @@ def test_set_auth_metadata(monkeypatch):
 def test_set_access_metadata():
 
     from lick_archive.db.archive_schema import FileMetadata
-    from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+    from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
     from lick_archive.authorization.user_access import Access, Visibility, set_access_metadata
-    import lick_external
+    from lick_archive import external
 
     # File metadata to test with
     file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
@@ -166,7 +166,7 @@ def test_set_access_metadata():
     assert updated_metadata.coversheet == "COVER1;COVER2"
     assert updated_metadata.public_date == date(year=2012,month=1,day=2)
     assert len(file_metadata.user_access) == 1
-    assert file_metadata.user_access[0].obid == lick_external.ScheduleDB.PUBLIC_USER
+    assert file_metadata.user_access[0].obid == external.ScheduleDB.PUBLIC_USER
 
     # Test a proprietary file
     access = Access(observing_night=date(year=2012, month=1, day=2),
@@ -208,7 +208,7 @@ def test_set_access_metadata():
     assert updated_metadata.public_date == date(year=9999,month=12,day=31)
     assert len(file_metadata.user_access) == 1
 
-    from lick_external import ScheduleDB
+    from lick_archive.external import ScheduleDB
     assert file_metadata.user_access[0].obid == ScheduleDB.UNKNOWN_USER
     assert file_metadata.user_access[0].reason == "Rule 1: blah blah\nRule 2: blah blah blah"
 
@@ -228,7 +228,7 @@ def test_set_access_metadata():
     assert updated_metadata.public_date == date(year=9999,month=12,day=31)
     assert len(file_metadata.user_access) == 1
 
-    from lick_external import ScheduleDB
+    from lick_archive.external import ScheduleDB
     assert file_metadata.user_access[0].obid == ScheduleDB.UNKNOWN_USER
     assert file_metadata.user_access[0].reason == "Rule 1: blah blah\nRule 2: blah blah blah"
 
@@ -237,7 +237,7 @@ def test_set_access_metadata():
 def test_identify_access_rule1_query_failure(monkeypatch):
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
 
         # File metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
@@ -266,7 +266,7 @@ def test_identify_access_rule1_all_observers(monkeypatch, tmp_path, override_acc
         m.chdir(tmp_path)
 
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
         # Mock compute_ownerhint
@@ -297,7 +297,7 @@ def test_identify_access_rule1_public(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
 
@@ -326,7 +326,7 @@ def test_identify_access_rule1_proprietary(monkeypatch, override_access_in_db):
 
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
 
@@ -357,7 +357,7 @@ def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db
 
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
 
@@ -389,7 +389,7 @@ def test_identify_access_rule1_obstype_and_2a(monkeypatch, override_access_in_db
 @django_db_setup
 def test_identify_access_public_fixed_owner():
     from lick_archive.db.archive_schema import FileMetadata
-    from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+    from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
     from lick_archive.authorization import user_access
 
     # File metadata to test with
@@ -413,7 +413,7 @@ def test_identify_access_private_fixed_owner(monkeypatch):
 
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
 
@@ -456,7 +456,7 @@ def test_identify_access_rule3(monkeypatch):
 
     with monkeypatch.context() as m:
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
 
@@ -488,11 +488,11 @@ def test_identify_access_rule4_query_failure(tmp_path, monkeypatch):
     # Test failure to call gshow (or gshow returns failure)
     with monkeypatch.context() as m:
         m.chdir(tmp_path)
-        from lick_archive.archive_config import ArchiveConfigFile
+        from lick_archive.config.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
 
         lick_archive_config.authorization.gshow_path = Path(__file__).parent / "mock_gshow.py"
@@ -518,13 +518,13 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
     with monkeypatch.context() as m:
         m.chdir(tmp_path)
 
-        from lick_archive.archive_config import ArchiveConfigFile
+        from lick_archive.config.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
-        import lick_external
+        from lick_archive import external
 
         lick_archive_config.authorization.gshow_path = Path(__file__).parent / "mock_gshow.py"
 
@@ -534,7 +534,7 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
             print("1234 <undef>", file=f)
         
         # Clear the timed cache of gshow output
-        lick_external.get_keyword_ownerhints.cache.clear()
+        external.get_keyword_ownerhints.cache.clear()
 
         # Test for something with no beginning and end date in the header
         # for that we need a header
@@ -611,7 +611,7 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
             print("1556875229   hint2", file=f) # 2019-05-03T09:20:29.740+00:00, 8 minutes before DATE-BEG
 
         # For the above to take effect the cache must be cleared
-        lick_external.get_keyword_ownerhints.cache.clear()
+        external.get_keyword_ownerhints.cache.clear()
 
         result_access = user_access.identify_access(file_metadata)
 
@@ -638,13 +638,13 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
     with monkeypatch.context() as m:
         m.chdir(tmp_path)
 
-        from lick_archive.archive_config import ArchiveConfigFile
+        from lick_archive.config.archive_config import ArchiveConfigFile
         lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
-        import lick_external
+        from lick_archive import external
 
         lick_archive_config.authorization.gshow_path = Path(__file__).parent / "mock_gshow.py"
 
@@ -673,7 +673,7 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
             print("1556875710 hint2", file=f)
         
         # Clear the timed cache of gshow output
-        lick_external.get_keyword_ownerhints.cache.clear()
+        external.get_keyword_ownerhints.cache.clear()
 
         # Stat shouldn't be called in this case, we make sure of that with a mock that always fails
 
@@ -695,7 +695,7 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
             print("1556875710 hint1", file=f)
 
         # Clear the timed cache of gshow output
-        lick_external.get_keyword_ownerhints.cache.clear()
+        external.get_keyword_ownerhints.cache.clear()
 
         mock_compute_ownerhint.desired_obids = [36]
         mock_compute_ownerhint.desired_coverids = ["COVER1"]
@@ -725,8 +725,8 @@ def test_apply_ownerhints(monkeypatch):
 
         from lick_archive.authorization.user_access import Access, Visibility, apply_ownerhints
         from lick_archive.db.archive_schema import FileMetadata
-        from lick_archive.data_dictionary import Telescope, Instrument, FrameType
-        import lick_external
+        from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
+        from lick_archive import external
 
         # Get some file metadata to test with
         file_metadata = FileMetadata(filename = "2012-01/02/shane/r36.fits", 
@@ -812,7 +812,7 @@ def test_apply_ownerhints(monkeypatch):
         assert access.reason[-1].startswith("Rule 1: Found 3 observers and 2 coverids")    
 
         # Test unscheduled user
-        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_obids = [external.ScheduleDB.UNKNOWN_USER]
         mock_compute_ownerhint.desired_coverids = []
         access.ownerids = []
         access.coverids = []
@@ -828,7 +828,7 @@ def test_apply_ownerhints(monkeypatch):
         assert access.reason[1].startswith("Rule 1: Found 1 observers and 0 coverids")
 
         # Test unrecognized unscheduled observer
-        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_obids = [external.ScheduleDB.UNKNOWN_USER]
         mock_compute_ownerhint.desired_coverids = []
         access.ownerids = []
         access.coverids = []
@@ -844,7 +844,7 @@ def test_apply_ownerhints(monkeypatch):
         assert access.reason[2].startswith("Rule 1: Found 0 observers and 0 coverids")
 
         # Test Unknown user and one known user
-        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER, 3]
+        mock_compute_ownerhint.desired_obids = [external.ScheduleDB.UNKNOWN_USER, 3]
         mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
         access.ownerids = []
         access.coverids = []
@@ -859,7 +859,7 @@ def test_apply_ownerhints(monkeypatch):
         assert access.reason[1].startswith("Rule 1: Found 1 observers and 2 coverids")    
 
         # Test Unknown user
-        mock_compute_ownerhint.desired_obids = [lick_external.ScheduleDB.UNKNOWN_USER]
+        mock_compute_ownerhint.desired_obids = [external.ScheduleDB.UNKNOWN_USER]
         mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
         access.ownerids = []
         access.coverids = []

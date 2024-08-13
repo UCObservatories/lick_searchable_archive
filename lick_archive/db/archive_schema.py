@@ -14,7 +14,7 @@ from astropy.coordinates import SkyCoord
 
 from lick_archive.db.pgsphere import SPoint
 from lick_archive.db.bitstring import BitString
-from lick_archive.data_dictionary import data_dictionary, IngestFlags, LargeInt, LargeStr, MAX_PUBLIC_DATE
+from lick_archive.metadata.data_dictionary import data_dictionary, IngestFlags, LargeInt, LargeStr, MAX_PUBLIC_DATE
 
 
 class Base(DeclarativeBase):

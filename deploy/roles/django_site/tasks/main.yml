@@ -16,8 +16,8 @@
   become: yes
 - name: Copy the Django site directory
   ansible.builtin.copy:
-    src: "{{ archive_source_dir }}/lick_searchable_archive/lick_searchable_archive"
-    dest: "{{ package_install_dir }}/lick_searchable_archive"
+    src: "{{ archive_source_dir }}/lick_archive/lick_archive_site"
+    dest: "{{ package_install_dir }}/lick_archive/lick_archive_site"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
     mode: 0770
@@ -25,8 +25,8 @@
   notify: "restart web services"
 - name: Copy the Django manage script
   ansible.builtin.copy:
-    src: "{{ archive_source_dir }}/lick_searchable_archive/manage.py"
-    dest: "{{ package_install_dir }}/lick_searchable_archive"
+    src: "{{ archive_source_dir }}/lick_archive/lick_archive_site/manage.py"
+    dest: "{{ venv_root }}/bin"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
     mode: 0770
@@ -55,7 +55,7 @@
     group: "{{ archive_service_group }}"
     state: link
     src: "{{ archive_config_dir }}/{{ django_settings }}"
-    dest: "{{ package_install_dir }}/lick_searchable_archive/lick_searchable_archive/{{ django_settings }}"
+    dest: "{{ package_install_dir }}/lick_archive/lick_archive_site/{{ django_settings }}"
   become: yes
   become_user: "{{ archive_service_user }}"
   notify: "restart web services"

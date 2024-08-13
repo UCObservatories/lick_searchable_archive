@@ -14,7 +14,7 @@ from rest_framework.exceptions import APIException
 from datetime import date, timedelta
 
 from lick_archive.db.archive_schema import Base, FileMetadata, UserDataAccess
-from lick_archive.data_dictionary import FrameType
+from lick_archive.metadata.data_dictionary import FrameType
 
 not_public_date = date.today() + timedelta(days=30)
 
@@ -183,8 +183,8 @@ def test_coord_filter():
 
 
     from astropy.coordinates import Angle
-    from lick_archive.archive_config import ArchiveConfigFile
-    from lick_searchable_archive.query.query_api import QuerySerializer
+    from lick_archive.config.archive_config import ArchiveConfigFile
+    from lick_archive.apps.query.query_api import QuerySerializer
 
     lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 

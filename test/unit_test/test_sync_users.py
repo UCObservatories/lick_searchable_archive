@@ -4,7 +4,7 @@ import pytest
 import copy
 
 
-from lick_searchable_archive.archive_auth.hashers import APR_MD5PasswordHasher
+from lick_archive.apps.archive_auth.hashers import APR_MD5PasswordHasher
 from passlib.hash import apr_md5_crypt
 from django.utils.crypto import get_random_string, RANDOM_STRING_CHARS
 
@@ -296,7 +296,7 @@ def test_duplicate_username():
 
 @django_db_setup
 def test_sync_users_main(monkeypatch, tmp_path):
-    from lick_external.sched_db import ScheduleDB
+    from lick_archive.external.sched_db import ScheduleDB
     def mock_init(*args,**kwargs):
         return
 

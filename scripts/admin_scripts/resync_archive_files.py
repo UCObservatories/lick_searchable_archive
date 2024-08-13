@@ -12,14 +12,14 @@ from typing import Iterator
 from contextlib import closing
 
 from sqlalchemy import select
-from lick_archive.script_utils import get_log_path, get_unique_file
+from lick_archive.utils.script_utils import get_log_path, get_unique_file
 from lick_archive.db import db_utils
 
 # Setup django before importing any django classes
-from lick_archive.django_utils import setup_django, setup_django_logging
+from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
-from lick_archive.resync_utils import SyncType, ErrorList, get_dirs_for_daterange
+from lick_archive.utils.resync_utils import SyncType, ErrorList, get_dirs_for_daterange
 from lick_archive.db.db_utils import create_db_engine, find_file_metadata, BatchedDBOperation
 from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata.reader import read_file
@@ -29,7 +29,7 @@ from lick_archive.authorization.override_access import OverrideAccessFile
 
 from archive_auth.models import save_oaf_to_db
 
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 logger = logging.getLogger(__name__)

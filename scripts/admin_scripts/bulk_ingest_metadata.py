@@ -11,7 +11,7 @@ import logging
 
 from lick_archive.metadata.reader import read_file
 from lick_archive.db.db_utils import create_db_engine, open_db_session, insert_one, insert_batch
-from lick_archive.script_utils import setup_logging, get_unique_file, parse_date_range, get_files_for_daterange
+from lick_archive.utils.script_utils import setup_logging, get_unique_file, parse_date_range, get_files_for_daterange
 
 logger = logging.getLogger(__name__)
                                 

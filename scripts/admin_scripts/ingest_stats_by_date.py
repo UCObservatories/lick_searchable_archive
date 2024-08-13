@@ -14,11 +14,11 @@ from lick_archive.db import db_utils
 from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.authorization.override_access import OverrideAccessFile
 
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 # Setup django before importing any django classes
-from lick_archive.django_utils import setup_django, setup_django_logging
+from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from archive_auth.models import DBOverrideAccessFile

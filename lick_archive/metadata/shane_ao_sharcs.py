@@ -11,7 +11,7 @@ from sqlalchemy import cast
 from lick_archive.metadata.abstract_reader import AbstractReader
 from lick_archive.metadata.metadata_utils import safe_header, parse_file_name, get_shane_lamp_status, get_ra_dec
 from lick_archive.db.archive_schema import  FileMetadata
-from lick_archive.data_dictionary import FrameType, IngestFlags, Telescope, Instrument
+from lick_archive.metadata.data_dictionary import FrameType, IngestFlags, Telescope, Instrument
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ import calendar
 from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata import metadata_utils
 
-from lick_archive.archive_config import ProprietaryPeriod, ArchiveConfigFile
+from lick_archive.config.archive_config import ProprietaryPeriod, ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 def calculate_public_date(file_date : date|datetime, prop_period : ProprietaryPeriod) -> date:

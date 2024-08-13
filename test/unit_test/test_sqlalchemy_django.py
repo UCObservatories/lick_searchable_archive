@@ -15,14 +15,14 @@ from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
 from lick_archive.db.archive_schema import Base, FileMetadata, UserDataAccess
-from lick_archive.data_dictionary import FrameType, Telescope, Instrument
+from lick_archive.metadata.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.db.pgsphere import SCircle, SPoint
 
 from lick_archive.metadata.shane_ao_sharcs import ShaneAO_ShARCS
 from lick_archive.metadata.metadata_utils import get_hdul_from_text
 from test_utils import MockDatabase
 
-from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyORMSerializer, SQLAlchemyQuerySet
+from lick_archive.apps.query.sqlalchemy_django_utils import SQLAlchemyORMSerializer, SQLAlchemyQuerySet
 
 def test_sqlalchemy_orm_serializer():
 

@@ -80,7 +80,7 @@
     directory_mode: 0770
   become: yes
   become_user: "{{ archive_service_user }}"
-  loop: ["lick_archive", "lick_external"]
+  loop: ["lick_archive"]
   notify: "common config changed"
 - name: Create config directory
   ansible.builtin.file:

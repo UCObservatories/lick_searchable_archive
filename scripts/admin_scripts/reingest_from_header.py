@@ -9,16 +9,16 @@ from functools import partial
 import logging
 logger = logging.getLogger(__name__)
 
-from lick_archive.data_dictionary import IngestFlags
+from lick_archive.metadata.data_dictionary import IngestFlags
 from lick_archive.db.archive_schema import FileMetadata
 
 # Setup django before importing any django files
-from lick_archive.django_utils import setup_django, setup_django_logging
+from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from lick_archive.metadata.reader import read_hdul
 from lick_archive.db.db_utils import create_db_engine, BatchedDBOperation
-from lick_archive.script_utils import get_log_path, get_unique_file
+from lick_archive.utils.script_utils import get_log_path, get_unique_file
 from lick_archive import resync_utils
 from lick_archive.metadata.metadata_utils import get_hdul_from_string
 

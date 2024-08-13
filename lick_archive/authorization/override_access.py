@@ -18,10 +18,10 @@ from datetime import date
 from fnmatch import fnmatch
 import re
 
-from lick_archive.data_dictionary import FrameType
+from lick_archive.metadata.data_dictionary import FrameType
 from lick_archive.metadata.metadata_utils import parse_file_name
 
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 class OverrideAccessRule:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 def test_open_fits_file():
     from lick_archive.metadata.reader import open_fits_file
-    from lick_archive.data_dictionary import IngestFlags
+    from lick_archive.metadata.data_dictionary import IngestFlags
 
     test_data_dir = Path(__file__).parent / 'test_data'
 
@@ -57,7 +57,7 @@ def test_open_fits_file():
 
 def test_read_row():
     from lick_archive.metadata.reader import read_file
-    from lick_archive.data_dictionary import Instrument
+    from lick_archive.metadata.data_dictionary import Instrument
 
     test_data_dir = Path(__file__).parent / 'test_data'
 
