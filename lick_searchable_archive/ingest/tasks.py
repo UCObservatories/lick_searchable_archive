@@ -1,6 +1,4 @@
-from functools import partial
-from pathlib import Path
-
+from contextlib import closing
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
@@ -36,7 +34,6 @@ def ingest_new_files(new_ingests):
     Args:
         new_ingests: A list of new files to ingest."""
     logger.info(f"Starting ingest of {len(new_ingests)} files.")
-    session = open_db_session(_db_engine)
     added_files = []
     logger.info(repr(new_ingests))
 
@@ -44,19 +41,20 @@ def ingest_new_files(new_ingests):
     remaining_files, good_files, failed_files = process_oafs(new_ingests)
 
     with BatchedDBOperation(_db_engine,lick_archive_config.ingest.insert_batch_size) as insert_batch:
-        for file in remaining_files:
-            try:               
-                if not check_exists(_db_engine, FileMetadata.id, FileMetadata.filename == file, session=session):
-                    logger.info(f"Reading metadata for {file}.")
-                    file_metadata = read_file(file)      
-                    insert_batch.insert(file_metadata)
-                    added_files.append(file_metadata)
-                else:
-                    logger.info(f"{file} is already in the archive database, skipping.")
-                    good_files.append(file)      
-            except Exception as e:
-                logger.error(f"Failed ingesting file {file}.", exc_info=True)
-                failed_files.append(file)
+        with closing(open_db_session(_db_engine)) as session:
+            for file in remaining_files:
+                try:               
+                    if not check_exists(_db_engine, FileMetadata.id, FileMetadata.filename == file, session=session):
+                        logger.info(f"Reading metadata for {file}.")
+                        file_metadata = read_file(file)      
+                        insert_batch.insert(file_metadata)
+                        added_files.append(file_metadata)
+                    else:
+                        logger.info(f"{file} is already in the archive database, skipping.")
+                        good_files.append(file)      
+                except Exception as e:
+                    logger.error(f"Failed ingesting file {file}.", exc_info=True)
+                    failed_files.append(file)
 
 
     if len(added_files) > 0:
@@ -115,11 +113,13 @@ def process_oafs(new_ingests):
         # Save the directory information in a set to re-run authentication
         # A set is used in case multiple files are detected in a directlry, in which case 
         # we only have to re-authenticate once
-        unique_dirs.add((oaf.observing_night, oaf.instrument_dir))
+        # Note celery (using the default json serialization) can't send dates so we convert
+        # it to a string first
+        unique_dirs.add((oaf.observing_night.strftime("%Y-%m/%d"), oaf.instrument_dir))
 
     # Re-authenticate affected directories
     for dir in unique_dirs:    
-        logger.info(f"Starting task to re-authenticate {dir[0].isoformat()}, {dir[1]}")
+        logger.info(f"Starting task to re-authenticate {dir[0]}, {dir[1]}")
         rerun_auth.s(*dir).apply_async()
 
 
@@ -130,7 +130,7 @@ def rerun_auth(observing_night, instrument_dir):
     """Re-determine authorization for existing files in the metadata database for a given
     directory."""
 
-    directory = lick_archive_config.ingest.archive_root_dir / observing_night.strftime("%Y-%m/%d") / instrument_dir
+    directory = lick_archive_config.ingest.archive_root_dir / observing_night / instrument_dir
     if not directory.exists() or not directory.is_dir():
         logger.error(f"Could not find directory {directory}")
 
