@@ -132,11 +132,11 @@ class SQLAlchemyQuerySet:
         for attr_name in attr_names:
             if not hasattr(table, attr_name):
                 raise ValidationError({error_field_name:f'Unknown field {attr_name} in {table.__table__.name}.'})
-            attr = getattr(table, name)
+            attr = getattr(table, attr_name)
             # Follow relationships
-            if isinstance(attr, Relationship):
+            if isinstance(attr.property, Relationship):
                 joins.add(attr)
-                table = table.entity.entity
+                table = attr.property.entity.entity
 
         # The last reference should not be a table but rather the the desired attribute
         return joins, attr
@@ -226,7 +226,7 @@ class SQLAlchemyQuerySet:
             else:
                 child_joins, child_expression = self._parse_q_expression(child)
 
-            joins += child_joins
+            joins |= child_joins
             subexpressions.append(child_expression)
 
         if len(subexpressions) == 0:
@@ -270,13 +270,23 @@ class SQLAlchemyQuerySet:
         for sort_field in sort_fields:
             # Check for a "reverse" sort aka descending
             if sort_field.startswith("-"):
-                joins, sort_attr = self._get_orm_attrib(sort_field[1:], "sort").desc()
-            else:
+                # Descending sort
+                asc = False
+                sort_field = sort_field[1:]
+            elif sort_field.startswith("+"):
                 # Ascending sort
-                if sort_field.startswith("+"):
-                    sort_field = sort_field[1:]
-                
-                joins, sort_attr = self._get_orm_attrib(sort_field, "sort").asc()
+                asc = True
+                sort_field = sort_field[1:]
+            else:
+                # We assume ascending sort by default
+                asc = True
+          
+            joins, sort_attr = self._get_orm_attrib(sort_field, "sort")
+
+            if asc:
+                sort_attr = sort_attr.asc()
+            else:
+                sort_attr = sort_attr.desc()
 
             return_queryset.sort_attributes.append(sort_attr)
             return_queryset.joins = return_queryset.joins | joins

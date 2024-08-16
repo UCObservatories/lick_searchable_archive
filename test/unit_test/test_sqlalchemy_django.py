@@ -66,7 +66,7 @@ def test_queryset_get_orm_attrib():
     joins, orm_attr =      queryset._get_orm_attrib("user_access.obid", "results") 
     assert orm_attr == UserDataAccess.obid 
     assert len(joins) == 1
-    assert list(joins)[0] == FileMetadata.user_access
+    assert list(joins)[0] is FileMetadata.user_access
 
     # Invalid attribute
     with pytest.raises(ValidationError) as exc_info:
