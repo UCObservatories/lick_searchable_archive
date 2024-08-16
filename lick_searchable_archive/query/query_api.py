@@ -493,7 +493,7 @@ class QueryAPIFilterBackend:
                 return queryset.filter(public_date_filter)
             else:
                 # Authorized users can also see their proprietary data.
-                authorized_user_filter = Q(user_access__file_id__exact = request.user.obid)
+                authorized_user_filter = Q(user_access__obid__exact = request.user.obid)
                 logger.info(f"Allowing public data and proprietary data for user {request.user.username} (obid: {request.user.obid})")
                 return queryset.filter(public_date_filter | authorized_user_filter)
 

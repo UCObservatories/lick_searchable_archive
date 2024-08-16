@@ -14,7 +14,7 @@ from django.db.models import F, Value
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
 
-from lick_archive.db.archive_schema import Base, FileMetadata
+from lick_archive.db.archive_schema import Base, FileMetadata, UserDataAccess
 from lick_archive.data_dictionary import FrameType, Telescope, Instrument
 from lick_archive.db.pgsphere import SCircle, SPoint
 
@@ -58,7 +58,15 @@ def test_queryset_get_orm_attrib():
     queryset = SQLAlchemyQuerySet(None, FileMetadata)
 
     # Valid attribute
-    assert queryset._get_orm_attrib("obs_date", "results") == FileMetadata.obs_date
+    joins, orm_attr =      queryset._get_orm_attrib("obs_date", "results") 
+    assert orm_attr == FileMetadata.obs_date
+    assert len(joins) == 0
+
+    # Joined attribute
+    joins, orm_attr =      queryset._get_orm_attrib("user_access.obid", "results") 
+    assert orm_attr == UserDataAccess.obid 
+    assert len(joins) == 1
+    assert list(joins)[0] == FileMetadata.user_access
 
     # Invalid attribute
     with pytest.raises(ValidationError) as exc_info:

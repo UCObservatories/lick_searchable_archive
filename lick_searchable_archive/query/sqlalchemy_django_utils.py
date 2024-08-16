@@ -10,7 +10,7 @@ from collections.abc import Mapping
 import copy
 
 from sqlalchemy import select, func, or_, not_
-
+from sqlalchemy.orm import Relationship
 from django.db.models import F, Q
 
 from rest_framework.exceptions import APIException
@@ -88,7 +88,7 @@ class SQLAlchemyQuerySet:
 
     """
     def __init__(self, db_engine, sql_alchemy_table, result_attributes=[],
-                 where_filters = [], sort_attributes=[]):
+                 where_filters = [], sort_attributes=[], joins=set()):
         self._db_engine = db_engine
         self._sql_alchemy_table = sql_alchemy_table
         
@@ -101,33 +101,45 @@ class SQLAlchemyQuerySet:
         # The SQL Alchemy attributes to sort the query results by
         self.sort_attributes = sort_attributes
 
+        # The joins needed for the query
+        self.joins=joins
+
     def _get_orm_attrib(self, name, error_field_name):
         """
         Convert a string name of an attribute into an SQL ALchemy Attribute object.
 
         Args:
-        name (str): The name of the attribute
-        error_field_name (str): The key name to use in the dict included in any exceptions.
+            name (str): The name of the attribute
+            error_field_name (str): The key name to use in the dict included in any exceptions.
 
-        Return (sqlalchemy.schema.Column):  The SQL Alchemy column object for the attribute.
+        Return:
+            (tuple[set[sqlalchemy.orm.InstrumentedAttribute],sqlalchemy.orm.InstrumentedAttribute)):  
+                A tuple containing a set of the joins needed to reach the attribute and
+                the attribute itself.
 
         Raises:
-        ValidationError: Thrown for unknown attribute names.
+            ValidationError: Thrown for unknown attribute names.
         """
         if "." in name:
             # A compound name
             attr_names = name.split(".")
         else:
             attr_names = [name]
+        joins = set()
         # Start with the base table and descend down the references if this is a compound name
         table = self._sql_alchemy_table
+        attr = None
         for attr_name in attr_names:
             if not hasattr(table, attr_name):
                 raise ValidationError({error_field_name:f'Unknown field {attr_name} in {table.__table__.name}.'})
-            table = getattr(table, name)
+            attr = getattr(table, name)
+            # Follow relationships
+            if isinstance(attr, Relationship):
+                joins.add(attr)
+                table = table.entity.entity
 
         # The last reference should not be a table but rather the the desired attribute
-        return table
+        return joins, attr
 
 
     def _parse_filter_keyword_argument(self, filter):
@@ -138,7 +150,8 @@ class SQLAlchemyQuerySet:
             filter (tuple): A tuple containing the keyword argument name and value.
                                 For example: ('id__gt', 100)
 
-        Return: An SQLAlchemy query expression.
+        Return: A tuple containing a list of joins (if any) needed for the expression followed by
+                An SQLAlchemy query expression.
         """
         # The expression should have a keyword argument name and a value
         if not isinstance(filter, tuple) and len(filter) !=2:
@@ -162,39 +175,40 @@ class SQLAlchemyQuerySet:
         logger.debug(f"Adding filter {filter_expression[0]} {filter_expression[1]} {value}")
 
         # Convert the field name to an SQLAlchemy attribute
-        sql_alchemy_field = self._get_orm_attrib(field, "building query")
+        joins, sql_alchemy_field = self._get_orm_attrib(field, "building query")
+
 
         # Convert the operation to an SQL Alchemy expression
         op = filter_expression[-1]
 
         if op == "lt":
-            return sql_alchemy_field < value
+            return joins, sql_alchemy_field < value
         elif op == "lte":
-            return sql_alchemy_field <= value
+            return joins, sql_alchemy_field <= value
         elif op == "gt":
-            return sql_alchemy_field > value
+            return joins, sql_alchemy_field > value
         elif op == "in":
-            return sql_alchemy_field.in_(value)
+            return joins, sql_alchemy_field.in_(value)
         elif op == "exact" or op == "iexact":
             # Look for NULL entries if the value is None or an empty string
             if value is None or (isinstance(value, str) and len(value.strip())==0):
-                return sql_alchemy_field.is_(None)
+                return joins, sql_alchemy_field.is_(None)
             elif op == "iexact":
-                return func.lower(sql_alchemy_field) == func.lower(value)
+                return joins, func.lower(sql_alchemy_field) == func.lower(value)
             else:
-                return sql_alchemy_field == value
+                return joins, sql_alchemy_field == value
         elif op == "startswith":
-            return sql_alchemy_field.startswith(value, autoescape=True)
+            return joins, sql_alchemy_field.startswith(value, autoescape=True)
         elif op == "istartswith":
-            return sql_alchemy_field.istartswith(value, autoescape=True)
+            return joins, sql_alchemy_field.istartswith(value, autoescape=True)
         elif op == "contains":
-            return sql_alchemy_field.contains(value, autoescape=True)
+            return joins, sql_alchemy_field.contains(value, autoescape=True)
         elif op == "icontains":
-            return sql_alchemy_field.icontains(value, autoescape=True)
+            return joins, sql_alchemy_field.icontains(value, autoescape=True)
         elif op == "range":
-            return sql_alchemy_field.between(value[0], value[1])
+            return joins, sql_alchemy_field.between(value[0], value[1])
         elif op == "contained_in":
-            return sql_alchemy_field.op("<@")(value)
+            return joins, sql_alchemy_field.op("<@")(value)
         else:
             logger.error(f"Unknown filter op {op} in key {key} on value {value}")
             raise APIException("Failed building query.")
@@ -202,7 +216,18 @@ class SQLAlchemyQuerySet:
     def _parse_q_expression(self, expression):
 
         # Recursively parse the child expressions
-        subexpressions = [self._parse_filter_keyword_argument(child) if isinstance(child,tuple) else self._parse_q_expression(child) for child in expression.children]
+        subexpressions = []
+        joins = set()
+    
+        for child in expression.children:
+            if isinstance(child,tuple):
+                # Not a recursive expression
+                child_joins, child_expression  = self._parse_filter_keyword_argument(child)
+            else:
+                child_joins, child_expression = self._parse_q_expression(child)
+
+            joins += child_joins
+            subexpressions.append(child_expression)
 
         if len(subexpressions) == 0:
             logger.error("Empty Q expression")
@@ -211,15 +236,15 @@ class SQLAlchemyQuerySet:
         elif len(subexpressions) == 1:
             # If there's one child just return it, possibly negated
             if expression.negated:
-                return not_(subexpressions[0])
+                return joins, not_(subexpressions[0])
             else:
-                return subexpressions[0]
+                return joins, subexpressions[0]
             
         else:
             if expression.connector != 'OR':
                 logger.error("Only OR is currently supported in Q expressions.")
                 raise APIException("Failed building query.")
-            return or_(*subexpressions)
+            return joins, or_(*subexpressions)
 
 
     def order_by(self, sort_fields=[]):
@@ -234,7 +259,8 @@ class SQLAlchemyQuerySet:
 
         return_queryset = SQLAlchemyQuerySet(db_engine=self._db_engine, sql_alchemy_table=self._sql_alchemy_table,
                                              result_attributes=self.result_attributes, 
-                                             where_filters=self.where_filters, 
+                                             where_filters=self.where_filters,
+                                             joins=self.joins, 
                                              sort_attributes=[])
 
         logger.debug(f"Ordering by {sort_fields}")
@@ -244,15 +270,16 @@ class SQLAlchemyQuerySet:
         for sort_field in sort_fields:
             # Check for a "reverse" sort aka descending
             if sort_field.startswith("-"):
-                sort_attr = self._get_orm_attrib(sort_field[1:], "sort").desc()
+                joins, sort_attr = self._get_orm_attrib(sort_field[1:], "sort").desc()
             else:
                 # Ascending sort
                 if sort_field.startswith("+"):
                     sort_field = sort_field[1:]
                 
-                sort_attr = self._get_orm_attrib(sort_field, "sort").asc()
+                joins, sort_attr = self._get_orm_attrib(sort_field, "sort").asc()
 
             return_queryset.sort_attributes.append(sort_attr)
+            return_queryset.joins = return_queryset.joins | joins
         return return_queryset
 
     @property
@@ -282,15 +309,23 @@ class SQLAlchemyQuerySet:
         return_queryset = SQLAlchemyQuerySet(db_engine=self._db_engine, sql_alchemy_table=self._sql_alchemy_table,
                                              result_attributes=self.result_attributes, 
                                              where_filters=copy.copy(self.where_filters), 
-                                             sort_attributes=self.sort_attributes)
+                                             sort_attributes=self.sort_attributes,
+                                             joins=copy.copy(self.joins))
         for expression in args:
             if not isinstance(expression, Q):
                 logger.error(f"Unknown Q expression {expression}")
                 raise APIException("Failed building query.")
-            return_queryset.where_filters.append(self._parse_q_expression(expression))
+            
+            expr_joins, expr_filter = self._parse_q_expression(expression)
+            return_queryset.where_filters.append(expr_filter)
+            return_queryset.joins |= expr_joins
+
 
         for key, value in kwargs.items():
-            return_queryset.where_filters.append(self._parse_filter_keyword_argument((key,value)))
+            filter_joins, filter = self._parse_filter_keyword_argument((key,value))
+            return_queryset.where_filters.append(filter)
+            return_queryset.joins |= filter_joins
+
         return return_queryset
 
     def values(self, *fields, **expressions):
@@ -313,9 +348,12 @@ class SQLAlchemyQuerySet:
                                              result_attributes=[], 
                                              where_filters=self.where_filters, 
                                              sort_attributes=self.sort_attributes)
+        
+        joins = set()
         for field in fields:
-            orm_attr = self._get_orm_attrib(field, "results")
+            field_joins, orm_attr = self._get_orm_attrib(field, "results")
             return_queryset.result_attributes.append(orm_attr)
+            joins |= field_joins
         
         # Convert any Django query expressions into SQLAlchemy expressions.
         # This is a very limited converter that does only what is needed for the
@@ -326,12 +364,14 @@ class SQLAlchemyQuerySet:
             expression = expressions[expr_name]
             if isinstance(expression, F):                   
                 logger.debug(f"Processing django field reference {expression.name}")
-                return_queryset.result_attributes.append(self._get_orm_attrib(expression.name, "results").label(expr_name))
+                expr_joins, expr = self._get_orm_attrib(expression.name, "results")
+                return_queryset.result_attributes.append(expr.label(expr_name))
+                joins |= expr_joins
             else:
                 # An expression that's too complex for us
                 logger.error(f'Expression {expr_name} not supported. Expression value is: {expression}')
                 raise APIException("Internal error processing results")
-
+        return_queryset.joins = self.joins | joins
         return return_queryset
 
     def __getitem__(self, key):
@@ -381,6 +421,11 @@ class SQLAlchemyQuerySet:
             else:
                 stmt = select(self._sql_alchemy_table)
 
+            if len(self.joins) > 0:
+                logger.debug(f"SQL Before joins: {stmt.compile()}")
+                for join_relationship in self.joins:
+                    stmt = stmt.join(join_relationship)
+    
             logger.debug(f"SQL Before where: {stmt.compile()}")
             # Build up the where statement, joined by ANDs
             for filter in self.where_filters:
@@ -430,6 +475,12 @@ class SQLAlchemyQuerySet:
         try:
             # Build the count statement
             stmt = select(func.count())
+
+            if len(self.joins) > 0:
+                logger.debug(f"SQL Before joins: {stmt.compile()}")
+                for join_relationship in self.joins:
+                    stmt = stmt.join(join_relationship)
+
             logger.debug(f"SQL Before where: {stmt.compile()}")
 
             if len(self.where_filters) == 0:
