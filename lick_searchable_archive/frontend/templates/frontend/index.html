@@ -7,21 +7,17 @@
 </head>
 <body class="search_body">
 <header>
-    <!--Taken from prior repository page-->
-    <!-- <map name="home">
-        <area shape="rect" coords="2,30,62,86" href="{{ archive_url }}">
-        <area shape="rect" coords="497,30,566,86" href="/">
-        <area shape="rect" coords="571,30,640,86" href="https://www.ucobservatories.org/">
-    </map>
-    <img src="/static/frontend/archive_title_image.gif" width=640 height=89 usemap="#home"> -->    
     <H1><img class="header_image" src="/static/frontend/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</H1>
-    <span class="user_section">
     {% if username|length > 0 %}
-        You are logged in as <em class="user_name">{{ username }}</em> <button class="user_logout" type="submit" name="logout" form="archive_query" formmethod="POST" formaction="{{ logout_url }}">Logout here</button>
+    <form id="archive_logout" class="user_section" method="POST" action="{{ logout_url }}">
+        {% csrf_token %}
+        You are logged in as <em class="user_name">{{ username }}</em> <button class="user_logout" type="submit" name="logout" form="archive_logout">Logout here</button>
+    </form>
     {% else %}
+    <span class="user_section">
         You are not logged in. <a href="{{ login_url }}">Login here</a>
-    {% endif %}
     </span>
+    {% endif %}
 </header>
 <nav class="nav_sidebar">
     <section class="nav_section">
