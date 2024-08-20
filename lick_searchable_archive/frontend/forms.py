@@ -62,7 +62,7 @@ class QueryForm(forms.Form):
                                help_text=format_html('{}<p>{}<ul><li>{}</li><li>{}</li></ul>',
                                                      'Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.',
                                                      'Examples:',
-                                                     '"radius 36s ra 6:12:19.5s dec -40:30:12.3"',
+                                                     '"radius 36s ra 6:12:19.5 dec -40:30:12.3"',
                                                      '"radius 36 ra 93.0812 -40.5034"'), 
                                required=False)
     count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], 
