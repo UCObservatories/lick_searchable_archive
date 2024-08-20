@@ -1,7 +1,7 @@
 import contextlib
 import os
 from pathlib import Path
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import sessionmaker
 import configparser
 
@@ -16,8 +16,7 @@ def MockDatabase(base_class, rows=None):
 
     # This functions wraps a MockDatabaseClass so that the below imports
     # aren't made until after the archive configuration is set
-    from lick_archive.db.archive_schema import FileMetadata
-    from lick_archive.data_dictionary import api_capabilities
+    from lick_archive.db.archive_schema import FileMetadata,UserDataAccess
     class MockDatabaseClass(contextlib.AbstractContextManager):
 
         def __init__(self, base_class, rows=None):
@@ -30,12 +29,23 @@ def MockDatabase(base_class, rows=None):
             # Create the schema
             self.base_class.metadata.create_all(self.engine)
 
+            # Insert any rows. 
             if rows is not None:
                 # Session for inserting rows
                 self.Session = sessionmaker(bind=self.engine)
                 session = self.Session()
 
-                session.bulk_save_objects(rows)
+                # Because sqllite doesn't support SPoint, we directly insert
+                # without id and coord, and then insert any UserDataAccess entires separately
+                columns_to_insert = [c.name for c in FileMetadata.__table__.c if c.name not in ("id","coord")]
+                fm_insert_stmt = insert(FileMetadata).returning(FileMetadata.id)
+                uda_insert_stmt = insert(UserDataAccess)
+                for row in rows:
+                    values = {col: getattr(row,col) for col in columns_to_insert}
+                    result_id = session.execute(fm_insert_stmt,values).scalar_one()
+                    uda_values = [{"file_id":result_id, "obid": uda.obid, "reason": uda.reason} for uda in row.user_access]
+                    if len(uda_values) > 0:
+                        session.execute(uda_insert_stmt,uda_values)
                 session.commit()
                 session.close()
 
@@ -77,12 +87,17 @@ def create_mock_view(engine, request=None):
     return MockView(engine,request)
 
 # Helper to create a request for testing
-def create_test_request(path, data):
-    from rest_framework.test import APIRequestFactory
+def create_test_request(path, data,user=None,obid=None,is_superuser=None):
+    from rest_framework.test import APIRequestFactory, force_authenticate
     from rest_framework.request import Request
-
+    
     request_factory = APIRequestFactory()
     request = Request(request_factory.get(path, data=data))
+
+    if user is not None:
+        from archive_auth.models import ArchiveUser
+        user_object = ArchiveUser(username=user,obid=obid,email=user+"@example.org",is_superuser=is_superuser)
+        request.user=user_object
 
     return request
 

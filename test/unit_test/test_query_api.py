@@ -11,31 +11,46 @@ from django.http import QueryDict
 
 from rest_framework.serializers import ValidationError
 from rest_framework.exceptions import APIException
-from datetime import date
+from datetime import date, timedelta
 
-from lick_archive.db.archive_schema import Base, FileMetadata
+from lick_archive.db.archive_schema import Base, FileMetadata, UserDataAccess
 from lick_archive.data_dictionary import FrameType
 
+not_public_date = date.today() + timedelta(days=30)
 
 # Test rows shared between most tests
-test_rows = [ FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.arc,     object=None, filename="/data/testfile1.fits",  ingest_flags='00000000000000000000000000000000',
-                   public_date=date(1970, 1, 1)),
-              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 1", filename="/data/testfile2.fits",  ingest_flags='00000000000000000000000000000000',
-                   public_date=date(1970, 1, 1)),
-              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000',
-                   public_date=date(1970, 1, 1)),
-              FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000',
-                   public_date=date(1970, 1, 1)),
-              FileMetadata(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
-                   frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000',
-                   public_date=date(1970, 1, 1)),
+public_test_rows = [ 
+    FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.arc,     object=None, filename="/data/testfile1.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=date(1970, 1, 1)),
+    FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2018, month=12, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 1", filename="/data/testfile2.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=date(1970, 1, 1)),
+    FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2019, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 2", filename="/data/testfile3.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=date(1970, 1, 1)),
+    FileMetadata(telescope="Shane", instrument="Kast Blue", obs_date = datetime(year=2020, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 2", filename="/data/testfile4.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=date(1970, 1, 1)),
+    FileMetadata(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 2", filename="/data/testfile5.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=date(1970, 1, 1)),
 ]
 
+private_test_rows = [
+    FileMetadata(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 2", filename="/data/testfile6.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=not_public_date, user_access=[
+                     UserDataAccess(obid=1, reason="Test Reason")
+                 ]),
+    FileMetadata(telescope="Shane", instrument="ShaneAO/ShARCS", obs_date = datetime(year=2022, month=6, day=1, hour=0, minute=0, second=0),
+                 frame_type=FrameType.science, object="object 2", filename="/data/testfile7.fits",  ingest_flags='00000000000000000000000000000000',
+                 public_date=not_public_date, user_access=[
+                     UserDataAccess(obid=2, reason="Test Reason")
+                 ]),
+]
 
+test_rows = public_test_rows + private_test_rows
 @basic_django_setup
 def test_no_filters():
     """Test a query with no filters, which should fail"""
@@ -75,11 +90,55 @@ def test_object_filter():
 
         assert len(response.data["results"]) == 3
 
-        for i in range(2,len(test_rows)):
+        for i in range(2,len(public_test_rows)):
             assert len(response.data["results"][i-2].keys()) == 3
             assert "id" in response.data["results"][i-2]
-            assert response.data["results"][i-2]["filename"]  == os.path.basename(test_rows[i].filename)
-            assert response.data["results"][i-2]["object"]  == test_rows[i].object
+            assert response.data["results"][i-2]["filename"]  == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i-2]["object"]  == public_test_rows[i].object
+
+@basic_django_setup
+def test_proprietary_filter():
+    """Test an exact object filter with loggin in users"""
+
+    # A user that does not own anything, they'll only get public results
+    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user3",obid=3)
+
+    # The public filenames matching "object 2"
+    public_filenames = [os.path.basename(metadata.filename) for metadata in public_test_rows[2:5]]
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 3
+        for i in range(3):
+            assert response.data["results"][i]["object"]  == "object 2"
+
+            assert response.data["results"][i]["filename"] in public_filenames
+
+    # A user that owns one file. They'll get public results + the extra file
+    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user2",obid=2)
+    all_filenames = public_filenames + ['testfile7.fits']
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+        assert len(response.data["results"]) == 4
+        for i in range(3):
+            assert response.data["results"][i]["object"]  == "object 2"
+
+            assert response.data["results"][i]["filename"] in all_filenames
+
+    # A super user that owns nothing. As a superuser they'll get all files that match the query
+    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user2",obid=4, is_superuser=True)
+    all_filenames = public_filenames + [os.path.basename(metadata.filename) for metadata in private_test_rows]
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+        assert len(response.data["results"]) == 5
+        for i in range(3):
+            assert response.data["results"][i]["object"]  == "object 2"
+
+            assert response.data["results"][i]["filename"] in all_filenames
 
 @basic_django_setup
 def test_prefix_filter():
@@ -93,11 +152,11 @@ def test_prefix_filter():
 
         assert len(response.data["results"]) == 4
 
-        for i in range(1,len(test_rows)):
+        for i in range(1,len(public_test_rows)):
             assert len(response.data["results"][i-1].keys()) == 3
             assert "id" in response.data["results"][i-1]
-            assert response.data["results"][i-1]["filename"]  == os.path.basename(test_rows[i].filename)
-            assert response.data["results"][i-1]["object"]  == test_rows[i].object
+            assert response.data["results"][i-1]["filename"]  == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i-1]["object"]  == public_test_rows[i].object
 
 @basic_django_setup
 def test_instrument_filter():
@@ -113,8 +172,8 @@ def test_instrument_filter():
 
         assert len(response.data["results"][0].keys()) == 3
         assert "id" in response.data["results"][0]
-        assert response.data["results"][0]["filename"]  == os.path.basename(test_rows[4].filename)
-        assert response.data["results"][0]["object"]  == test_rows[4].object
+        assert response.data["results"][0]["filename"]  == os.path.basename(public_test_rows[4].filename)
+        assert response.data["results"][0]["object"]  == public_test_rows[4].object
 
 @basic_django_setup
 def test_coord_filter():
@@ -254,7 +313,7 @@ def test_no_sort_attributes():
         view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
-        assert len(response.data["results"]) == len(test_rows)
+        assert len(response.data["results"]) == len(public_test_rows)
 
         # In this test we don't care about the specific order, only that the ids are in order
         for result in response.data["results"]:
@@ -276,22 +335,22 @@ def test_no_result_attributes():
         view = create_mock_view(mock_db.engine, request)
         response = view.list(request)
 
-        assert len(response.data["results"]) == len(test_rows)
+        assert len(response.data["results"]) == len(public_test_rows)
 
-        for i in range(len(test_rows)):
+        for i in range(len(public_test_rows)):
             assert "id" in response.data["results"][i]
-            assert response.data["results"][i]["filename"]   == os.path.basename(test_rows[i].filename)
-            assert response.data["results"][i]["obs_date"]   == test_rows[i].obs_date
+            assert response.data["results"][i]["filename"]   == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i]["obs_date"]   == public_test_rows[i].obs_date
             if "object" not in response.data["results"][i]:
                 # One row has a NULL object that won't show up in the results
                 assert response.data["results"][i]["filename"] == "testfile1.fits"
             else:
-                assert response.data["results"][i]["object"]     == test_rows[i].object
+                assert response.data["results"][i]["object"]     == public_test_rows[i].object
             # The frame type is converted from a python enum to a string
-            assert response.data["results"][i]["frame_type"] == test_rows[i].frame_type.name
+            assert response.data["results"][i]["frame_type"] == public_test_rows[i].frame_type.name
 
             # Post-processing by the view should turn the header into a URL
-            assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(test_rows[i].filename))
+            assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(public_test_rows[i].filename))
 
 
 @basic_django_setup

@@ -433,8 +433,11 @@ class SQLAlchemyQuerySet:
 
             if len(self.joins) > 0:
                 logger.debug(f"SQL Before joins: {stmt.compile()}")
+                # We always do outer joins now because that's correct for UserDataAccess, which
+                # is the only join we need for the archive. But if other tables are added in the
+                # future it might be wrong.
                 for join_relationship in self.joins:
-                    stmt = stmt.join(join_relationship)
+                    stmt = stmt.outerjoin(join_relationship)
     
             logger.debug(f"SQL Before where: {stmt.compile()}")
             # Build up the where statement, joined by ANDs
@@ -489,7 +492,7 @@ class SQLAlchemyQuerySet:
             if len(self.joins) > 0:
                 logger.debug(f"SQL Before joins: {stmt.compile()}")
                 for join_relationship in self.joins:
-                    stmt = stmt.join(join_relationship)
+                    stmt = stmt.outerjoin(join_relationship)
 
             logger.debug(f"SQL Before where: {stmt.compile()}")
 
