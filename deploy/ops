@@ -12,7 +12,7 @@ api_port=8000
 # Where ansible should copy from 
 archive_source_dir=/home/dusty/work/lick_searchable_archive
 # Connection info Lick Observatory schedule database
-schedule_db_host=pg-master
+schedule_db_host=schedpsql.ucolick.org
 schedule_db_name=info
 # Set this to "restarted" to restart everything after deploy
 # "stopped" to keep the archive down after deploy
