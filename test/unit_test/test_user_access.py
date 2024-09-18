@@ -45,7 +45,7 @@ def override_access_in_db(django_db):
     oaf1 = OverrideAccessFile.from_file(test_data_dir / subdir / "override.1.access")
     oaf3 = OverrideAccessFile.from_file(test_data_dir / subdir / "override.3.access")
 
-    from archive_auth import models
+    from lick_archive.apps.archive_auth import models
     models.save_oaf_to_db(oaf0)
     models.save_oaf_to_db(oaf1)
     models.save_oaf_to_db(oaf3)
@@ -248,7 +248,7 @@ def test_identify_access_rule1_query_failure(monkeypatch):
 
 
         # First test a failure when querying
-        from archive_auth import models
+        from lick_archive.apps.archive_auth import models
         def mock_failed_get_related_override_files(filepath):
             raise RuntimeError("Test failure")
         m.setattr(models, "get_related_override_files", mock_failed_get_related_override_files)
@@ -711,7 +711,6 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
         assert result_access.reason[1] == "Rule 4a: Found 1 observers and 1 coverids from override access ownerhints: hint1"
 
 
-
 def test_apply_ownerhints(monkeypatch):
 
     with monkeypatch.context() as m:
@@ -812,6 +811,9 @@ def test_apply_ownerhints(monkeypatch):
         assert access.reason[-1].startswith("Rule 1: Found 3 observers and 2 coverids")    
 
         # Test unscheduled user
+        from lick_archive.apps.archive_auth.models import ArchiveUser
+        bob_user = ArchiveUser(username="bob", last_name="bob", email="bob@example.org", obid=4)
+        bob_user.save()
         mock_compute_ownerhint.desired_obids = [external.ScheduleDB.UNKNOWN_USER]
         mock_compute_ownerhint.desired_coverids = []
         access.ownerids = []

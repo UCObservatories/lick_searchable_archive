@@ -1,8 +1,9 @@
 import pytest
+import os
+from collections import namedtuple
+from lick_archive.client.lick_archive_client import LickArchiveClient
 
-from lick_archive.lick_archive_client import LickArchiveClient
-
-def test_backend_login(archive_backend):
+def test_backend_login(archive_backend, test_user_password_env):
 
     # First make sure we default to logged out
     client = LickArchiveClient(archive_backend, 1, 30, 5)
@@ -14,17 +15,17 @@ def test_backend_login(archive_backend):
     assert client.logged_in_user is None
 
     # login with valid password
-    assert client.login("test_user","valid but bad password") is True
+    assert client.login("test_user",os.environ[test_user_password_env]) is True
     assert client.logged_in_user == "test_user"
 
-def test_backend_logout(archive_backend):
+def test_backend_logout(archive_backend, test_user_password_env):
     # First make sure we default to logged out
     client = LickArchiveClient(archive_backend, 1, 30, 5)
     assert client.get_login_status() is True
     assert client.logged_in_user is None
 
     # login with valid password
-    assert client.login("test_user","valid but bad password") is True
+    assert client.login("test_user",os.environ[test_user_password_env]) is True
     assert client.logged_in_user == "test_user"
 
     # logout
@@ -35,40 +36,42 @@ def test_backend_logout(archive_backend):
     assert client.get_login_status() is True
     assert client.logged_in_user is None
 
-def test_session_persist(archive_backend):
+def test_session_persist(archive_backend, test_user_password_env):
 
-    session_dict = {}
 
     # First make sure we default to logged out
-    client = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    client = LickArchiveClient(archive_backend, 1, 30, 5)
     assert client.get_login_status() is True
     assert client.logged_in_user is None
 
     # login with valid password
-    assert client.login("test_user","valid but bad password") is True
+    assert client.login("test_user",os.environ[test_user_password_env]) is True
     assert client.logged_in_user == "test_user"
 
     # Persist logged in session
-    client.persist(session_dict)
+    MockRequest = namedtuple('MockRequest', ['session'])
+    mock_request = MockRequest(session=dict())
+    client.persist(mock_request.session)
+
 
     # Get status from previous session, and persist again
-    client2 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    client2 = LickArchiveClient(archive_backend, 1, 30, 5,request=mock_request)
     assert client2.get_login_status() is True
     assert client2.logged_in_user == "test_user"
-    client2.persist(session_dict)
+    client2.persist(mock_request.session)
 
     # Get status from previous session, logout, persist again
-    client3 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    client3 = LickArchiveClient(archive_backend, 1, 30, 5,request=mock_request)
     assert client3.get_login_status() is True
     assert client3.logged_in_user == "test_user"
     assert client3.logout() is True
     assert client3.logged_in_user is None
     assert client3.get_login_status() is True
     assert client3.logged_in_user is None
-    client3.persist(session_dict)
+    client3.persist(mock_request.session)
 
     # make sure session was persisted as logged out
-    client4 = LickArchiveClient(archive_backend, 1, 30, 5,session=session_dict)
+    client4 = LickArchiveClient(archive_backend, 1, 30, 5,request = mock_request)
     assert client4.logged_in_user is None
 
 

@@ -11,8 +11,13 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
-from os import environ
+import sys
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path("{{ package_install_dir }}/lick_archive")
+
+# Add apps path to python path
+sys.path.insert(0, str(BASE_DIR))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -35,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'archive_auth',
+    'lick_archive.apps.archive_auth',
     'rest_framework',
 ]
 

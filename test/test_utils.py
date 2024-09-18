@@ -96,7 +96,7 @@ def create_test_request(path, data,user=None,obid=None,is_superuser=None):
     request = Request(request_factory.get(path, data=data))
 
     if user is not None:
-        from archive_auth.models import ArchiveUser
+        from lick_archive.apps.archive_auth.models import ArchiveUser
         user_object = ArchiveUser(username=user,obid=obid,email=user+"@example.org",is_superuser=is_superuser)
         request.user=user_object
 

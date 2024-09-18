@@ -223,13 +223,10 @@ class LickArchiveClient:
                                 descending sort. Defaults to ["id"].
             page_size (int):    How many items to return per page. Defaults to 50.
         Return:
-            If count is true:
-                int : The number of files that match the query
-            Else:
-                list: A list of dict objects containing the resulting metadata. The keys are the attributes provided in results.
-                str: The URL to the previous page of results. None if there is no previous page.
-                str: The URL to the next page of results. None if there is no next page.
-                int: The total number of results the query matches.
+            int : The number of files that match the query
+            list: A list of dict objects containing the resulting metadata. The keys are the attributes provided in results. None if count was True.
+            str: The URL to the previous page of results. None if there is no previous page.
+            str: The URL to the next page of results. None if there is no next page.
 
         Raises:
             requests.RequestException on failure contacting the archive server.

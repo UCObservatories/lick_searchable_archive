@@ -1,5 +1,7 @@
 import pytest
 import os 
+import getpass
+from pathlib import Path
 
 def pytest_addoption(parser):
     parser.addoption("--archive_backend", type=str, default=None,                      
@@ -16,3 +18,19 @@ def archive_backend(request):
         pytest.skip()
     return backend
 
+@pytest.fixture
+def test_user_password_env():
+    """Returns an environment variable name with the archive password to use for testing.
+    Will prompt for the password if it has not already been saved.
+    
+    We don't return the actual password as a fixture because pytest will print it out.
+    """
+    if os.environ.get('EXT_TEST_PASSWORD', None) is None:
+        os.environ['EXT_TEST_PASSWORD'] = getpass.getpass(prompt="Enter test_user password: ")
+    return 'EXT_TEST_PASSWORD'
+
+@pytest.fixture(scope="session",autouse=True)
+def archive_config():
+    # Force archive config to load the test version rather than the default config
+    from lick_archive.config.archive_config import ArchiveConfigFile
+    ArchiveConfigFile.from_file(Path(__file__).parent.parent / "archive_test_config.ini")
