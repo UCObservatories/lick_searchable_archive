@@ -27,7 +27,7 @@ from lick_archive.authorization.override_access import OverrideAccessFile
 
 
 
-from archive_auth.models import save_oaf_to_db
+from lick_archive.apps.archive_auth.models import save_oaf_to_db
 
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -144,7 +144,7 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
 
         if file_metadata is None:
             sync_type = SyncType.INSERT
-            logger.info(f"New file {file_metadata.filename} discovered.")
+            logger.info(f"New file {file_to_resync} discovered.")
         else:
             # See if the update can be skipped
             if not args.force:

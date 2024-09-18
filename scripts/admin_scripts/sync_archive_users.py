@@ -26,8 +26,8 @@ from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from django.db import transaction
-from archive_auth.models import ArchiveUser
-from archive_auth.hashers import APR_MD5PasswordHasher
+from lick_archive.apps.archive_auth.models import ArchiveUser
+from lick_archive.apps.archive_auth.hashers import APR_MD5PasswordHasher
 
 
 def get_parser():

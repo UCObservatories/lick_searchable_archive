@@ -22,7 +22,7 @@ setup_django()
 
 from lick_archive.utils.resync_utils import SyncType, get_dirs_for_daterange, ErrorList, get_metadata_from_command_line
 from lick_archive.authorization.override_access import OverrideAccessFile
-from archive_auth.models import ArchiveUser
+from lick_archive.apps.archive_auth.models import ArchiveUser
 from django.core.exceptions import ObjectDoesNotExist
 
 def get_parser():
