@@ -23,7 +23,7 @@
 - name: Install celery into django site
   ansible.builtin.copy: 
     src: "{{ archive_source_dir }}/lick_archive/job_queue/"
-    dest: "{{ package_install_dir }}/lick_archive/archive_site/"
+    dest: "{{ package_install_dir }}/lick_archive/lick_archive_site/"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
     mode: 0660

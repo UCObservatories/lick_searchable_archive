@@ -11,10 +11,10 @@ import unicodedata
 def setup_django():
     """Setup the django environment when running from a command line script."""
     import sys
-    django_root = Path(__file__).parent.parent / "lick_searchable_archive"
+    django_root = Path(__file__).parent.parent
     sys.path.insert(0, str(django_root))
     import os
-    os.environ['DJANGO_SETTINGS_MODULE'] = 'lick_searchable_archive.settings'
+    os.environ['DJANGO_SETTINGS_MODULE'] = 'lick_archive_site.settings'
     
     import django
     django.setup()

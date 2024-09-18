@@ -7,7 +7,7 @@ from django.contrib.auth.admin import UserAdmin, GroupAdmin
 from django.contrib.auth.models import Group
 from django import forms
 
-from archive_auth.models import ArchiveUser, DBOverrideAccessFile, DBOverrideAccessRule
+from lick_archive.apps.archive_auth.models import ArchiveUser, DBOverrideAccessFile, DBOverrideAccessRule
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 

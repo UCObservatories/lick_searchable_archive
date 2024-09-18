@@ -15,7 +15,6 @@ from lick_archive.authorization.date_utils import get_file_begin_end_times, get_
 from lick_archive.metadata.data_dictionary import FrameType, MAX_PUBLIC_DATE
 from lick_archive.external import ScheduleDB, compute_ownerhint, get_keyword_ownerhints
 
-
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
@@ -190,7 +189,7 @@ def identify_access(file_metadata : FileMetadata) -> Access:
     
     # Rule 1: Check for override access rules
     try:
-        from archive_auth.models import get_related_override_files
+        from lick_archive.apps.archive_auth.models import get_related_override_files
         override_files = get_related_override_files(filepath)
     except Exception as e:
         access.reason.append(reason("1z", "Failed when querying for override access."))
@@ -344,7 +343,15 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
         if ScheduleDB.UNKNOWN_USER in unique_obids:
             if allow_unscheduled:
                 # No observer found for that ownerhint on that night, check for an unscheduled observer
-                unscheduled_obid = ScheduleDB().getOwnerhintMap().get(ownerhint,None)
+                try:
+                    from lick_archive.apps.archive_auth.models import lookup_ownerhint
+                    unscheduled_obid = lookup_ownerhint(ownerhint)
+                except Exception as e:
+                    logger.error(f"Failed to query archive db for unscheduled ownerhint {ownerhint}: {e}", exc_info=True)
+                    access.reason.append(reason(rule, f"Unscheduled ownerhint query failed: {e}"))
+                    access.visibility = Visibility.UNKNOWN
+                    return
+                
                 if unscheduled_obid is not None:
                     # Replace unknown ids with the unscheduled id
                     unique_obids.remove(ScheduleDB.UNKNOWN_USER)
@@ -388,3 +395,4 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
         access.coverids = list(all_coverids)
 
     access.reason.append(reason(rule, f"Found {len(all_obids)} observers and {len(all_coverids)} coverids from override access ownerhints: {','.join(ownerhints)}"))
+

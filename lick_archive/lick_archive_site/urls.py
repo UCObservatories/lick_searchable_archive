@@ -24,7 +24,7 @@ urlpatterns = [
 ]
 
 for app in lick_archive_config.host.app_names:
-    urlpatterns.append(path(f"{lick_archive_config.host.url_path_prefix}/", include(f'{app}.urls')))
+    urlpatterns.append(path(f"{lick_archive_config.host.url_path_prefix}/", include(f'lick_archive.apps.{app}.urls')))
 
 
 # TODO remove when we get deployment of a real web server in front of gunicorn finished

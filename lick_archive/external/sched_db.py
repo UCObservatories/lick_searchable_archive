@@ -72,48 +72,6 @@ class ScheduleDB:
             return db_utils.execute_db_statement(session, select(self._observers_table)).mappings().all()
 
     @timed_cache(timedelta(hours=1))
-    def getOwnerhintMap(self) -> Mapping:
-        """Return a map of all unique ownerhints to observer ids. 
-        The ownerhints can be of the form "fi.lastname", "firstname.lastname" or "lastname". Only hints that resolve to 
-        a unique observer id is entered into the mapping. The keys are all lowercase.
-
-        This method is cached and will only query the db and build the map once an hour"""
-
-        observers = self.get_observers()
-        result = dict()
-        duplicates =set()
-        for observer in observers:
-            first_name = observer['firstname'].lower() if observer['firstname'] is not None else None
-            last_name = observer['lastname'].lower() if observer['lastname'] is not None else None
-
-            if last_name is not None and len(last_name) > 0:
-                # Add the last name ownerhint
-                if last_name in result:
-                    duplicates.add(last_name)
-                else:
-                    result[last_name] = observer['obid']
-
-                # Add the fi_lastname and firstname_lastname ownerhints
-                if first_name is not None and len(first_name) > 0:
-                    fi_last = first_name[0] + "." + last_name
-                    if fi_last in result:
-                        duplicates.add(fi_last)
-                    else:
-                        result[fi_last] = observer['obid']
-                    
-                    first_last = first_name + "." + last_name
-                    if first_last in result:
-                        duplicates.add(first_last)
-                    else:
-                        result[first_last] = observer['obid']
-
-        # Remove duplicates
-        for dup in duplicates:
-            del result[dup]
-
-        return result
-
-    @timed_cache(timedelta(hours=1))
     def get_public_dates(self, telescope : Telescope, observing_night : date, observerids : list[int]) -> list[tuple[int,date|None]]:
         """Return the dates that runs for given observvers during a given night become/became public. 
         This method is cached and will only query the database once an hour.

@@ -1,10 +1,15 @@
+from collections.abc import Mapping
+import datetime
+from pathlib import Path
+
 from django.db import models, transaction
 from django.contrib.auth.models import AbstractUser, Group
 import django.utils
-import datetime
-from pathlib import Path
+
 from lick_archive.authorization import override_access
 from lick_archive.metadata.metadata_utils import parse_file_name
+from lick_archive.utils.timed_cache import timed_cache
+
 from lick_archive.metadata.data_dictionary import FrameType
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -19,7 +24,7 @@ class DBOverrideAccessFile(models.Model):
     Args:
         night          (date): The observation night the file is in.
         instrument_dir (str):  The instrument directory the file is in.
-        sequence_num   (int):  The sequence number of the override access file, 
+        sequence_id    (int):  The sequence number of the override access file, 
                                as given by it's name. For example 
                                'override.access' has a sequence number of 0. 
                                'override.1.access' has a sequence nubmer of 1, etc.
@@ -121,3 +126,51 @@ def get_related_override_files(filepath : Path) -> list[override_access.Override
                                                                          override_rules = rules))
     return converted_access_files
 
+def lookup_ownerhint(ownerhint : str) -> int:
+    """Look for a matching observer id for a given ownerhint.
+
+    The ownerhints can be of the form "fi.lastname", "firstname.lastname" or "lastname". Only hints that resolve to 
+    a unique observer id is entered into the mapping. The keys are all lowercase.
+    """
+    ownerhint_map = _getOwnerhintMap()
+    return ownerhint_map.get(ownerhint,None)
+
+@timed_cache(datetime.timedelta(hours=1))
+def _getOwnerhintMap() -> Mapping:
+    """Return a map of all unique ownerhints to observer ids. 
+       This method is cached and will only query the db and build the map once an hour"""
+
+    observers = ArchiveUser.objects.filter(obid__isnull=False)
+
+    result = dict()
+    duplicates =set()
+    for observer in observers:
+        first_name = observer.first_name.lower() if observer.first_name is not None else None
+        last_name = observer.last_name.lower() if observer.last_name is not None else None
+
+        if last_name is not None and len(last_name) > 0:
+            # Add the last name ownerhint
+            if last_name in result:
+                duplicates.add(last_name)
+            else:
+                result[last_name] = observer.obid
+
+            # Add the fi_lastname and firstname_lastname ownerhints
+            if first_name is not None and len(first_name) > 0:
+                fi_last = first_name[0] + "." + last_name
+                if fi_last in result:
+                    duplicates.add(fi_last)
+                else:
+                    result[fi_last] = observer.obid
+                
+                first_last = first_name + "." + last_name
+                if first_last in result:
+                    duplicates.add(first_last)
+                else:
+                    result[first_last] = observer.obid
+
+    # Remove duplicates
+    for dup in duplicates:
+        del result[dup]
+
+    return result

@@ -12,7 +12,7 @@ Group={{ archive_service_group }}
 # DynamicUser=yes
 # see http://0pointer.net/blog/dynamic-users-with-systemd.html
 RuntimeDirectory=gunicorn
-WorkingDirectory={{ package_install_dir }}/
+WorkingDirectory={{ venv_root }}/var/run
 ExecStart={{ venv_root }}/bin/gunicorn -c {{ archive_config_dir }}/gunicorn.conf.py
 ExecReload={{ venv_root }}/bin/kill -s HUP $MAINPID
 # Allow group writeable files
