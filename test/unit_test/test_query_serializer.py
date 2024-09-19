@@ -15,7 +15,7 @@ def test_query_serializer():
 
     from django.http import QueryDict
     from rest_framework.serializers import ValidationError
-    from lick_archive.apps.query.query_api import QuerySerializer
+    from lick_archive.apps.query.views import QuerySerializer
 
 
     # filename query

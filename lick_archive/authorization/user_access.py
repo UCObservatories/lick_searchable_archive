@@ -3,8 +3,9 @@ import logging
 logger = logging.getLogger(__name__)
 import dataclasses
 from enum import Enum
+from collections.abc import Mapping
 from pathlib import Path
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from typing import Sequence
 import re
 
@@ -14,6 +15,7 @@ from lick_archive.authorization import override_access
 from lick_archive.authorization.date_utils import get_file_begin_end_times, get_observing_night, calculate_public_date
 from lick_archive.metadata.data_dictionary import FrameType, MAX_PUBLIC_DATE
 from lick_archive.external import ScheduleDB, compute_ownerhint, get_keyword_ownerhints
+from lick_archive.utils.timed_cache import timed_cache
 
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -189,7 +191,7 @@ def identify_access(file_metadata : FileMetadata) -> Access:
     
     # Rule 1: Check for override access rules
     try:
-        from lick_archive.apps.archive_auth.models import get_related_override_files
+        from lick_archive.apps.archive_auth.api import get_related_override_files
         override_files = get_related_override_files(filepath)
     except Exception as e:
         access.reason.append(reason("1z", "Failed when querying for override access."))
@@ -344,8 +346,7 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
             if allow_unscheduled:
                 # No observer found for that ownerhint on that night, check for an unscheduled observer
                 try:
-                    from lick_archive.apps.archive_auth.models import lookup_ownerhint
-                    unscheduled_obid = lookup_ownerhint(ownerhint)
+                    unscheduled_obid = _getOwnerhintMap().get(ownerhint, None)
                 except Exception as e:
                     logger.error(f"Failed to query archive db for unscheduled ownerhint {ownerhint}: {e}", exc_info=True)
                     access.reason.append(reason(rule, f"Unscheduled ownerhint query failed: {e}"))
@@ -395,4 +396,47 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
         access.coverids = list(all_coverids)
 
     access.reason.append(reason(rule, f"Found {len(all_obids)} observers and {len(all_coverids)} coverids from override access ownerhints: {','.join(ownerhints)}"))
+
+
+@timed_cache(timedelta(hours=1))
+def _getOwnerhintMap() -> Mapping:
+    """Return a map of all unique ownerhints to observer ids. 
+       This method is cached and will only query the db and build the map once an hour"""
+
+    from lick_archive.apps.archive_auth.api import get_all_observers
+    observers = get_all_observers()
+
+    result = dict()
+    duplicates =set()
+    for observer in observers:
+        first_name = observer.first_name.lower() if observer.first_name is not None else None
+        last_name = observer.last_name.lower() if observer.last_name is not None else None
+
+        if last_name is not None and len(last_name) > 0:
+            # Add the last name ownerhint
+            if last_name in result:
+                duplicates.add(last_name)
+            else:
+                result[last_name] = observer.obid
+
+            # Add the fi_lastname and firstname_lastname ownerhints
+            if first_name is not None and len(first_name) > 0:
+                fi_last = first_name[0] + "." + last_name
+                if fi_last in result:
+                    duplicates.add(fi_last)
+                else:
+                    result[fi_last] = observer.obid
+                
+                first_last = first_name + "." + last_name
+                if first_last in result:
+                    duplicates.add(first_last)
+                else:
+                    result[first_last] = observer.obid
+
+    # Remove duplicates
+    for dup in duplicates:
+        del result[dup]
+
+    return result
+
 

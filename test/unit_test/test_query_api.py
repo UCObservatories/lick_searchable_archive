@@ -184,7 +184,7 @@ def test_coord_filter():
 
     from astropy.coordinates import Angle
     from lick_archive.config.archive_config import ArchiveConfigFile
-    from lick_archive.apps.query.query_api import QuerySerializer
+    from lick_archive.apps.query.views import QuerySerializer
 
     lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 

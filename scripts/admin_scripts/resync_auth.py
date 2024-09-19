@@ -19,7 +19,7 @@ setup_django()
 from lick_archive.utils.resync_utils import SyncType, get_dirs_for_daterange, ErrorList, get_metadata_from_command_line
 from lick_archive.authorization import user_access
 from lick_archive.authorization.override_access import OverrideAccessFile
-from lick_archive.apps.archive_auth.models import save_oaf_to_db
+from lick_archive.apps.archive_auth.api import save_oaf_to_db
 
 
 def get_parser():

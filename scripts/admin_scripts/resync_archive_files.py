@@ -27,7 +27,7 @@ from lick_archive.authorization.override_access import OverrideAccessFile
 
 
 
-from lick_archive.apps.archive_auth.models import save_oaf_to_db
+from lick_archive.apps.archive_auth.api import save_oaf_to_db
 
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config

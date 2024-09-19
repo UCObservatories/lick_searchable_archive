@@ -60,13 +60,12 @@ def MockDatabase(base_class, rows=None):
 def create_mock_view(engine, request=None):
 
     # We define the view in a function so the below imports happen after Django is initialized by the test case
-    from rest_framework.generics import ListAPIView
-    from lick_archive.apps.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
-    from lick_archive.apps.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
+    from lick_archive.apps.query.views import QueryView, QueryAPIPagination, QueryAPIFilterBackend
+    from lick_archive.apps.query.api import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
     from lick_archive.metadata.data_dictionary import api_capabilities
     from lick_archive.db.archive_schema import FileMetadata
     
-    class MockView(QueryAPIMixin,ListAPIView):
+    class MockView(QueryView):
         """A test view for testing the query api"""
 
         pagination_class = QueryAPIPagination

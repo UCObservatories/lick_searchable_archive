@@ -4,23 +4,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 import datetime
-from pathlib import Path
 import os
 
 from django.db.models import F, Q
 from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.serializers import ValidationError
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.serializers import ValidationError ,BaseSerializer
+from rest_framework.exceptions import APIException
+from rest_framework.renderers import BaseRenderer
 from rest_framework.response import Response
 from rest_framework import status, serializers
-from rest_framework.generics import GenericAPIView
 
 from astropy.coordinates import SkyCoord, Angle
 from lick_archive.metadata.data_dictionary import Instrument
 from lick_archive.db.pgsphere import SCircle
-from lick_archive.utils.django_utils import log_request_debug
 from lick_archive.config.archive_config import ArchiveConfigFile
 from lick_archive.authorization.date_utils import get_observing_night
 
@@ -311,103 +309,12 @@ class QueryAPIPagination(PageNumberPagination):
         else:
             return super().get_paginated_response(data)
 
-class QueryAPIFilterBackend:
-    """A filter backend to filter a query set based on a request."""
+class QueryAPIFilterBackendBase:
+    """A base class with common functionality for filtering query set results.
+    
+    Subclasses will want to implement get_ordering and filter_queryset
+    """
 
-    def get_ordering(self, request, queryset, view):
-        """Return the fields that should be used to order the query based on the
-        request.
-        
-        Args:
-        request (rest_framework.request.Request): 
-        The request specifying the query.
-
-        queryset (django.models.query.QuerySet): 
-        The queryset being used for the query. 
-
-        view (QueryAPIView):
-        The view running the query. It should have the "required_attributes", 
-        "allowed_sort_attributes" and "allowed_result_attributes" attributes that
-        are used to validate the query.
-
-        Return (list): The list of field names to sort by.
-
-        Raises:
-        rest_framework.serializers.ValidationError: Thrown if the query is not valid.
-        """
-
-        # Make sure the request has been validated
-        if not hasattr(request, "validated_query"):
-            logger.error(f"Unvalidated request passed to get_ordering.")
-            raise APIException("Unvalidated request passed to get_ordering.")
-
-        return request.validated_query['sort']
-
-    def filter_queryset(self, request, queryset, view):
-        """Filter a query set based on a request.
-        
-        Args:
-        request (rest_framework.request.Request): 
-        The request specifying the query.
-
-        queryset (django.models.query.QuerySet): 
-        The queryset to filter. 
-
-        view (QueryAPIView):
-        The view running the query. It should have the "required_attributes", 
-        "allowed_sort_attributes" and "allowed_result_attributes" attributes that
-        are used to validate the query.
-
-        Return (django.models.query.QuerySet): A QuerySet filtered according to the request.
-
-        Raises:
-        rest_framework.serializers.ValidationError: Thrown if the query is not valid.
-        """
-
-        # Make sure the request has been validated
-        if not hasattr(request, "validated_query"):
-            logger.error(f"Unvalidated request passed to filter_queryset.")
-            raise APIException("Unvalidated request passed to filter_queryset.")
-
-        # The prefix parameter indicates whether the query on the required field is for a prefix
-        # i.e. whether a % is appended at the end of the search value
-        if request.validated_query['prefix']:
-            string_match = "startswith"
-        elif request.validated_query['contains']:
-            string_match = "contains"
-        else:
-            string_match = "exact"
-
-        required_field = None
-        required_search_value = None
-
-        # Make sure at least one of the required fields is being queried.
-        # These are the fields that are indexed in the database.
-        for field in view.required_attributes:
-            if field in request.validated_query:
-                if required_field is None:
-                    required_field = field
-                    required_search_value = request.validated_query[field]
-                else:
-                    # We don't allow duplicates of these fields, at least for now.
-                    raise ValidationError({"query": f"Only one field of: ({', '.join(view.required_attributes)}) may be queried on."})
-
-
-        if required_field is None:
-            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.required_attributes)})"})
-
-        logger.info(f"Building {required_field} query on '{required_search_value}'")
-        filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'],
-                                    request.validated_query.get('filters', None))
-
-        queryset = queryset.filter(**filters)
-        queryset = self._add_proprietary_access_filter(queryset, request)
-
-        # Add sort attributes if needed
-        if request.validated_query['count'] is False and len(request.validated_query['sort']) > 0:
-            return queryset.order_by(request.validated_query['sort'])
-        else:
-            return queryset
             
     def _build_where(self, field, value, string_match, match_case, user_filters=None):
         """Build the Django keyword arguments to filter a queryset.
@@ -581,105 +488,128 @@ class QueryAPIFilterBackend:
         logger.debug(f"exact filter value {value}")
         filters[orm_field_name + "__exact"] = value
 
+class QueryAPIFilterBackend(QueryAPIFilterBackendBase):
+    """A DRF Filter backend to filter query results based on parameters in the request."""
 
-class QueryAPIMixin:
-    """
-    A custom DRF mixin for implementing the archive query api. It supports a list
-    method for querying and a retrieving a single object.
-    It should be subclassed to specify the QuerySet type, Serializer type, pagination_class, 
-    filter_backends. The subclass should also
-    populate the allowed_sort_attributes, allowed_result_attributes, and required_attributes values.
-    """
-    # Use cursor based pagination
-    allowed_sort_attributes =[]
-    allowed_result_attributes =[]
-    required_attributes = []
-
-    def list(self, request, *args, **kwargs):
-        """Performs a query based on a request. The query is handled by the
-        QueryAPIPagination, and QueryAPIFilterBackend classes. 
-        This class performs post processing of database results.
-
-        The post processing involves:
-        Replacing the full path in the filename to the relative path. (Hiding the
-        mount point of the archive file system from clients).
-
-        Replacing the filename returned as "header" with a URL that can be used to
-        access a plaintext version of the header.
+    def get_ordering(self, request, queryset, view):
+        """Return the fields that should be used to order the query based on the
+        request.
         
         Args:
-        request (rest_framework.requests.Request): The request specifying the query.        
-        args (list):     Additional arguments to the view.
-        **kwargs (dict): Additional keyword arguments to the view.
-        
-        Return (rest_framework.response.Response): The processed response from the query.
+        request (rest_framework.request.Request): 
+        The request specifying the query.
+
+        queryset (django.models.query.QuerySet): 
+        The queryset being used for the query. 
+
+        view (QueryAPIView):
+        The view running the query. It should have the "required_attributes", 
+        "allowed_sort_attributes" and "allowed_result_attributes" attributes that
+        are used to validate the query.
+
+        Return (list): The list of field names to sort by.
+
+        Raises:
+        rest_framework.serializers.ValidationError: Thrown if the query is not valid.
         """
-        log_request_debug(request)
 
-        # Validate the query using a serializer
-        serializer = QuerySerializer(data=request.query_params, view=self)
-        logger.debug(f"QueryParams {request.query_params}")
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error(f"QueryParams {request.query_params}", exc_info=True)
-            raise
+        # Make sure the request has been validated
+        if not hasattr(request, "validated_query"):
+            logger.error(f"Unvalidated request passed to get_ordering.")
+            raise APIException("Unvalidated request passed to get_ordering.")
 
-        # Store the validated results in the request to be passed to paginators and filters
-        request.validated_query = serializer.validated_data
+        return request.validated_query['sort']
 
-        # Use the superclass method to utilize the DRF's infrastructure
-        response = super().list(request, *args, **kwargs)
-        if response.status_code == status.HTTP_200_OK:
-            # A count query doesn't have a results entry
-            if 'results' in response.data:
-                # Filter header URLS to have the propper format and
-                # both header and filename entries to be relative paths
-                for record in response.data['results']:
-                    if "header" in record:
-                        filepath = Path(record['header'])
-                        relative_path = filepath.relative_to(lick_archive_config.ingest.archive_root_dir)
-                        header_url = lick_archive_config.query.file_header_url_format.format(relative_path)
-                        record["header"] = header_url
-                    if "filename" in record:
-                        record["filename"] = str(Path(record['filename']).relative_to(lick_archive_config.ingest.archive_root_dir))
-        return response
+    def filter_queryset(self, request, queryset, view):
+        """Filter a query set based on a request.
+        
+        Args:
+        request (rest_framework.request.Request): 
+        The request specifying the query.
 
-    def get_object(self):
-        log_request_debug(self.request)
+        queryset (django.models.query.QuerySet): 
+        The queryset to filter. 
 
-        # Validate request using query serializer
-        if self.lookup_url_kwarg not in self.kwargs:
-            raise APIException(f"No {self.lookup_url_kwarg} specified.", code=status.HTTP_400_BAD_REQUEST)
-        value = self.kwargs[self.lookup_url_kwarg]
-        data = {self.lookup_field: value}
-        serializer = QuerySerializer(data=data, view=self)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            logger.error(f"Failed to validate {self.lookup_field}.", exc_info=True)
-            raise
+        view (QueryAPIView):
+        The view running the query. It should have the "required_attributes", 
+        "allowed_sort_attributes" and "allowed_result_attributes" attributes that
+        are used to validate the query.
 
-        # Store the validated results in the request to be passed to paginators and filters
-        self.request.validated_query = serializer.validated_data
+        Return (django.models.query.QuerySet): A QuerySet filtered according to the request.
 
-        logger.info(f"Getting object for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}")
+        Raises:
+        rest_framework.serializers.ValidationError: Thrown if the query is not valid.
+        """
 
-        # Let the superclass filter the query set and then use that
-        # to get the object.
+        # Make sure the request has been validated
+        if not hasattr(request, "validated_query"):
+            logger.error(f"Unvalidated request passed to filter_queryset.")
+            raise APIException("Unvalidated request passed to filter_queryset.")
 
-        try:
-            queryset = self.filter_queryset(self.get_queryset())
-            results = queryset[0:]
-        except Exception as e:
-            logger.error(f"Failed to get object from database for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}: {e}", exc_info=True)
-            raise  APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # The prefix parameter indicates whether the query on the required field is for a prefix
+        # i.e. whether a % is appended at the end of the search value
+        if request.validated_query['prefix']:
+            string_match = "startswith"
+        elif request.validated_query['contains']:
+            string_match = "contains"
+        else:
+            string_match = "exact"
 
-        if len(results) == 0:
-            logger.error(f"{self.lookup_field} = {serializer.validated_data[self.lookup_field]} not found.")
-            raise NotFound(detail="File not found")
-        elif len(results) > 1:
-            logger.error(f"Duplicate matches found for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}, found {len(results)}")
-            raise APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        required_field = None
+        required_search_value = None
 
-        return results[0]
+        # Make sure at least one of the required fields is being queried.
+        # These are the fields that are indexed in the database.
+        for field in view.required_attributes:
+            if field in request.validated_query:
+                if required_field is None:
+                    required_field = field
+                    required_search_value = request.validated_query[field]
+                else:
+                    # We don't allow duplicates of these fields, at least for now.
+                    raise ValidationError({"query": f"Only one field of: ({', '.join(view.required_attributes)}) may be queried on."})
+
+
+        if required_field is None:
+            raise ValidationError({"query": f"At least one required field must be included in the query. The required fields are: ({', '.join(view.required_attributes)})"})
+
+        logger.info(f"Building {required_field} query on '{required_search_value}'")
+        filters = self._build_where(required_field, required_search_value, string_match, request.validated_query['match_case'],
+                                    request.validated_query.get('filters', None))
+
+        queryset = queryset.filter(**filters)
+        queryset = self._add_proprietary_access_filter(queryset, request)
+
+        # Add sort attributes if needed
+        if request.validated_query['count'] is False and len(request.validated_query['sort']) > 0:
+            return queryset.order_by(request.validated_query['sort'])
+        else:
+            return queryset
+
+class PlainTextRenderer(BaseRenderer):
+    """A renderer for rendering FITS headers in plain text."""
+    media_type = 'text_plain'
+    format='txt'
+    charset='ascii'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        # Return the plain text if the response is successfull.
+        # Otherwise return the status code, reason phrase, and error message returned in the data
+        if renderer_context is not None and "response" in renderer_context:
+            response = renderer_context["response"]
+            if response.status_code == status.HTTP_200_OK:
+                return data + "\n" if data[-1] != "\n" else data
+            elif isinstance(data, dict):
+                return f"Status Code: {response.status_code}: {response.reason_phrase}\n\n{data['detail']}\n"
+            else:
+                return f"Status Code: {response.status_code}: {response.reason_phrase}\n"
+        # If we can't get the response, give up let the django/drf deal with it
+        else:
+            raise APIException(detail="Internal Error", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class HeaderSerializer(BaseSerializer):
+    """Serialize a metadata row by returning its header"""
+
+    def to_representation(self, instance):
+        return instance.header
+

@@ -1,8 +1,7 @@
 import pytest
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta, timezone, datetime
 from pathlib import Path
-from collections import namedtuple
 
 from test_utils import django_db_setup
 
@@ -45,15 +44,16 @@ def override_access_in_db(django_db):
     oaf1 = OverrideAccessFile.from_file(test_data_dir / subdir / "override.1.access")
     oaf3 = OverrideAccessFile.from_file(test_data_dir / subdir / "override.3.access")
 
-    from lick_archive.apps.archive_auth import models
-    models.save_oaf_to_db(oaf0)
-    models.save_oaf_to_db(oaf1)
-    models.save_oaf_to_db(oaf3)
+    from lick_archive.apps.archive_auth import api
+    api.save_oaf_to_db(oaf0)
+    api.save_oaf_to_db(oaf1)
+    api.save_oaf_to_db(oaf3)
 
     yield
 
     # Clean up the DB afterwards
-    models.DBOverrideAccessFile.objects.all().delete()
+    from lick_archive.apps.archive_auth.models import DBOverrideAccessFile
+    DBOverrideAccessFile.objects.all().delete()
 
 
 
@@ -248,10 +248,10 @@ def test_identify_access_rule1_query_failure(monkeypatch):
 
 
         # First test a failure when querying
-        from lick_archive.apps.archive_auth import models
+        from lick_archive.apps.archive_auth import api
         def mock_failed_get_related_override_files(filepath):
             raise RuntimeError("Test failure")
-        m.setattr(models, "get_related_override_files", mock_failed_get_related_override_files)
+        m.setattr(api, "get_related_override_files", mock_failed_get_related_override_files)
 
         from lick_archive.authorization import user_access
         result_access = user_access.identify_access(file_metadata)
