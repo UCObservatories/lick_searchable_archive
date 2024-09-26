@@ -1,7 +1,7 @@
 
 from collections import namedtuple
 import enum
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.coordinates import SkyCoord
 from datetime import datetime, date
 
@@ -143,9 +143,17 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['true_int_time',      'True Integration Time',    float,       Category.SHARCS,      'True integration time in seconds per coadd'],
                         ])
 
+# Dynamic fields created by the API but not stored in the database
+dynamic_fields = Table(names=[     'db_name',            'human_name',               'type',      'category',                 'description'],
+                       dtype=[     '<U63',               'U',                        'O',         Category,                        'U'],
+                       rows=[
+                                  ['download_link',      'Download Link',            str,         Category.COMMON,       'URL for downloading the file.'],
+                       ])
+
+
 api_capabilities = {'required': data_dictionary[[True if db_name in ['filename', 'obs_date', 'object', 'coord'] else False for db_name in data_dictionary['db_name']]],
                     'sort':     data_dictionary[[True if db_name not in ['coord', 'header', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],
-                    'result':   data_dictionary[[True if db_name not in ['coord', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],
+                    'result':   vstack([data_dictionary[[True if db_name not in ['coord', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],dynamic_fields]),
                     }
 
 supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS]

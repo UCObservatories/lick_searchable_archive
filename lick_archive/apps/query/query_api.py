@@ -10,9 +10,7 @@ from django.db.models import F, Q
 from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.serializers import ValidationError ,BaseSerializer
-from rest_framework.exceptions import APIException
-from rest_framework.renderers import BaseRenderer
+from rest_framework.exceptions import ValidationError, APIException, NotFound
 from rest_framework.response import Response
 from rest_framework import status, serializers
 
@@ -21,6 +19,8 @@ from lick_archive.metadata.data_dictionary import Instrument
 from lick_archive.db.pgsphere import SCircle
 from lick_archive.config.archive_config import ArchiveConfigFile
 from lick_archive.authorization.date_utils import get_observing_night
+from lick_archive.utils.django_utils import log_request_debug
+from .sqlalchemy_django_utils import SQLAlchemyQuerySet
 
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
@@ -279,10 +279,10 @@ class QueryAPIPagination(PageNumberPagination):
             result_expressions={}
 
             # Make a shallow copy of the result attributes, replacing
-            # the special "header" attribute withe an expression
+            # the special "header" and "download_link" attributes with an expression
             # that references the filename
             for api_result_name in requested_attributes:
-                if api_result_name == "header":
+                if api_result_name in  ("header", "download_link"):
                     result_expressions[api_result_name] = F('filename')
                 else:
                     result_attributes.append(api_result_name)
@@ -586,30 +586,52 @@ class QueryAPIFilterBackend(QueryAPIFilterBackendBase):
         else:
             return queryset
 
-class PlainTextRenderer(BaseRenderer):
-    """A renderer for rendering FITS headers in plain text."""
-    media_type = 'text_plain'
-    format='txt'
-    charset='ascii'
+class QueryAPIView:
+    """Baseclass for views using the archive's QueryAPI to find/authorize access to files/file metadata."""
 
-    def render(self, data, accepted_media_type=None, renderer_context=None):
-        # Return the plain text if the response is successfull.
-        # Otherwise return the status code, reason phrase, and error message returned in the data
-        if renderer_context is not None and "response" in renderer_context:
-            response = renderer_context["response"]
-            if response.status_code == status.HTTP_200_OK:
-                return data + "\n" if data[-1] != "\n" else data
-            elif isinstance(data, dict):
-                return f"Status Code: {response.status_code}: {response.reason_phrase}\n\n{data['detail']}\n"
-            else:
-                return f"Status Code: {response.status_code}: {response.reason_phrase}\n"
-        # If we can't get the response, give up let the django/drf deal with it
-        else:
-            raise APIException(detail="Internal Error", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def __init__(self, db_engine, table):
+        self._db_engine = db_engine
+        self._table = table
 
-class HeaderSerializer(BaseSerializer):
-    """Serialize a metadata row by returning its header"""
+    def get_queryset(self):
+        return SQLAlchemyQuerySet(self._db_engine, self._table)
 
-    def to_representation(self, instance):
-        return instance.header
+    def get_object(self):
+        log_request_debug(self.request)
 
+        # Validate request using query serializer
+        if self.lookup_url_kwarg not in self.kwargs:
+            raise APIException(f"No {self.lookup_url_kwarg} specified.", code=status.HTTP_400_BAD_REQUEST)
+        value = self.kwargs[self.lookup_url_kwarg]
+        data = {self.lookup_field: value}
+        serializer = QuerySerializer(data=data, view=self)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            logger.error(f"Failed to validate {self.lookup_field}.", exc_info=True)
+            raise
+
+        # Store the validated results in the request to be passed to paginators and filters
+        self.request.validated_query = serializer.validated_data
+
+        logger.info(f"Getting object for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}")
+
+        # Let the superclass filter the query set and then use that
+        # to get the object.
+
+        try:
+            queryset = self.filter_queryset(self.get_queryset())
+            results = queryset[0:]
+        except Exception as e:
+            logger.error(f"Failed to get object from database for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}: {e}", exc_info=True)
+            raise  APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if len(results) == 0:
+            logger.error(f"{self.lookup_field} = {serializer.validated_data[self.lookup_field]} not found.")
+            raise NotFound(detail="File not found")
+        elif len(results) > 1:
+            logger.error(f"Duplicate matches found for {self.lookup_field} = {serializer.validated_data[self.lookup_field]}, found {len(results)}")
+            raise APIException(detail="Failed to query archive database.", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return results[0]
+ 

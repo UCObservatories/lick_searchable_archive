@@ -8,7 +8,10 @@
 <VirtualHost *:80> 
     ServerName {{ frontend_host }}
 {% endif %}
+    AssignUserId {{ webserver_user }} {{ webserver_group }}
     DocumentRoot /var/www/archive
+    XSendFile On
+    XSendFilePath /data
     RequestHeader set "X-Forwarded-Proto" expr=%{REQUEST_SCHEME} 
     ProxyPass "/archive/index.html" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
     ProxyPassReverse "/archive/index.html" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"

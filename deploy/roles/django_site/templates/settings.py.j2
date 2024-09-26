@@ -239,6 +239,16 @@ CELERY_BROKER_URL = '{{ redis_url }}'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
-    ]
+    ],
+{# Disable the BrowseableAPI when in ops #}
+{% if archive_config == "ops" %}
+    # The order of renderers is important. The JSONRenderer must be first
+    # so that the API calls return JSON. THe HTML renderer is for
+    # error pages when downloading files
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.TemplateHTMLRenderer',
+        ],
+{% endif %}
 }
 {% endif %}

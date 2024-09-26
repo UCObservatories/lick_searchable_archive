@@ -51,6 +51,12 @@ public_observers           = Public.Observer, Public.Viewing
 public_ownerhint_pattern   = RECUR_.100
 
 #===============================================================================
+# Configuration for downloading files from the archive
+#===============================================================================
+[Download]
+file_download_url_format = {{ frontend_url }}/data/{}
+
+#===============================================================================
 # Mapping of archive leaf directory name to the "telescope name".
 #
 # As a special case, we may also provide entries that aren't

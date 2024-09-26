@@ -100,6 +100,13 @@ def process_results(api_fields, result_list, coord_format):
                 elif api_field == "header":
                     # Convert header to a link
                     row.append(format_html('<a href="{}">header</a>',result[api_field]))
+                elif api_field == "filename":
+                    # Convert filename to a download link
+                    if "download_link" in result:
+                        row.append(format_html('<a href="{}">{}</a>',result["download_link"], result[api_field]))
+                    else:
+                        # No download link in result, so don't convert filename to a link
+                        row.append(result[api_field])
                 elif api_field == "obs_date":
                     # Format date only out to seconds
                     value=parse_datetime(result[api_field])
@@ -259,6 +266,12 @@ def index(request):
                     logger.info(f"Prefix: {prefix}")
                     logger.info(f"Contains: {contains}")
                     logger.info(f"Username: '{request.user.username}'")
+
+                    # Add download link to the fields passed to the api to enable downloads
+                    extra_fields = []
+                    if "filename" in result_fields:
+                        extra_fields = ['download_link']
+                        
                     archive_client = LickArchiveClient(f"{lick_archive_config.host.api_url}", 1, 30, 5, request=request)
 
                     total_count, result, prev, next = archive_client.query(field=query_field,
@@ -268,7 +281,7 @@ def index(request):
                                                                            contains = contains,
                                                                            match_case=match_case,
                                                                            count= count_query,
-                                                                           results = result_fields,
+                                                                           results = result_fields + extra_fields,
                                                                            sort = sort,
                                                                            page_size=page_size,
                                                                            page = page)

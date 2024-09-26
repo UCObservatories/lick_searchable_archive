@@ -120,6 +120,16 @@ class IngestConfig(ConfigNamespace):
     insert_batch_size: int
     """The number of new files to insert into the database per transaction."""
 
+@dataclass
+class DownloadConfig(ConfigNamespace):
+    """Download configuration"""
+
+    config_section_name = "Download"
+
+    file_download_url_format : str
+    """The python string format for forming the URL to a file's header. The {} is replaced by the files relative path in the archive."""
+
+
 class TelescopeNames(ConfigDict):
     config_section_name = "Telescope Names"
     value_type = str
@@ -194,7 +204,7 @@ class AuthConfig(ConfigNamespace):
 
 
 class ArchiveConfigFile(ConfigFile):
-    config_classes = [HostConfig, DatabaseConfig, QueryConfig, IngestConfig, AuthConfig]
+    config_classes = [HostConfig, DatabaseConfig, QueryConfig, IngestConfig, DownloadConfig, AuthConfig]
     @classmethod
     def load_from_standard_inifile(cls):
         # This relies on our current way of deploying the config into "etc" under a python virtual environment

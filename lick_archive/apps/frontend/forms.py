@@ -29,7 +29,8 @@ def get_field_groups(fields):
     return [(group_name, group_dict[group_name]) for group_name in group_names]
 
 UI_ALLOWED_SORT = get_field_groups(api_capabilities['sort'])
-UI_ALLOWED_RESULT =  get_field_groups(api_capabilities['result'])
+UI_NOT_ALLOWED_RESULT = ["download_link"]
+UI_ALLOWED_RESULT =  get_field_groups(api_capabilities['result'][[False if db_name in UI_NOT_ALLOWED_RESULT else True for db_name in api_capabilities['result']['db_name']]])
 DEFAULT_SORT = "obs_date"
 DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]
 

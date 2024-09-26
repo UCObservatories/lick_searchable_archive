@@ -1,26 +1,8 @@
-- name: Install Apache
+- name: Install Apache and mod_xsendfile
   ansible.builtin.apt:
-    name: apache2
+    name: apache2, libapache2-mod-xsendfile, libapache2-mpm-itk
     state: present
   become: yes
-#- name: Copy SSL cert
-#  ansible.builtin.copy:
-#    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_cert | basename }}"
-#    dest: "{{ ssl_cert }}"
-#    owner: root
-#    group: root
-#    mode: 0644
-#  become: yes
-#  notify: "restart web server"
-#- name: Copy SSL private key
-#  ansible.builtin.copy:
-#    src: "{{ playbook_dir }}/data/{{ inventory_file | basename }}/{{ inventory_hostname }}/{{ ssl_private_key | basename }}"
-#    dest: "{{ ssl_private_key }}"
-#    owner: root
-#    group: ssl-cert
-#    mode: 0640
-#  become: yes
-#  notify: "restart web server"
 - name: Enable Apache Modules
   community.general.apache2_module:
     name: "{{ item }}"
@@ -32,6 +14,8 @@
     - proxy_http
     - ssl
     - headers
+    - xsendfile
+    - mpm_itk
 - name: Copy Archive Virtual Host settings
   ansible.builtin.template:
     mode: 0644
@@ -50,8 +34,8 @@
   notify: "restart web server"
 - name: Create Archive WWW directory
   ansible.builtin.file:
-    owner: root
-    group: root
+    owner: "{{ webserver_user }}"
+    group: "{{ webserver_group }}"
     mode: 0755
     path: "/var/www/archive"
     state: "directory"
