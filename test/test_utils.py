@@ -72,7 +72,7 @@ def create_mock_view(engine, request=None):
         filter_backends = [QueryAPIFilterBackend]
         serializer_class = SQLAlchemyORMSerializer
         allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
-        allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
+        allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header", "download_link"]
         required_attributes = list(api_capabilities['required']['db_name'])
         serializer_class = SQLAlchemyORMSerializer
 

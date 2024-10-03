@@ -5,7 +5,7 @@ import datetime
 import copy
 
 from lick_archive.client.lick_archive_client import LickArchiveClient
-from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, TEST_INSTR
+from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, TEST_INSTR, replace_parsed_url_hostname
 
 expected_metadata = {"telescope":  "Shane",
                      "instrument": "Kast Red",
@@ -19,12 +19,11 @@ expected_metadata = {"telescope":  "Shane",
                      "file_size":  3355200}
 
 
-def test_query_public(archive_backend):
+def test_query_public(archive_host, archive_config, ssl_ca_bundle):
 
-    from lick_archive.config.archive_config import ArchiveConfigFile
-    lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
 
-    client = LickArchiveClient(archive_backend, 1, 30, 5)
+    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
 
     # Make sure we are not logged in at first
     assert client.get_login_status() is True
@@ -57,12 +56,11 @@ def test_query_public(archive_backend):
         assert key in result, f"{key} not found in query results"
         assert result[key] == expected_results[key], f"Exepcted results for {key}: '{expected_results[key]}' != actual results '{result[key]}'"
 
-def test_query_private(archive_backend,test_user_password_env):
+def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_password_env):
 
-    from lick_archive.config.archive_config import ArchiveConfigFile
-    lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
+    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
 
-    client = LickArchiveClient(archive_backend, 1, 30, 5)
+    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
 
     # Login as test user
     assert client.login(TEST_USER,os.environ[test_user_password_env]) is True
@@ -92,7 +90,7 @@ def test_query_private(archive_backend,test_user_password_env):
         assert result[key] == expected_results[key], f"Exepcted results for {key}: '{expected_results[key]}' != actual results '{result[key]}'"
 
     # Find private file. We'll search in adjacent days in case of date roll over
-    ingest_dates = [datetime.date.today() - datetime.timedelta(days=1), datetime.date.today()]
+    ingest_dates = [datetime.date.today() - datetime.timedelta(days=1), datetime.date.today(), datetime.date.today() + datetime.timedelta(days=1)]
 
     found=False
     for ingest_date  in ingest_dates:

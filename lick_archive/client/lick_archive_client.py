@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, date
-import codecs
+import os
 import requests
 
 from tenacity import Retrying, stop_after_delay, wait_exponential
@@ -28,7 +28,7 @@ class LickArchiveClient:
     """
     def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, request=None, ssl_verify=None):
     
-        # The ingest URLs should have a / on it so the sync_query, or ingest_new_files part can be appended
+        # The ingest URLs should have a / on it so that other path components can be appended
         if archive_url[-1] == '/':
             self.archive_url = archive_url
         else:
@@ -339,3 +339,59 @@ class LickArchiveClient:
             else:
                 raise ValueError("Archive server did not return results for a query.")
         
+    def header(self, filename):
+        """Retrieve the header for a file in the archive.
+        
+        Args:
+            filename (str): The (relative) name of the file in the archive. (e.g. 2019-05/23/shane/b33.fits)
+        
+        Return:
+            str:  The file's header, as a single text string.
+        """
+        if not isinstance(filename, str):
+            filename = str(filename)
+        if filename[0] != '/':
+            filename = '/' + filename
+    
+        header_url = self.archive_url + "data" + filename + "/header"
+        logger.debug(f"Getting header for {header_url}")
+        retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
+        result = retryer(self._session.get, header_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result.raise_for_status()
+        return result.text
+
+    def download(self, filename, destination):
+        """Retrieve a file in the archive.
+        
+        Args:
+            filename (str): The (relative) name of the file in the archive. (e.g. 2019-05/23/shane/b33.fits)
+            destination (str): The destination file to receive the file's contents
+        Return:
+            str:  The file's header, as a single text string.
+        """
+        if not isinstance(filename, str):
+            filename = str(filename)
+        if filename[0] != '/':
+            filename = '/' + filename
+    
+        download_url = self.archive_url + "data" + filename
+        logger.info(f"Downloading {download_url}")
+        retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
+        result = retryer(self._session.get, download_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout), stream=True)
+        result.raise_for_status()
+        with open(destination, "wb") as dest_file:
+            for chunk in result.iter_content(chunk_size=64*1024):
+                logger.debug("Writing chunk")
+                dest_file.write(chunk)
+
+        stat_info = os.stat(destination)
+        logger.debug(f"Response headers: {result.headers}")
+        if 'Content-Length' in result.headers:
+            if stat_info.st_size == int(result.headers['Content-Length']):
+                logger.info(f"Successfully downloaded {stat_info.st_size} bytes to {destination}")
+                return True
+            else:
+                logger.error(f"Download of {destination} failed, only received {stat_info.st_size} bytes of {result.headers['Content-Length']}")
+                return False
+        logger.info(f"Downloaded {stat_info.st_size} bytes to {destination}. Cannot verify size of file.")
+        return True

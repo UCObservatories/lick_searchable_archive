@@ -35,7 +35,7 @@ class ParsedURL:
         if result.netloc == '':
             raise ValueError(f"{url} does not have a valid network location.")
         self.url = url
-
+        self.parsed_url = result
     def __str__(self) -> str:
         """Return URL as a string"""
         return self.url

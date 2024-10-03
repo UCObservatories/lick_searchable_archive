@@ -53,4 +53,11 @@ def remove_override_access(override_date, override_instr, user_ownerhint, filena
         if oaf.rules.count() == 0:
             oaf.delete()
  
+def replace_parsed_url_hostname(parsed_url, hostname):
+    if parsed_url.port is not None:
+        port = f":{parsed_url.port}"
+    else:
+        port = ""
+
+    return parsed_url._replace(netloc=f"{hostname}{port}").geturl()
 

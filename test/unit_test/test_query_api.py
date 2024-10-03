@@ -352,6 +352,8 @@ def test_no_result_attributes():
             # Post-processing by the view should turn the header into a URL
             assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(public_test_rows[i].filename))
 
+            # Post-processing by the view should include a download URL
+            assert response.data["results"][i]["download_link"]     == "http://testserver/archive/data/{}".format(os.path.basename(public_test_rows[i].filename))
 
 @basic_django_setup
 def test_count():
