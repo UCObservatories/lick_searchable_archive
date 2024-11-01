@@ -129,6 +129,11 @@ class DownloadConfig(ConfigNamespace):
     file_download_url_format : str
     """The python string format for forming the URL to a file's header. The {} is replaced by the files relative path in the archive."""
 
+    max_tarball_files : int
+    """The maxuimum number of files allowed to download in a tarball"""
+
+    max_tarball_size : int
+    """The maximum combined size of files allowed in a tarball. In MiB"""
 
 class TelescopeNames(ConfigDict):
     config_section_name = "Telescope Names"

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 
 from rest_framework.generics import ListAPIView, RetrieveAPIView
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException,ValidationError
 from rest_framework.renderers import BaseRenderer
 from rest_framework.serializers import BaseSerializer
 from rest_framework import status
@@ -19,11 +19,12 @@ from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-from .sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
+from .sqlalchemy_django_utils import SQLAlchemyORMSerializer
 from .query_api import QueryAPIFilterBackend, QueryAPIPagination, QuerySerializer, QueryAPIView
 
 # SQLAlchemy likes its engine to have a global lifetime.
 _db_engine = create_db_engine(user=lick_archive_config.database.db_query_user, database=lick_archive_config.database.archive_db)
+
 
 class QueryView(QueryAPIView, ListAPIView):
     """View that integrates the archive Query API with SQL Alchemy"""

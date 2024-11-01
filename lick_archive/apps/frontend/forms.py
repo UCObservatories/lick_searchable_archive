@@ -55,16 +55,20 @@ class QueryForm(forms.Form):
                                initial={"operator": "exact", "value": None}, 
                                help_text=format_html('{}<p>{}<p>{}','Example: "2006-08-17".', 'All dates are noon to noon PST (UTC-8).', 'Date ranges are inclusive.'),
                                required=False)
-    coord  = QueryWithOperator(label="Location", operators= [AngleField(label="Radius", default_unit="arcsec", required=False)], 
+    coord  = QueryWithOperator(label="Location", operators= [AngleField(label="Radius", required=False)], 
                                class_prefix="search_terms_",
-                               fields=[AngleField(label="RA", default_unit="hour", required=False),
-                                       AngleField(label="DEC", default_unit="d", required=False)],                               
+                               fields=[AngleField(label="RA", required=False),
+                                       AngleField(label="DEC",required=False)],                               
                                initial={"operator": None, "value": None},  
                                help_text=format_html('{}<p>{}<ul><li>{}</li><li>{}</li></ul>',
                                                      'Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.',
                                                      'Examples:',
+                                                     'All of these are the same value'
                                                      '"radius 36s ra 6:12:19.5 dec -40:30:12.3"',
-                                                     '"radius 36 ra 93.0812 -40.5034"'), 
+                                                     '"radius 36s ra 6 12 19.5 dec -40 30 12.3"',
+                                                     '"radius 36s ra 6h12m19.5s dec -40d30m12.3s"',
+                                                     '"radius .6m ra 6.20541666h dec -40.5034d"', 
+                                                     '"radius 36 ra 93.0812 dec -40.5034"'), 
                                required=False)
     count = forms.ChoiceField(label="", choices=[("yes","Return only a count of matching files."), ("no","Return information about matching files.")], 
                               initial="no", required=True, widget=forms.RadioSelect(attrs = {"class": "search_fields_radio"}))

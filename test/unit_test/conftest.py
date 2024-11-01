@@ -16,7 +16,7 @@ def block_script_util_djangop_setup(monkeypatch):
 def archive_config():
     # Force archive config to load the test version rather than the default config
     from lick_archive.config.archive_config import ArchiveConfigFile
-    ArchiveConfigFile.from_file(Path(__file__).parent.parent / "archive_test_config.ini")
+    return ArchiveConfigFile.from_file(Path(__file__).parent.parent / "archive_test_config.ini")
 
 @pytest.fixture(scope="session")
 def django_setup():

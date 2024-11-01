@@ -8,6 +8,10 @@ pidfile="/var/run/gunicorn/gunicorn.pid"
 # as the backend, so each query request requires 2 workers.
 workers=2
 
+# Type of worker, multi threaded to help support streaming tar files
+worker_class = "gthread"
+threads = 2
+
 # Worker timeout. Set based on the timeout on retries set in dbutils. Note there is still an timeout from "graceful_timeout" default
 timeout=65
 

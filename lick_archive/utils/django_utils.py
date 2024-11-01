@@ -3,6 +3,7 @@
 import logging
 import os
 from pathlib import Path
+from typing import Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,20 @@ def validate_username(username):
             raise ValidationError(message=f"Username has invalid character '{c}' ({name})")
     return
 
+def validate_chars(input, allowed_chars, error_label="string"):
+    """Validator to validate that a string is composed of only an allowed set of characters"""
+
+    from django.core import validators
+    from django.core.exceptions import ValidationError
+
+    # First apply django validators
+    validators.ProhibitNullCharactersValidator()(input)
+
+    for c in input:
+        if c not in allowed_chars:
+            raise ValidationError(message=f"{error_label} has invalid character {c}.")
+
+
 def log_request_debug(request):
     """Log debug information about an incomming Django request."""
     if logger.isEnabledFor(logging.DEBUG):
@@ -101,3 +116,14 @@ def log_request_debug(request):
             logger.debug(f"Request user: '{request.user.username}'")
         else:
             logger.debug("Request has no user.")
+        if hasattr(request, "validated_query"):
+            logger.debug(f"Validated query found")
+            if request.validated_query is None:
+                logger.debug("validated_query is None")
+            elif isinstance(request.validated_query, Mapping) :
+                logger.debug("validated_query is a mapping")
+                for key in request.validated_query:
+                    logger.debug(f"{key} = {request.validated_query[key]}")
+            else:
+                logger.debug(f"validated_query: {request.validated_query}")
+

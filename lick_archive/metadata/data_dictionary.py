@@ -106,6 +106,9 @@ class LargeStr(str):
 
 MAX_PUBLIC_DATE = date(9999, 12, 31)
 MIN_PUBLIC_DATE = date(1970, 1, 1)
+MAX_FILENAME_SIZE = 256
+MAX_OBJECT_SIZE   = 256
+MAX_FILENAME_BATCH = 1000
 
 data_dictionary = Table(names=[     'db_name',            'human_name',               'type',      'category',                 'description'],
                         dtype=[     '<U63',               'U',                        'O',         Category,                        'U'],

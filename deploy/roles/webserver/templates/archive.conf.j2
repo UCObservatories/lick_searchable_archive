@@ -19,6 +19,8 @@
     ProxyPassReverse "/archive/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
     ProxyPass "/archive/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
     ProxyPassReverse "/archive/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
+    ProxyPass "/archive/api" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/api"
+    ProxyPassReverse "/archive/api" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/api"
     ProxyPass "/archive/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
     ProxyPassReverse "/archive/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
     ProxyPass "/archive" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/index.html"
