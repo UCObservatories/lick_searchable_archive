@@ -373,7 +373,7 @@ class PollingWithSimulatedCloseEmitter(watchdog.observers.polling.PollingEmitter
     event_filter:   Optional collection of :class:`watchdog.events.FileSystemEvent` to watch
     """
     def __init__(self, event_queue, watch, timeout, writing_delay, stat=os.stat, listdir=os.scandir, event_filter=None):
-        super().__init__(event_queue, watch, timeout, stat=stat, listdir=listdir, event_filter=event_filter)
+        super().__init__(event_queue, watch, timeout=timeout, stat=stat, listdir=listdir, event_filter=event_filter)
         self._writing_delay = datetime.timedelta(seconds=writing_delay)
         self._file_modify_map = OrderedDict()
         self._file_modify_lock = threading.Lock()
@@ -457,7 +457,7 @@ class PollingWithSimulatedCloseObserver(watchdog.observers.api.BaseObserver):
     """
     def __init__(self, timeout, writing_delay, stat, listdir):
         emitter_cls = partial(PollingWithSimulatedCloseEmitter, writing_delay=writing_delay, timeout=timeout, stat=stat, listdir=listdir)
-        super().__init__(emitter_cls, timeout)
+        super().__init__(emitter_cls, timeout=timeout)
 
     def start(self):
         logger.debug("Starting")

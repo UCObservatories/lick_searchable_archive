@@ -5,7 +5,7 @@
     - local_init
 
 - name: Ingest Watchdog Remote Deploy Playbook
-  hosts: watchdog
+  hosts: backend
   roles:
     - common
     - common_sw
