@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Mt. Hamilton Data Repository Search - Beta</title>
-    <link rel="stylesheet" type="text/css" href="/static/frontend/repository.css"/>
+    <link rel="stylesheet" type="text/css" href="static/frontend/repository.css"/>
 </head>
 <body class="search_body">
 <header>
-    <H1><img class="header_image" src="/static/frontend/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</H1>
+    <H1><img class="header_image" src="static/frontend/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</H1>
     {% if username|length > 0 %}
     <form id="archive_logout" class="user_section" method="POST" action="{{ logout_url }}">
         {% csrf_token %}
@@ -46,7 +46,7 @@
 <form id="archive_query" class="search_form" method="POST" action="{{ archive_url }}">
     {% csrf_token %}
     <fieldset id="search_form_terms" class="search_form_terms">
-        <legend>Search By</legend>
+        <legend class="header2">Search By</legend>
         <ul role="list" class="search_form_list">
             <li class="search_terms_option">
                 <label class="search_terms_label" for="query_by_object">                        
@@ -91,13 +91,13 @@
         </ul>      
     </fieldset>
     <fieldset id="instrument" class="search_form_instr">
-        <legend>Instruments</legend>
+        <legend class="header2">Instruments</legend>
         {{ form.instruments }}
         <button id="instrument_all" type="button">Select All</button>
         <button id="instrument_none" type="button">Deselect All</button>
     </fieldset>
     <fieldset id="results">
-        <legend>Search Results</legend>
+        <legend class="header2">Result Format</legend>
         <ul role="list" class="search_field_list">
             <li class="search_field_item"><label for="{{ form.count.1.id_for_label }}">{{ form.count.1.tag }}{{ form.count.1.choice_label }}</label>
                 <fieldset id="fields" class="search_form_fields">
@@ -113,17 +113,26 @@
 
     <button type="submit" name="page" value="1">Submit Query</button>
 </form>
-<p class="results_header">
+<section class="search_results">
+<h2 class="header2">Search Results</h2>
+
 {% if result_list is None or result_list|length == 0 %}
     Number of results: {{ result_count }}
-</p>
-{% else %}
-    Showing results {{ start_result }} - {{ end_result }} of {{ result_count }} results.
-    <br>{{ form.page }}
-</p>
-<table class="search_results_table">
+{% else %}    
+<div class="search_results_controls">    
+    <span class="search_results_head_page_controls">
+        Showing results {{ start_result }} - {{ end_result }} of {{ result_count }} results.<br>
+        {{ form.page }}
+    </span>
+    <span class="search_results_head_download_controls">
+        <button id="download_selected_head" class="results_download">Download Selected</button>
+        <button id="download_all_head" class="results_download">Download All</button>
+    </span>
+</div>
+<table id="search_results_table" class="search_results_table">
     <thead>
         <tr>
+            <th class="search_results_header search_results_select" scope="col">Select All<br><input type="checkbox" id="search_results_hdr_select" /></th>
             {% for result_field, units in result_fields  %}
                 <th class="search_results_header" scope="col">{{ result_field }}{% if units is not None %}<br><span class="result_table_units">({{units}})</span>{% endif %}</th>
             {% endfor %}
@@ -132,18 +141,26 @@
     <tbody>
         {% for result in result_list %}
             <tr>
-                {% for value in result %}    
+                <td class="search_results_data search_results_select"><input type="checkbox" id="result_select_{{ forloop.counter0 }}"/></td>
+                {% for value in result|slice:"1:" %}    
                     <td class="search_results_data">{{ value }}</td>
                 {% endfor %}
             </tr>
         {% endfor %}
     </tbody>
 </table>
-<p class="results_footer">
-    {{ form.page }}<br>
-    Number of results in page: {{ result_list|length }}
-</p>
+<div class="search_results_controls">
+    <span class="search_results_foot_page_controls">
+        Number of results in page: {{ result_list|length }}<br>        
+        {{ form.page }}
+    </span>
+    <span class="search_results_foot_download_controls">
+        <button id="download_selected_foot" class="results_download">Download Selected</button>
+        <button id="download_all_foot" class="results_download">Download All</button>
+    </span>
+</div>
 {% endif %}
+</section>
 {% if form.errors|length > 0 %}
 <p>
 Errors:
@@ -154,84 +171,6 @@ Errors:
 <footer>
 Footer text?
 </footer>
-<script>
-    const objectRadioInput = document.getElementById("query_by_object")
-    const dateRadioInput = document.getElementById("query_by_date")
-    const filenameRadioInput = document.getElementById("query_by_file")
-    const locationRadioInput = document.getElementById("query_by_coords")
-    const countRadioInput = document.getElementById("id_count_0")
-    const resultsRadioInput = document.getElementById("id_count_1")
-
-    const objectFields = document.getElementById("id_object_fields")
-    const dateFields = document.getElementById("id_date_fields")
-    const filenameFields = document.getElementById("id_filename_fields")
-    const locationFields = document.getElementById("id_coords_fields")
-    const resultFields = document.getElementById("fields")
-
-    const instrAllButton = document.getElementById("instrument_all")
-    const instrNoneButton = document.getElementById("instrument_none")
-    const instrumentCheckboxes = document.getElementsByClassName("search_instr_check")
-
-    objectRadioInput.addEventListener("change", enableAndDisableFields)
-    dateRadioInput.addEventListener("change", enableAndDisableFields)
-    filenameRadioInput.addEventListener("change", enableAndDisableFields)
-    locationRadioInput.addEventListener("change", enableAndDisableFields)
-    countRadioInput.addEventListener("change", enableAndDisableResultFields)
-    resultsRadioInput.addEventListener("change", enableAndDisableResultFields)
-    
-    instrAllButton.addEventListener("click", selectInstruments)
-    instrNoneButton.addEventListener("click", selectInstruments)
-
-    document.addEventListener("DOMContentLoaded", enableAndDisableFields)
-
-    function selectInstruments(event) {
-        if (event.target.id=="instrument_all") {
-            value = true
-        } else if (event.target.id == "instrument_none") {
-            value = false
-        }
-        else {
-            return
-        }
-        for (checkbox of instrumentCheckboxes) {
-            checkbox.checked = value
-        }
-    }
-
-    function enableAndDisableResultFields() {
-        if (countRadioInput.checked) {
-            resultFields.disabled=true
-        }
-        else {
-            resultFields.disabled=false
-        }
-    }
-
-    function enableAndDisableFields() {
-
-        if (objectRadioInput.checked) {
-            objectFields.disabled=false
-            dateFields.disabled=true
-            filenameFields.disabled=true
-            locationFields.disabled=true
-        } else if (dateRadioInput.checked) {
-            objectFields.disabled=true
-            dateFields.disabled=false
-            filenameFields.disabled=true
-            locationFields.disabled=true
-        }
-        else if (filenameRadioInput.checked) {
-            objectFields.disabled=true
-            dateFields.disabled=true
-            filenameFields.disabled=false
-            locationFields.disabled=true
-        } else {
-            objectFields.disabled=true
-            dateFields.disabled=true
-            filenameFields.disabled=true
-            locationFields.disabled=false
-        }
-    }
-</script>
+<script src="static/frontend/frontend.js"></script>
 </body>
 </html>

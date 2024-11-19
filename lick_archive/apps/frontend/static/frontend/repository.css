@@ -2,7 +2,7 @@
   --header-image-height: 90px;
   --header-height: calc(var(--header-image-height) + 1lh);
   --header-with-spacing: calc(var(--header-height) + 2ex);
-  --search-form-width: 640px;
+  --search-form-width: 1000px;
   --sidebar-width: 19em;
   --sidebar-spacing: 2em;
   --body-background: #121212;
@@ -113,7 +113,7 @@ fieldset {
   background-color: var(--body-background);
   padding: 0;
 }
-fieldset > legend {
+.header2 {
     font-size: 1.25rem;
     font-weight: bold;
     padding:0;
@@ -122,6 +122,7 @@ fieldset > legend {
     color: var(--subheader-text);
     text-indent: 0.5rem;
     line-height: 2rem;
+    max-width: var(--search-form-width);
   }
   
   
@@ -236,6 +237,8 @@ fieldset > legend {
   
   .search_results_table {
     border-collapse: collapse;
+    grid-area: results;
+    margin-block: 1ex;
   }
 
   .search_results_table  > tbody tr:nth-child(odd){
@@ -258,6 +261,7 @@ fieldset > legend {
     font-family: sans-serif;
     font-weight: bold;
     text-align: left;
+    vertical-align: bottom;
     position: sticky;
     z-index: 1;
     top: 0;
@@ -265,8 +269,14 @@ fieldset > legend {
     padding-inline: 0.5em;
   }
 
+  .search_results_select {
+    text-align: center;
+  }
+
+
   .search_form {
-    max-width: 640px;
+    max-width: var(--search-form-width);
+    margin-block-end: 4ex;
   }
 
   .search_form_list {
@@ -416,6 +426,36 @@ fieldset > legend {
 
   .results_footer {
     margin-top: 0.5lh;
+  }
+
+  .search_results {
+    /*display: grid;
+    grid-template-areas: 
+      "pg_head    .    down_head"
+      "results results results"
+      "pg_foot      .  down_foot";*/
+    max-width: var(--search-form-width);
+  }
+
+  .search_results_controls {
+    display: flex;
+    justify-content: space-between;
+  }
+  .search_results_head_page_controls {
+    grid-area: pg_head;
+  }
+  .search_results_head_download_controls {
+    grid-area: down_head;
+    align-self: end;
+    justify-self: end;
+  }
+
+  .search_results_foot_page_controls {
+    grid-area: pg_foot;
+  }
+  .search_results_foot_download_controls {
+    grid-area: down_foot;
+    justify-self: end;
   }
 
   .login_header {

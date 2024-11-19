@@ -48,7 +48,7 @@ class DownloadSingleView(QueryAPIView, RetrieveAPIView):
         file_metadata = super().get_object()
         logger.debug(f"Using X-SendFile value of '{file_metadata.filename}'")
         xsendfile_headers = {"X-Sendfile": file_metadata.filename,
-                             "Content-Type": lick_archive_config.file_types[file_metadata["instrument"]]}
+                             "Content-Type": lick_archive_config.download.file_types[file_metadata["instrument"]]}
         response = FileResponse()
         response.status_code = status.HTTP_200_OK
         response.headers = xsendfile_headers
@@ -163,7 +163,8 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
                 # Prepare a queryset to find the given files, using the Query app's API
                 # to properly filter and handle proprietary access
                 self.request.validated_query = {"filename": ["in", next_batch],
-                                                "sort": ["filename"] }
+                                                "sort": ["filename"],
+                                                 "count": False }
 
                 queryset = self.filter_queryset(self.get_queryset())
                 queryset = queryset.values(*self.allowed_result_attributes)

@@ -92,7 +92,7 @@ def get_user_facing_field_units(api_fields, coord_format):
 def process_results(api_fields, result_list, coord_format):
     processed_results = []
     for result in result_list:
-        row =[]
+        row =[result["id"]]
         for api_field in api_fields:
             try:
                 if api_field not in result:

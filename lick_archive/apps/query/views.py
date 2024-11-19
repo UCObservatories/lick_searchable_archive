@@ -108,7 +108,7 @@ class PlainTextRenderer(BaseRenderer):
             response = renderer_context["response"]
             if response.status_code == status.HTTP_200_OK:
                 return data + "\n" if data[-1] != "\n" else data
-            elif isinstance(data, dict):
+            elif isinstance(data, dict) and 'detail' in data:
                 return f"Status Code: {response.status_code}: {response.reason_phrase}\n\n{data['detail']}\n"
             else:
                 return f"Status Code: {response.status_code}: {response.reason_phrase}\n"

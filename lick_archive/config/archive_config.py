@@ -120,6 +120,12 @@ class IngestConfig(ConfigNamespace):
     insert_batch_size: int
     """The number of new files to insert into the database per transaction."""
 
+class FileTypes(ConfigDict):
+    config_section_name = "File Types"
+    default_key_name = "default"
+    value_type = str
+
+
 @dataclass
 class DownloadConfig(ConfigNamespace):
     """Download configuration"""
@@ -134,6 +140,9 @@ class DownloadConfig(ConfigNamespace):
 
     max_tarball_size : int
     """The maximum combined size of files allowed in a tarball. In MiB"""
+
+    file_types : FileTypes
+    """The MIME types for files per instrument."""
 
 class TelescopeNames(ConfigDict):
     config_section_name = "Telescope Names"
@@ -152,6 +161,7 @@ class PublicSuffixes(ConfigDict):
 class ScheduleServices(ConfigDict):
     config_section_name = "Schedule Services"
     value_type = str
+
 
 @dataclass
 class AuthConfig(ConfigNamespace):

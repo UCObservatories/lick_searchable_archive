@@ -232,6 +232,7 @@ class LickArchiveClient:
             requests.RequestException on failure contacting the archive server.
             ValueError If an invalid result is returned from the archive server.
         """
+        operator = None
         # Validate the field being queried on 
         if field not in ["filename", "object", "obs_date", "coord"]:
             raise ValueError(f"Unknown query field '{field}'")
@@ -240,9 +241,10 @@ class LickArchiveClient:
         if field == "obs_date":
             # Convert the date range tuple to a comma separated list
             if isinstance(value, datetime) or isinstance(value,date):
-                query_params = {field: value.isoformat()}
+                value = value.isoformat()
             else:
-                query_params = {field: ",".join([date_value.isoformat() for date_value in value])}
+                value =  ",".join([date_value.isoformat() for date_value in value])
+                operator = "in"
 
         elif field=="coord":            
             # ra, dec, and radius, all are converted to decimal degrees
@@ -250,19 +252,23 @@ class LickArchiveClient:
                 if len(value) !=3:
                     raise ValueError("Invalid coord value. coord should be a list of ra,dec,radius")
                 
-                query_params = {field: ",".join([Angle(a).to_string(decimal=True, unit="deg", precision=8) for a in value])}
+                value = ",".join([str(x) for x in value])
             else:
                 raise ValueError("Invalid coord value, coord should be list of ra,dec,radius")
         else:
-            query_params = {field: str(value)}
+            value = str(value)
 
         if prefix is True:
-            query_params["prefix"] = True
+            operator = "sw"
         elif contains is True:
-            query_params["contains"] = True
+            operator = "cn"
+        elif operator is None:
+            operator = "eq"
         
         if match_case is not None:
-            query_params["match_case"] = match_case
+            operator += "i"
+
+        query_params = {field: f"{operator},{value}"}
 
         for field, value in filters.items():
             if field != "instrument":

@@ -32,7 +32,7 @@ UI_ALLOWED_SORT = get_field_groups(api_capabilities['sort'])
 UI_NOT_ALLOWED_RESULT = ["download_link"]
 UI_ALLOWED_RESULT =  get_field_groups(api_capabilities['result'][[False if db_name in UI_NOT_ALLOWED_RESULT else True for db_name in api_capabilities['result']['db_name']]])
 DEFAULT_SORT = "obs_date"
-DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "object", "exptime", "obs_date"]
+DEFAULT_RESULTS = ["filename", "instrument", "frame_type", "obs_date", "exptime", "ra", "dec", "object", "header"]
 
 
 
@@ -81,8 +81,8 @@ class QueryForm(forms.Form):
                                               widget=forms.SelectMultiple(attrs={"class": "search_fields_input_big"}))
     instruments = forms.MultipleChoiceField(initial = [x.name for x in supported_instruments], choices=[(x.name, x.value) for x in supported_instruments], widget=forms.CheckboxSelectMultiple(attrs={"class": "search_instr_check"}), required=False)
     page=forms.IntegerField(min_value=1,  initial=1,widget=PageNavigationWidget(attrs={"class": "page_nav"},form_id="archive_query", max_controls=12))
-    page_size=forms.IntegerField(min_value=1, max_value=1000, initial=50, required=True, widget=forms.NumberInput(attrs={"class": "search_fields_input_small"}))
-    coord_format=forms.ChoiceField(initial="sexigesimal", required=True, choices=[("sexigesimal", "sexigesimal"), ("decimal", "decimal degrees")])    
+    page_size=forms.IntegerField(min_value=1, max_value=1000, initial=500, required=False, widget=forms.NumberInput(attrs={"class": "search_fields_input_small"}))
+    coord_format=forms.ChoiceField(initial="sexigesimal", required=False, choices=[("sexigesimal", "sexigesimal"), ("decimal", "decimal degrees")])    
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,6 +93,15 @@ class QueryForm(forms.Form):
         if cleaned_data is None:
             cleaned_data = self.cleaned_data
     
+        # Verify the correct result values are populated if it's not a count query
+        if not cleaned_data['count']:
+            if cleaned_data.get('page_size',None) is None:
+                self.add_error('page_size', 'This field is required.')
+            
+            if cleaned_data.get('coord_format',None) is None:
+                self.add_error('coord_format', 'This field is required.')
+
+
         # Verify the appropriate query type has a value populated        
         query_type = cleaned_data.get("which_query", '')
         if query_type == '':

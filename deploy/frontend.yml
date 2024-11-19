@@ -9,3 +9,4 @@
   roles:
     - common
     - django_apps
+    - webserver

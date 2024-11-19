@@ -30,10 +30,10 @@ Packages needed for external tests (in test/ext_test)
     pip install requests
 
 Packages needed for deploying
-    pip install sphinx
+    pip install sphinx TODO, is this needed?
     sudo apt install ansible
 
-In addition the following packages are used on the development machine, but might be good to install
+In addition the following packages are not used on the development machine, but might be good to install
 to keep IDEs looking for imports happy::
 
     pip install Celery
@@ -73,17 +73,38 @@ than development environments.
 
 For ops the current inventory is::
 
-    [dbservers]
+    [all:vars]
+    archive_config=ops
+    remote_watchdog=False 
+    # Front end user facing connection info
+    frontend_scheme="https"
+    frontend_host= "quarry.ucolick.org"
+
+    # API access from frontend/backend
+    api_scheme=http
+    api_server=localhost
+    api_port=8000
+    # Where ansible should copy from 
+    archive_source_dir=/home/dusty/work/lick_searchable_archive
+    # Connection info Lick Observatory schedule database
+    schedule_db_host=schedpsql.ucolick.org
+    schedule_db_name=info
+    # Set this to "restarted" to restart everything after deploy
+    # "stopped" to keep the archive down after deploy
+    archive_service_state=restarted
+
+    [backend]
     quarry.ucolick.org
 
-    [appservers]
-    quarry.ucolick.org
+    [backend:vars]
+    archive_apps=['ingest', 'query', 'archive_admin', 'archive_auth','frontend']
+    services=['job_queue', 'ingest_watchdog']
+    host_type=single_host
+    gshow_path=/opt/kroot/rel/default/bin/gshow
+    # Gunicorn settings for frontend
+    frontend_proxy_server="localhost"
+    frontend_proxy_port=8000
 
-    [ingest_servers]
-    quarry.ucolick.org
-
-    [watchdog]
-    quarry.ucolick.org
 
 This is for a single machine configurations. 
 Theoretically different machines could be used for all of these sections but currently

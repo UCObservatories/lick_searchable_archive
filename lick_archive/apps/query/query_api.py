@@ -526,7 +526,7 @@ class QueryAPIView:
         if self.lookup_url_kwarg not in self.kwargs:
             raise APIException(f"No {self.lookup_url_kwarg} specified.", code=status.HTTP_400_BAD_REQUEST)
         value = self.kwargs[self.lookup_url_kwarg]
-        data = {self.lookup_field: ["eq", value]}
+        data = {self.lookup_field: f"eq,{value}"}
         serializer = QuerySerializer(data=data, view=self)
         try:
             serializer.is_valid(raise_exception=True)
