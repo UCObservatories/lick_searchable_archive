@@ -372,15 +372,15 @@ class QueryAPIFilterBackend:
             
             if isinstance(value,list):
                 # There are two values, convert to datetimes if needed
-                if isinstance(value[0], datetime.date):
-                    start_date_time = datetime.datetime.combine(value[0], datetime.time(hour=0, minute=0, second=0), datetime.timezone.utc)
-                else:
+                if isinstance(value[0], datetime.datetime):
                     start_date_time = value[0]                
-
-                if isinstance(value[1], datetime.date):
-                    end_date_time = datetime.datetime.combine(value[1], datetime.time(hour=23, minute=59, second=59,microsecond=999000), datetime.timezone.utc)
                 else:
+                    start_date_time = datetime.datetime.combine(value[0], datetime.time(hour=0, minute=0, second=0), datetime.timezone.utc)
+
+                if isinstance(value[1], datetime.datetime):
                     end_date_time = value[1]
+                else:
+                    end_date_time = datetime.datetime.combine(value[1], datetime.time(hour=23, minute=59, second=59,microsecond=999000), datetime.timezone.utc)
             else:
                 # There's only one value, if it's a date time, we do an exact match
                 if isinstance(value, datetime.datetime):
