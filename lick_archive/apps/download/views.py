@@ -157,31 +157,40 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
         # Go through the passed in files in batches, sorting each batch for comparison against
         # a sorted query on the file names.
         while next_index < len(files):
-            next_batch = sorted(files[next_index:next_index+self.batch_size])
+            next_batch = files[next_index:next_index+self.batch_size]
             if len(next_batch) > 0:
 
                 # Prepare a queryset to find the given files, using the Query app's API
                 # to properly filter and handle proprietary access
                 self.request.validated_query = {"filename": ["in", next_batch],
-                                                "sort": ["filename"],
-                                                 "count": False }
+                                                "sort": ['id'],
+                                                "count": False }
 
                 queryset = self.filter_queryset(self.get_queryset())
                 queryset = queryset.values(*self.allowed_result_attributes)
 
                 # Get the next batch of results
+                logger.debug(f"querying {next_index}:{next_index+self.batch_size}")
                 results = queryset[next_index:next_index+self.batch_size]
                 logger.debug(f"Results: {results}")
 
-                # Make sure each desired file was found,m and make sure we don't exceed the maximum allowed combined file size
-                for i, file in enumerate(next_batch):
-                    if i >= len(results) or file not in results[i]["filename"]:
-                        # One of the files wasn't found, either it was invalid or we don't have access to it
+                # Make sure each desired file was found, and make sure we don't exceed the maximum allowed combined file size
+
+                # Map of filenames returned from the db with their file sizes
+                found_file_sizes = {Path(result['filename']): result['file_size'] for result in results}
+
+                for file in next_batch:
+                    full_path = Path(lick_archive_config.ingest.archive_root_dir, file)
+                    logger.debug(f"Looking for {full_path}")
+                    if full_path not in found_file_sizes:
+                        logger.info(f"Could not find {full_path} in results.")
                         raise NotFound(detail=f"Filename {file} was not found in the archive or the user does not have permissions to download it.")
-                    total_size += results[i]["file_size"]
+
+                    total_size += found_file_sizes[full_path]
                     if total_size > maximum_size:
+                        logger.info(f"Total file sizes {total_size} exceeded maximum size {maximum_size}")
                         raise APIException(detail=f"Total size of all files exceeded maximum of {lick_archive_config.download.max_tarball_size} MiB")
-                    resulting_files.append(Path(results[i]["filename"]))
+                    resulting_files.append(full_path)
             next_index += self.batch_size
 
         return resulting_files
