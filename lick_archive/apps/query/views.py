@@ -5,6 +5,9 @@ logger = logging.getLogger(__name__)
 
 from pathlib import Path
 
+from astropy.coordinates import Angle
+from astropy import units
+
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.exceptions import APIException,ValidationError
 from rest_framework.renderers import BaseRenderer
@@ -77,6 +80,9 @@ class QueryView(QueryAPIView, ListAPIView):
         if response.status_code == status.HTTP_200_OK:
             # A count query doesn't have a results entry
             if 'results' in response.data:
+
+                coord_format = request.validated_query.get("coord_format", "asis")
+
                 # Filter header URLS to have the propper format,
                 # to make filename a relative path, and to make header download_link
                 # URLs.
@@ -93,7 +99,52 @@ class QueryView(QueryAPIView, ListAPIView):
                         relative_path = filepath.relative_to(lick_archive_config.ingest.archive_root_dir)
                         download_url = lick_archive_config.download.file_download_url_format.format(relative_path)
                         record["download_link"] = download_url
+                    if coord_format != "asis":
+                        if "ra" in record:
+                            record["ra"] = self._convertAngle(record["ra"], coord_format, hour_angle=True)
+                        if "dec" in record:
+                            record["dec"] = self._convertAngle(record["dec"], coord_format, hour_angle=False)
         return response
+    
+    def _convertAngle(self, angle_value:str, coord_format: str, hour_angle:bool = False):
+        """Convert a returned angle value to the requested format.
+        
+        Args:
+            angle_value: The angle value from the database (originally from the FITS header)
+            coord_format: The requested format, one of "hmsdms" or "degrees".
+            hour_angle:  True if this value should be treated as an hour angle, False if should be treated as degrees. Only applicable if the coord_format is "hmsdms".
+
+        Return Value:
+            The converted angle value.            
+        """
+        # First see if the value can be treated as floating point, if so treat it as decimal degreees
+        try:
+            value = float(angle_value)
+            angle = Angle(value, unit=units.deg)
+        except Exception:
+            # Next try to treat it as sexagesimal
+            try:
+                if any([c in "hdms" for c in angle_value.lower()]):
+                    # There are explicit units
+                    angle = Angle(angle_value)
+                elif hour_angle:
+                    angle = Angle(angle_value, unit=units.hourangle)
+                else:
+                    angle = Angle(angle_value, unit=units.deg)
+            except Exception as e:
+                logger.error(f"Could not convert angle value {angle_value}, leaving asis")
+                return angle_value
+
+        # Use astropy the convert to the desired format
+        if hour_angle and coord_format == "hmsdms":
+            output_unit = units.hourangle
+        else:
+            output_unit = units.deg                
+
+        if coord_format == "hmsdms":
+            return angle.to_string(unit=output_unit, decimal=False, precision=2, sep=":")
+        else:
+            return angle.to_string(unit=output_unit, decimal=True, precision=8)
 
 class PlainTextRenderer(BaseRenderer):
     """A renderer for rendering FITS headers in plain text."""

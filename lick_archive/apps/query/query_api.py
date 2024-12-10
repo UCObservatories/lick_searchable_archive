@@ -54,6 +54,7 @@ class QuerySerializer(serializers.Serializer):
     coord = QueryField(operators=["in"],
                        value=CoordField(default_radius=lick_archive_config.query.default_search_radius),
                        required=False)
+    coord_format = serializers.ChoiceField(default="asis",choices=["asis","hmsdms","degrees"], required=False)
     count = serializers.BooleanField(default=False, required=False)
     results = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex=r'^[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=[], max_length=128)
     sort = ListWithSeperator(sep_char=",", child=serializers.RegexField(regex=r'^(-|\+)?[A-Za-z][A-Za-z0-9_]*$', max_length=30, allow_blank=False), default=["id"], max_length=128, required=False, allow_empty=False)

@@ -135,9 +135,9 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['header',             'Header',                   LargeStr,    Category.COMMON,      'The full header information from the file in plain text format.'],
                                    ['slit_name',          'Slit Name',                str,         Category.SHANE_KAST,  'The slit name.'],
                                    ['beam_splitter_pos',  'Beam Splitter Position',   str,         Category.SHANE_KAST,  'The beam splitter position'],
-                                   ['grism',              'Grism',                    str,         Category.SHANE_KAST,  'The grism used.'],
-                                   ['grating_name',       'Grating Name',             str,         Category.SHANE_KAST,  'The grating used.'],
-                                   ['grating_tilt',       'Grating Tilt',             int,         Category.SHANE_KAST,  'The grating tilt used.'],
+                                   ['grism',              'Grism  (Blue only)',       str,         Category.SHANE_KAST,  'The grism used. Only applies to Kast Blue.'],
+                                   ['grating_name',       'Grating Name  (Red only)', str,         Category.SHANE_KAST,  'The grating used. Only applies to Kast Red.'],
+                                   ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.SHANE_KAST,  'The grating tilt used. Only applies to Kast Red.'],
                                    ['apername',           'Aperture Position',        str,         Category.SHARCS,      'Dewar aperture wheel, named position'],
                                    ['filter1',            'Filter 1',                 str,         Category.SHARCS,      'Dewar filter wheel 1, named position'],
                                    ['filter2',            'Filter 2',                 str,         Category.SHARCS,      'Dewar filter wheel 2, named position'],
@@ -158,5 +158,14 @@ api_capabilities = {'required': data_dictionary[[True if db_name in ['filename',
                     'sort':     data_dictionary[[True if db_name not in ['coord', 'header', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],
                     'result':   vstack([data_dictionary[[True if db_name not in ['coord', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],dynamic_fields]),
                     }
+
+# The units for fields where applicable.
+field_units = {"obs_date":       "date", 
+               "exptime":        "seconds", 
+               "ra":             "angle", 
+               "dec":            "angle", 
+               "file_size":      "bytes", 
+               "mtime":          "date", 
+               "true_int_time": "seconds"}
 
 supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS]
