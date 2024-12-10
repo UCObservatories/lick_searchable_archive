@@ -12,6 +12,18 @@ from lick_archive.utils.django_utils import validate_username, log_request_debug
 logger = logging.getLogger(__name__)
 
 
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    try:
+        if request.method == "GET":
+            response = {'csrfmiddlewaretoken': get_token(request)}
+        else:
+                return HttpResponseNotAllowed(['GET'])
+    except Exception as e:
+        logger.error("get_token failed with exception", exc_info=True)
+        return HttpResponse(status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    return JsonResponse(response)        
 
 
 @ensure_csrf_cookie

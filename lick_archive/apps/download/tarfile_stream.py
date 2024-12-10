@@ -30,7 +30,7 @@ class TarFileStream:
         format:      The format (as defined in the tarfile module) of the tar file to generate. Defaults to the GNU format.
         chunk_size:  The size (in bytes) of each chunk of data returned by the iterator. Defaults to 100k
     """
-    def __init__(self, name : Path|str, files : list[Path|str], arcfiles : Optional[list[Path|str]]=None, enable_gzip : bool=False, format=tarfile.DEFAULT_FORMAT,chunk_size : int =100*1024):
+    def __init__(self, name : Path|str, files : list[Path|str], arcfiles : Optional[list[Path|str]]=None, enable_gzip : bool=False, format=tarfile.DEFAULT_FORMAT,chunk_size : int =4*1024):
         self.name = Path(name)
         self.files = [Path(file) for file in files]
         if arcfiles is None:
@@ -122,8 +122,9 @@ class TarFileStream:
     def _generate_tarfile_chunk(self):         
         """Generate the next chunk of tarball data and write it to the internal stream buffer."""
 
-        # Loop until we run out of files.
-        while self.current_file < len(self.files):
+        # Loop until we run out of files or have filled a chunk.
+        amount_read = 0
+        while amount_read < self.chunk_size and self.current_file < len(self.files):
             if self.current_file_obj is None:
                 self._open_next_file()
 
@@ -145,6 +146,7 @@ class TarFileStream:
                     self.tar_file_stream.write(padding)
                 continue
             else:
+                amount_read = len(source_chunk)
                 self.tar_file_stream.write(source_chunk)
 
     def _open_next_file(self):

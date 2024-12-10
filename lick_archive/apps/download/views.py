@@ -4,13 +4,17 @@ import logging
 logger = logging.getLogger(__name__)
 
 from pathlib import Path
+import json
 
 from rest_framework.generics import RetrieveAPIView, GenericAPIView
 from rest_framework import status
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, FormParser
 from rest_framework.exceptions import ParseError, APIException, NotFound
+from rest_framework import serializers
 
 from django.http import FileResponse, StreamingHttpResponse
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 
 from lick_archive.db.db_utils import create_db_engine
 from lick_archive.db.archive_schema import FileMetadata
@@ -54,6 +58,9 @@ class DownloadSingleView(QueryAPIView, RetrieveAPIView):
         response.headers = xsendfile_headers
         return response
 
+class DownloadMultiSerializer(serializers.Serializer):
+    download_files = serializers.JSONField()
+
 class DownloadMultiView(QueryAPIView, GenericAPIView):
     """A view for downloading a tarball of multiple files in the archive."""
     filter_backends = [QueryAPIFilterBackend]
@@ -61,28 +68,30 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
     allowed_result_attributes = ["filename","file_size"]
     allowed_sort_attributes = ["filename"]
     batch_size = MAX_FILENAME_BATCH
-    parser_classes = [JSONParser]
+    parser_classes = [JSONParser,FormParser]
+    serializer_class = DownloadMultiSerializer
 
     def __init__(self):
         super().__init__(_db_engine, FileMetadata)
 
+    @method_decorator(never_cache)
     def post(self, request, *args, **kwargs):
         """Handle a post request to download files. The API expects a JSON list
         of archive filenames."""
 
         log_request_debug(request)
-
+        logger.info(f"Request data: {request.data}")
         # Valiadate the incomming request.
-        self._validate_json(request)
+        file_list = self._validate_json(request)
 
         # Validate that the the files in request, and return their full paths.
-        files = self._get_validated_files(request.data)
-        archive_names = self._get_archive_names(files)
-        tarfile_name = self.get_filename(files[0], files[-1])
+        valid_files = self._get_validated_files(file_list)
+        archive_names = self._get_archive_names(valid_files)
+        tarfile_name = self.get_filename(valid_files[0], valid_files[-1])
 
-        tarball_stream = TarFileStream(tarfile_name,files, arcfiles=archive_names, enable_gzip=True)
+        tarball_stream = TarFileStream(tarfile_name,valid_files, arcfiles=archive_names, enable_gzip=True)
 
-        headers = {"Content-Type": "application/gzip",
+        headers = {"Content-Type":         "application/gzip",
                    "Content-Disposition": f"attachment; filename={tarfile_name}"}
         return StreamingHttpResponse(streaming_content=tarball_stream,status=status.HTTP_200_OK,headers=headers)
 
@@ -125,23 +134,38 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
         but this validates that it contains the expected data.
         """
 
-        # Make sure the JSON is a list
-        if not isinstance(request.data, list):
-            raise ParseError(detail="Expected JSON list of filenames as input")
+        # Make sure the input is either a JSON or a form with a "download_files" list
+        file_list = None
+        if isinstance(request.data, list):
+            # We were sent JSON data directly
+            file_list = request.data
         
+        else:
+            # The data was submitted as form data, use our serializer to parse it
+            serializer = self.get_serializer(data=request.data)
+            
+            if serializer.is_valid(raise_exception=True):
+                if "download_files" in serializer.data and isinstance(serializer.data["download_files"], list):
+                    file_list = serializer.data["download_files"]
+                else:
+                    raise ParseError(detail=f"Expected a JSON list of filenames.")
+
+        if not isinstance(file_list, list):
+            raise ParseError(detail=f"Expected list of filenames as JSON or form data.")
+
         # Make sure the list doesn't exceed our maximum allowed number of files
-        if len(request.data) > lick_archive_config.download.max_tarball_files:
+        if len(file_list) > lick_archive_config.download.max_tarball_files:
             raise ParseError(detail=f"List of filenames exceeds maximum length of {lick_archive_config.download.max_tarball_files}.")
         
         # Make sure each entry is a string, that it's not emtpy, and not too long.
-        for i, file in enumerate(request.data):
+        for i, file in enumerate(file_list):
             if not isinstance(file,str):
                 raise ParseError(detail=f"List of filename contained non-string value at index {i}")
             if len(file) > MAX_FILENAME_SIZE:
                 raise ParseError(detail=f"List of filename contained filename longer than {MAX_FILENAME_SIZE} characters at index {i}")
             if len(file) < 0:
                 raise ParseError(detail=f"List of filename contained empty filename at index {i}")
-        return
+        return file_list
     
     def _get_validated_files(self, files : list[str]) -> list[Path]:
         """Validate the incomming list of files. This ensures that the files exist,
