@@ -32,31 +32,3 @@
     state: "link"
   become: yes
   notify: "restart web server"
-- name: Create Archive WWW directory
-  ansible.builtin.file:
-    owner: "{{ webserver_user }}"
-    group: "{{ webserver_group }}"
-    mode: 0755
-    path: "/var/www/archive"
-    state: "directory"
-  become: yes
-  notify: "restart web server"
-- name: Create Archive static files directory
-  ansible.builtin.file:
-    owner: "{{ archive_service_user }}"
-    group: "{{ archive_service_group }}"
-    mode: 0775
-    path: "/var/www/archive/archive/static"
-    state: "directory"
-  become: yes
-  notify: "restart web server"
-- name: "Copy front end static files"
-  ansible.builtin.copy:
-    src: "{{ archive_source_dir }}/lick_archive/apps/frontend/static/frontend"
-    dest: "/var/www/archive/archive/static"
-    owner: "{{ archive_service_user }}"
-    group: "{{ archive_service_group }}"
-    directory_mode: 0775
-    mode: 0664
-  become: yes
-  notify: "restart web server"

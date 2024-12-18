@@ -1,0 +1,1 @@
+Jinja 2 templates for the Lick Archive's HTML pages. Every file named ``*page.html.j2`` is converted to HTML and copied to the Archive website when deploying with Ansible.

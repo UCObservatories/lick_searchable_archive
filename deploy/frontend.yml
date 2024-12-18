@@ -8,5 +8,5 @@
   hosts: frontend
   roles:
     - common
-    - django_apps
     - webserver
+    - frontend
