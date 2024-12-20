@@ -57,14 +57,29 @@
     - "{{ archive_source_dir }}/frontend/build/scripts/*"
   notify: "restart web server"
 - name: "Create frontend HTML from templates"
+  vars:
+    pagename: "{{ item|basename|replace('_page.html.jinja','') }}"
+    site_root: ""
   ansible.builtin.template:
-    src:  "{{ item }}"
-    dest: "/var/www/archive/archive/{{ item|basename|replace('_page.html.j2', '.html') }}"
+    src:  "{{ item }}"    
+    dest: "/var/www/archive/archive/{{ item|basename|replace('_page.html.jinja', '.html') }}"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
     directory_mode: 0775
     mode: 0664
   become: yes
   with_fileglob:
-    - "{{ archive_source_dir }}/frontend/templates/*_page.html.j2"
+    - "{{ archive_source_dir }}/frontend/templates/*_page.html.jinja"
+  notify: "restart web server"
+- name: "Copy frontend HTML docs from Sphinx build"
+  ansible.builtin.copy:
+    src:  "{{ archive_source_dir }}/frontend/build/sphinx_build/html/{{ item }}"    
+    dest: "/var/www/archive/archive/doc/{{ item }}"
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    directory_mode: 0775
+    mode: 0664
+  become: yes
+  loop:
+    - fields.html
   notify: "restart web server"

@@ -78,6 +78,34 @@ fieldset {
   padding: 0;
 }
 
+h1 {
+  background-color: var(--subheader-background);
+  color: var(--subheader-text);
+  font-size: 1.25rem;
+  font-weight:bold;
+}
+
+h2 {
+  color: var(--subheader-text);
+  font-size: 1.25rem;
+}
+
+h1 > a {
+  text-decoration: none;
+  opacity: 0%;
+}
+
+h1 > a:hover {
+  opacity: 100%;
+}
+h2 > a {
+  text-decoration: none;
+  opacity: 0%;
+}
+
+h2 > a:hover {
+  opacity: 100%;
+}
 /* The body is divided into a header section, sidebar section, and the main content section */
 
 body{
@@ -92,7 +120,7 @@ body{
     grid-column-gap: 2%;
     grid-row-gap: 0;
   }
-  
+
 /* Header formatting. The header contains the page title, User login information/controls, and theme switching controls */  
 header {
     grid-area: header;
@@ -123,6 +151,7 @@ header {
     font-weight: bold;
     margin:0;
     color: var(--header-title-text);
+    background-color: var(--header-background);
   }
 
   .header_button {
