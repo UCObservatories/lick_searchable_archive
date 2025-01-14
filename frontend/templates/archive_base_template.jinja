@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>Mt. Hamilton Data Repository Search - Beta</title>
-    <link id="theme_link" rel="stylesheet" type="text/css" href="{{ site_root }}style/dark_theme.css"/>
-    <link rel="stylesheet" type="text/css" href="{{ site_root }}style/lick_archive_base.css"/>
+    <link id="theme_link" rel="stylesheet" type="text/css" href="style/dark_theme.css"/>
+    <link rel="stylesheet" type="text/css" href="style/lick_archive_base.css"/>
+    {% block extra_stylesheets %}{% endblock %}
 </head>
 <body>
 <header>
-    <h1><img class="header_image" src="{{ site_root }}images/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</h1>
+    <h1><img class="header_image" src="images/lick_logo.png" width="1150" height="1033" alt="Lick Observatory Logo">Mt. Hamilton Data Repository - Beta</h1>
     <div id = "header_controls" class="header_controls">
         <span id="user_section" class="user_section">
             You are not logged in. <em id="user_name" class="user_name" hidden>no user</em><button id="loginout_button" class="header_button" name="login">Login</button>
@@ -21,7 +22,7 @@
         <h1>Links</h1>
         <ul class="nav_links_list">
         <li>
-            {{ '<a href="' + site_root + 'index.html">' if pagename != "index" else '<span class="current_page_link">' }}
+            {{ '<a href="index.html">' if pagename != "index" else '<span class="current_page_link">' }}
             Search the repository
             {{"</a>" if pagename != "index" else "</span>"}}
         </li>            
@@ -39,12 +40,14 @@
             <a href="https://mthamilton.ucolick.org/data/help/">How to use the repository</a>
         </li>
         <li>
-            {{ '<a href="' + site_root + 'doc/fields.html">' if pagename != "fields" else '<span class="current_page_link">' }}
+            {{ '<a href="fields.html">' if pagename != "fields" else '<span class="current_page_link">' }}
             Description of all fields
             {{"</a>" if pagename != "fields" else "</span>"}}
         </li>
     </ul>
     </section>
+    {% block contents %}
+    {% endblock %}
 </nav>
 <main>
 {% block body %}

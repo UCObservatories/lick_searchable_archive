@@ -1,4 +1,4 @@
-import dataDictionary from "../build/data_dictionary.json"
+import dataDictionary from "../build/scripts/data_dictionary.json"
 import config from "./config.json"
 import "./theme.js"
 

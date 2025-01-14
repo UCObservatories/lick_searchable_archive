@@ -1,9 +1,5 @@
 {
   "devDependencies": {
     "esbuild": "0.24.0"
-  },
-  "scripts": {
-    "prebuild": "export PYTHONPATH=..;python ../scripts/build_data_dictionary_json.py build/data_dictionary.json",
-    "build": "node ./build_frontend.mjs"
   }
 }
