@@ -8,12 +8,10 @@ h2 {
     color: var(--subheader-text);
     text-indent: 0.5rem;
     line-height: 2rem;
-    max-width: 1100px;
 }
 
 table {
     border-collapse: collapse;
-    max-width: 1100px;
 }
 
 tbody tr:nth-child(odd){
@@ -40,4 +38,13 @@ td {
 .literal {
     font-family:'Courier New', Courier, monospace;
     font-weight: bold;
+}
+
+main {
+    font-family: serif;
+    max-width: 1100px;
+}
+/* Doc utils class for links */
+.reference {
+    font-family: sans-serif;
 }

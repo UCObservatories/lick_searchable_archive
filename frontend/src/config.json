@@ -10,5 +10,5 @@
     "searchArgs":       {"object": 1, "obs_date": 2, "filename": 1, "coord": 3},
     "defaults":         {"page_size": 500} ,
     "instrumentOrder":  ["KAST", "KAST_BLUE", "KAST_RED", "SHARCS"],
-    "defaultTheme":     "dark"
+    "defaultTheme":     "light"
 }

@@ -37,7 +37,9 @@
         <h1>Documentation</h1>
         <ul class="nav_links_list">
         <li>            
-            <a href="https://mthamilton.ucolick.org/data/help/">How to use the repository</a>
+            {{ '<a href="how_to_use.html">' if pagename != "how_to_use" else '<span class="current_page_link">' }}
+            How to use the repository
+            {{"</a>" if pagename != "how_to_use" else "</span>"}}
         </li>
         <li>
             {{ '<a href="fields.html">' if pagename != "fields" else '<span class="current_page_link">' }}

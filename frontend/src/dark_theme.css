@@ -19,7 +19,8 @@
     --header-button-border: #2f8dbb;
     --header-button-background: #294e60;
     --button-background: #294e60;
-    --body-text:  #81d4fa;
+    /* --body-text:  #81d4fa;  */
+    --body-text: #f3f3f3;
     --selected-text:#95deff;
     --body-link: #81d4fa;
     --body-link-hover: #365665;

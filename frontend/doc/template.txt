@@ -14,18 +14,4 @@
     <link rel="stylesheet" type="text/css" href="style/docs.css"/>
 {%% endblock %%}
 {%% block contents %%}
-    <section class = "nav_section">
-        <h1>Contents</h1>
-        <ul class="nav_links_list">
-        <li>            
-            <a href="#common-fields">Common Fields</a>
-        </li>
-        <li>
-            <a href="#shane-kast-specific">Shane Kast Specific Fields</a>
-        </li>
-        <li>
-            <a href="#shane-ao-sharcs-specific">Shane AO/ShARCS Specific Fields</a>
-        </li>
-    </ul>
-    </section>
 {%% endblock %%}
