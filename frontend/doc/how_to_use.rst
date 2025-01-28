@@ -16,12 +16,12 @@ Connecting to the Archive: The Archive URLs
 When you are working at Mt. Hamilton, use the mountain server's URL to verify 
 that your data are on the archive before leaving the Observatory:
 
-    https://mtham.ucolick.org/archive/
+    https://mtham.ucolick.org/archive/ **TODO** *Determine actual URL*
 
 When you are at an off-mountain site, use this UCO/Lick headquarters URL to 
 retrieve your data or verify that they are on the archive:
 
-    https://mthamilton.ucolick.org/archive/
+    https://mthamilton.ucolick.org/archive/ **TODO** *Determine actual URL*
 
 
 For Observers
@@ -49,9 +49,8 @@ download your proprietary data you will need to login, using the login button
 at the top right of the archive page.
 
 This will navigate to the login page which will prompt for a username and 
-password. The account system is the same as used in the UCO scheduling 
-software. (TODO Link to this page) However, unlike in the scheduling software 
-the user name is your e-mail address.
+password. The account system is the same as used in the previous lick archive website.
+It shares the same password but uses your e-mail address as the username.
 
 .. image:: images/login.png
    :width: 1100 px
@@ -159,16 +158,16 @@ Holding shift while clicking will a range of fields.
     
 See `Description of all fields`_ more information about what fields are available.
 
-Finally use the `Submit Query` button to run the query against the archive database. 
+Finally use the ``Submit Query`` button to run the query against the archive database. 
 
 **Downloading data**
 
 To download a single file from the archive, click on its filename. To download 
 multiple files, click the checkbox next to each file in the results you wish 
-to download. The `Select All` checkbox can be used to select or deselect all 
-of the results being displayed. Clicking the `Download Selected` button will 
-download the selected files as a tarball.  The `Download All` button will 
+to download. The ``Select All`` checkbox can be used to select or deselect all 
+of the results being displayed. Clicking the ``Download Selected`` button will 
+download the selected files as a tarball.  The ``Download All`` button will 
 download a tarball of all files returned by the query, regardless of whether 
-they have been selected.
+they have been selected or are on the current page.
 
 .. _`Description of all fields`: fields.html
