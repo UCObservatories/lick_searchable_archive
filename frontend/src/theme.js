@@ -1,3 +1,5 @@
+import config from "./config.json"
+
 const themeLink = document.getElementById("theme_link")
 const themeButton = document.getElementById("theme_button")
 
