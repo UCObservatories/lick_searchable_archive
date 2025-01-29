@@ -49,7 +49,7 @@
                     <label for="search_value_obs_date_2" class="search_terms_value2_label">
                         <input type="text" class="search_terms_value2" id="search_value_obs_date_2" />
                     </label>
-                    <span class="search_terms_help">Example: "2006-08-17".<p>All dates are noon to noon PST (UTC-8).</p><p>Date ranges are inclusive.</p></span>
+                    <span class="search_terms_help">Example: "2006-08-17".<p>All dates are noon to noon PST (UTC-8). Date ranges are inclusive.</p></span>
                 </fieldset>
             </li>
             <!-- Path and filename search term -->
@@ -92,7 +92,20 @@
                         <input type="text"  class="search_terms_value2" id="search_value_coord_2" />
                         DEC
                     </label>
-                    <span class="search_terms_help">Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.<p>Examples:</p><ul><li>All of these are the same value"radius 36s ra 6:12:19.5 dec -40:30:12.3"</li><li>"radius 36s ra 6 12 19.5 dec -40 30 12.3"</li></ul></span>
+                    <span class="search_terms_help">
+                        Accepts hms/dms or decimal degrees. Radius assumed to be arcseconds if not specified.
+                        <p>
+                            Examples (all of these are the same value):
+                            <table>
+                            <thead><tr><th>Radius</th><th>RA</th><th>DEC</th></tr></thead>
+                            <tbody>
+                                <tr><td>60</td> <td>23h 19m 58.4s</td><td>-5d 9m 56.27s</td></tr>
+                                <tr><td>1m</td> <td>23:19:58.4</td>   <td>-05:09:56.27</td></tr>
+                                <tr><td>60s</td><td>349.9933</td>     <td>-5.1656</td></tr>
+                            </tbody>
+                            </table>
+                        </p>
+                    </span>
                 </fieldset>
             </li>
         </ul>      

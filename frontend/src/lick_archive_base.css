@@ -373,10 +373,16 @@ header {
     list-style-type: none;
   }
   .search_terms_help > p {
-    list-style-type: none;
     margin-bottom: 0;
   }
+  .search_terms_help > table > thead > tr > th {
+    padding-right: .25em;
+  }
 
+  .search_terms_help > table > tbody{
+    font-family: "Courier New", "Coureir", "monospace";
+  }
+  
   /* Formatting for the the instrument filter section */
   .search_form_instr {
     margin-bottom: 2lh;
