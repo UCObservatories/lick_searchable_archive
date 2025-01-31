@@ -303,12 +303,12 @@ header {
     border: none;
     display: grid;
     background-color: inherit;
-    grid-template-columns: 7em 8em 8em;
+    grid-template-columns: 9em 7em 8em 8em;
     column-gap: 1em;
     text-align: center;
     padding-left: 1em;
-    grid-template-areas: "c d e"
-                         "g f f";
+    grid-template-areas: "l c d e"
+                         "x g f f";
   }
 
   .search_terms_radio {
@@ -320,9 +320,14 @@ header {
   }
 
   .search_terms_label {
+    grid-area: l;
     text-align: left;
     width: 12rem;
     background-color: inherit;
+  }
+
+  .search_terms_label_disabled {
+    color: var(--disabled-text);
   }
 
   /* The label surrounding the "operator" column of the search term" */

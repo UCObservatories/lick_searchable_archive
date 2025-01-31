@@ -36,15 +36,34 @@ function connectControls(eventType, controllingElemId, controlledElemIds, action
     document.addEventListener("DOMContentLoaded", applyAction)
 }
 
+function set_label_disabled_color(controller, controlled) {
+    if (controller.checked) {
+        controlled.classList.remove("search_terms_label_disabled")
+    }
+    else {
+        controlled.classList.add("search_terms_label_disabled")
+    }
+}
+
 // Connect the checkbox for each search term to disable/enable its related controls
-connectControls("click", "query_by_object",   ["id_object_fields"],   (controller, controlled) => controlled.disabled = !controller.checked)
-connectControls("click", "query_by_obs_date", ["id_date_fields"],     (controller, controlled) => controlled.disabled = !controller.checked)
-connectControls("click", "query_by_filename", ["id_filename_fields"], (controller, controlled) => controlled.disabled = !controller.checked)
-connectControls("click", "query_by_coord",    ["id_coords_fields"],   (controller, controlled) => controlled.disabled = !controller.checked)
+connectControls("click", "query_by_object",   ["id_object_fields"],      (controller, controlled) => controlled.disabled = !controller.checked)
+connectControls("click", "query_by_object",   ["query_by_object_label"], set_label_disabled_color )
+
+connectControls("click", "query_by_obs_date", ["id_date_fields"],          (controller, controlled) => controlled.disabled = !controller.checked)
+connectControls("click", "query_by_obs_date", ["query_by_obs_date_label"], set_label_disabled_color )
+
+connectControls("click", "query_by_filename", ["id_filename_fields"],       (controller, controlled) => controlled.disabled = !controller.checked)
+connectControls("click", "query_by_filename", ["query_by_filename_label"],  set_label_disabled_color )
+
+connectControls("click", "query_by_coord",    ["id_coords_fields"],     (controller, controlled) => controlled.disabled = !controller.checked)
+connectControls("click", "query_by_coord",    ["query_by_coord_label"], set_label_disabled_color )
 
 // Connect the count/results radio boxes to enable/disable the result option fields
 connectControls("click", "id_count_0", ["search_option_fields"], (controller, controlled) => controlled.disabled=controller.checked)
 connectControls("click", "id_count_1", ["search_option_fields"], (controller, controlled) => controlled.disabled=!controller.checked)
+
+// Connect the second observation date control so that it is hidden when the operator isn't "in"
+connectControls("change", "search_operator_obs_date", ["search_value_obs_date_2"], (controller, controlled) => controlled.hidden=(controller.value!='in'))
 
 // Connect the Select ALl/Deselect All to the instrument checkboxes for the Instruments section of the query form
 connectControls("click", "instrument_none", "input[id^='instrument_'", (controller, controlled) => controlled.checked=false)
