@@ -153,9 +153,7 @@ and `as in header`.
 
 *Sorting* Control which field to sort by, and which direction to sort in.
 
-*Result Fields* To select multiple result fields hold Control (or Command) when clicking. 
-Holding shift while clicking will a range of fields. 
-    
+*Result Fields* Select which metadata fields to return in the query results. 
 See `Description of all fields`_ more information about what fields are available.
 
 Finally use the ``Submit Query`` button to run the query against the archive database. 

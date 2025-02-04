@@ -5,6 +5,7 @@
     <!-- The form controls for each supported search term -->
     <fieldset id="search_form_terms" class="search_form_terms">
         <legend class="header2">Search By</legend>
+        Select at least one.
         <ul role="list" class="search_form_list">
             <!-- The "Object search term -->
             <li class="search_terms_option">
@@ -74,7 +75,7 @@
             <!-- Location / Sky Coordinate search term -->
             <li class="search_terms_option">
                 <label id="query_by_coord_label" class="search_terms_label" for="query_by_coord">
-                    <input class="search_terms_radio" type="checkbox" id="query_by_coord" />                
+                    <input class="search_terms_radio" type="checkbox" id="query_by_coord" />
                     Location
                 </label>
                 <fieldset class="search_terms_grid" id="id_coords_fields">
@@ -188,42 +189,48 @@
                         </select>
                     </span>
                     <label for="id_result_fields">Result fields</label>
-                    <select name="result_fields" class="search_options_input_big" size="10" id="id_result_fields" multiple="">
-                        <optgroup label="Common Fields">
-                            <option value="telescope">Telescope</option>
-                            <option value="instrument" selected>Instrument</option>
-                            <option value="obs_date" selected>Observation Date</option>
-                            <option value="exptime" selected>Exposure Time</option>
-                            <option value="ra" selected>Right Ascension</option>
-                            <option value="dec" selected>Declination</option>
-                            <option value="object" selected>Object</option>
-                            <option value="airmass">Airmass</option>
-                            <option value="frame_type" selected>Frame Type</option>
-                            <option value="filename" selected>File Name</option>
-                            <option value="program">Program</option>
-                            <option value="coversheet">Coversheet Id</option>
-                            <option value="observer">Observers</option>
-                            <option value="file_size">File size</option>
-                            <option value="mtime">File Modification Time</option>
-                            <option value="public_date">Date File Becomes Public</option>
-                            <option value="header" selected=>Header</option>
-                        </optgroup>
-                        <optgroup label="Shane AO/ShARCS Specific">
-                            <option value="apername">Aperture Position</option>
-                            <option value="filter1">Filter 1</option>
-                            <option value="filter2">Filter 2</option>
-                            <option value="sci_filter">Science Filter</option>
-                            <option value="coadds_done">Number of Coadds</option>
-                            <option value="true_int_time">True Integration Time</option>
-                        </optgroup>
-                        <optgroup label="Shane Kast Specific">
-                            <option value="slit_name">Slit Name</option>
-                            <option value="beam_splitter_pos">Beam Splitter Position</option>
-                            <option value="grism">Grism (Blue only)</option>
-                            <option value="grating_name">Grating Name (Red only)</option>
-                            <option value="grating_tilt">Grating Tilt (Red only)</option>
-                        </optgroup>
-                    </select>
+                    <div name="result_fields" class="search_options_result_fields" id="id_result_fields">
+                        <span class="category_dummy_item"></span>
+                        <label class="search_option_result_category">
+                            Common Fields
+                        </label>
+                        <input id="id_telescope_result"   class="search_option_result" type="checkbox" value="telescope"         ><label for="id_telescope_result"  >Telescope</label>
+                        <input id="id_instrument_result"  class="search_option_result" type="checkbox" value="instrument" checked><label for="id_instrument_result" >Instrument</label>
+                        <input id="id_obs_date_result"    class="search_option_result" type="checkbox" value="obs_date"   checked><label for="id_obs_date_result"   >Observation Date</label>
+                        <input id="id_exptime_result"     class="search_option_result" type="checkbox" value="exptime"    checked><label for="id_exptime_result"    >Exposure Time</label>
+                        <input id="id_ra_result"          class="search_option_result" type="checkbox" value="ra"         checked><label for="id_ra_result"         >Right Ascension</label>
+                        <input id="id_dec_result"         class="search_option_result" type="checkbox" value="dec"        checked><label for="id_dec_result"        >Declination</label>
+                        <input id="id_object_result"      class="search_option_result" type="checkbox" value="object"     checked><label for="id_object_result"     >Object</label>
+                        <input id="id_airmass_result"     class="search_option_result" type="checkbox" value="airmass"           ><label for="id_airmass_result"    >Airmass</label>
+                        <input id="id_frame_type_result"  class="search_option_result" type="checkbox" value="frame_type" checked><label for="id_frame_type_result" >Frame Type</label>
+                        <input id="id_filename_result"    class="search_option_result" type="checkbox" value="filename"   checked><label for="id_filename_result"   >File Name</label>
+                        <input id="id_program_result"     class="search_option_result" type="checkbox" value="program"           ><label for="id_program_result"    >Program</label>
+                        <input id="id_coversheet_result"  class="search_option_result" type="checkbox" value="coversheet"        ><label for="id_coversheet_result" >Coversheet Id</label>
+                        <input id="id_observer_result"    class="search_option_result" type="checkbox" value="observer"          ><label for="id_observer_result"   >Observers</label>
+                        <input id="id_file_size_result"   class="search_option_result" type="checkbox" value="file_size"         ><label for="id_file_size_result"  >File size</label>
+                        <input id="id_mtime_result"       class="search_option_result" type="checkbox" value="mtime"             ><label for="id_mtime_result"      >File Modification Time</label>
+                        <input id="id_public_date_result" class="search_option_result" type="checkbox" value="public_date"       ><label for="id_public_date_result">Date File Becomes Public</label>
+                        <input id="id_header_result"      class="search_option_result" type="checkbox" value="header"     checked><label for="id_header_result"     >Header</label>
+                        <span class="category_dummy_item"></span>
+                        <label class="search_option_result_category">
+                            Shane AO/ShARCS Specific
+                        </label>
+                        <input id="id_apername_result"      class="search_option_result" type="checkbox" value="apername"     ><label for="id_apername_result"     >Aperture Position</label>
+                        <input id="id_filter1_result"       class="search_option_result" type="checkbox" value="filter1"      ><label for="id_filter1_result"      >Filter 1</label>
+                        <input id="id_filter2_result"       class="search_option_result" type="checkbox" value="filter2"      ><label for="id_filter2_result"      >Filter 2</label>
+                        <input id="id_sci_filter_result"    class="search_option_result" type="checkbox" value="sci_filter"   ><label for="id_sci_filter_result"   >Science Filter</label>
+                        <input id="id_coadds_done_result"   class="search_option_result" type="checkbox" value="coadds_done"  ><label for="id_coadds_done_result"  >Number of Coadds</label>
+                        <input id="id_true_int_time_result" class="search_option_result" type="checkbox" value="true_int_time"><label for="id_true_int_time_result">True Integration Time</label>
+                        <span class="category_dummy_item"></span>
+                        <label class="search_option_result_category">
+                            Shane Kast Specific
+                        </label>
+                        <input id="id_slit_name_result"         class="search_option_result" type="checkbox" value="slit_name"        ><label for="id_slit_name_result"        >Slit Name</label>
+                        <input id="id_beam_splitter_pos_result" class="search_option_result" type="checkbox" value="beam_splitter_pos"><label for="id_beam_splitter_pos_result">Beam Splitter Position</label>
+                        <input id="id_grism_result"             class="search_option_result" type="checkbox" value="grism"            ><label for="id_grism_result"            >Grism (Blue only)</label>
+                        <input id="id_grating_name_result"      class="search_option_result" type="checkbox" value="grating_name"     ><label for="id_grating_name_result"     >Grating Name (Red only)</label>
+                        <input id="id_grating_tilt_result"      class="search_option_result" type="checkbox" value="grating_tilt"     ><label for="id_grating_tilt_result"     >Grating Tilt (Red only)</label>
+                    </div>
                 </fieldset>  
             </li>
             <!--Radio box to only return a count of matching results -->

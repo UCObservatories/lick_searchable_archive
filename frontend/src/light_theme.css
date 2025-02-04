@@ -23,7 +23,7 @@
     --selected-text:#000000;
     --body-link: #000000;
     --body-link-hover: #365665;
-    --focus: white;
+    --focus: black;
     --results-border:var(--body-background);
     --disabled-text: #747474;
     --disabled-selected-text:#aeaeae;

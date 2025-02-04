@@ -66,10 +66,10 @@ connectControls("click", "id_count_1", ["search_option_fields"], (controller, co
 connectControls("change", "search_operator_obs_date", ["search_value_obs_date_2"], (controller, controlled) => controlled.hidden=(controller.value!='in'))
 
 // Connect the Select ALl/Deselect All to the instrument checkboxes for the Instruments section of the query form
-connectControls("click", "instrument_none", "input[id^='instrument_'", (controller, controlled) => controlled.checked=false)
+connectControls("click", "instrument_none", "input[id^='instrument_']", (controller, controlled) => controlled.checked=false)
 // Weird side effect of the way I did this, connectControls will initialize the controller on DOMContentLoaded, so the "true"
 // option must be last to get the checkboxes to default to checked.
-connectControls("click", "instrument_all",  "input[id^='instrument_'", (controller, controlled) => controlled.checked=true)
+connectControls("click", "instrument_all",  "input[id^='instrument_']", (controller, controlled) => controlled.checked=true)
 
 
 
@@ -194,7 +194,7 @@ function buildQueryParams(page) {
 
     // Build query parameters for additional terms being filtered on. Currently only
     // "instrument" is supported.
-    const instruments = document.querySelectorAll("input[id^='instrument_'")
+    const instruments = document.querySelectorAll("input[id^='instrument_']")
     const instrumentValues = ["instrument"]
     for (const instrument of instruments) {
         if (instrument.checked) {
@@ -235,22 +235,23 @@ function buildQueryParams(page) {
         queryParams.set("sort", sortValue)
 
         // What results to return
-        let selectedResults = document.getElementById("id_result_fields").selectedOptions
+        let selectedResults = document.querySelectorAll("input[id$='_result']")
         let results = []
-        if (selectedResults.length == 0) {
+        for (const result of selectedResults) {
+            if (result.checked == true) {
+                results.push(result.value)
+            } 
+            /* Include the download link when getting the filename */
+            if (result.value == "filename") {
+                results.push("download_link")
+            }
+        }
+
+        if (results.length == 0) {
             // Default results if none are selected
             results.push("filename")
             results.push("download_link")
             results.push("obs_date")
-        }
-        else {
-            for (const result of selectedResults) {
-                results.push(result.value)
-                /* Include the download link when getting the filename */
-                if (result.value == "filename") {
-                    results.push("download_link")
-                }
-            }
         }
         queryParams.set("results", results)
     }

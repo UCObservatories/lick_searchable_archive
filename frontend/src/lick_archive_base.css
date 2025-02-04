@@ -437,8 +437,43 @@ header {
   .search_options_input_small {
     width: 4em;
   }
-  .search_options_input_big {
+  .search_options_result_fields {
     width: 14em;
+    max-height: 10lh;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: 0em 13em;
+    background-color: var(--body-background);
+    list-style-type: none;
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+    border-style: inset;
+    border-color: var(--body-background);
+  }
+
+  .search_option_result_category {
+    font-weight: bold;
+  }
+  .search_option_result {
+    opacity: 0;
+    height: 0;
+    width: 0;
+    margin:0;
+    display: block;
+  }
+  .search_option_result + label{
+    width: 13em;
+    display: block;
+    padding-left: 1em;
+  }
+  .search_option_result:focus + label {
+    border-color: var(--focus);
+    border-style: solid;
+    border-width: 1px;
+  }
+  .search_option_result:checked + label{
+    background-color: var(--selected-background);
+    color: var(--selected-text);
   }
 
   .search_option_fields > label {
