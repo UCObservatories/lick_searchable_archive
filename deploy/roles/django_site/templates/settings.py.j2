@@ -54,7 +54,7 @@ ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', '{{ groups['backend']|first }
 {% elif host_type == 'frontend' %}
 ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', 'localhost']
 {% else %}
-ALLOWED_HOSTS = ['{{ groups['backend']|first }}', 'localhost']
+ALLOWED_HOSTS = ['{{ groups['backend']|first }}', 'localhost', '{{ frontend_host }}']
 {% endif %}
 
 

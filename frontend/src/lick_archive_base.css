@@ -58,10 +58,6 @@ button:disabled {
   background-color:var(--selected-background)
 }
 
-label:has(> input[type="radio"]:checked) {
-  font-weight: bold;
-}
-
 a {
   color: var(--body-link);
   text-decoration: underline;
@@ -255,10 +251,12 @@ header {
     font-weight: bold;
   }
   .current_page_link::before {
-    content: "\2BC8"
+    /*content: "\2BC8"*/
+    content: ">"
   }  
   .current_page_link::after {
-    content: "\2BC7"
+    /*content: "\2BC7"*/
+    content: "<"
   }  
 
   /* Main page formatting */
@@ -382,6 +380,7 @@ header {
   }
   .search_terms_help > table > thead > tr > th {
     padding-right: .25em;
+    font-weight: normal;
   }
 
   .search_terms_help > table > tbody{
@@ -420,6 +419,12 @@ header {
   .search_options_radio {
     margin-right: 1em;
   }
+  .search_options_radio + label {
+    color: var(--disabled-text)
+  }  
+  .search_options_radio:checked + label {
+    color: var(--body-text)
+  }  
   .search_option_fields {
     border: none;
     background-color:inherit;
@@ -440,7 +445,8 @@ header {
   .search_options_result_fields {
     width: 14em;
     max-height: 10lh;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: clip;
     display: grid;
     grid-template-columns: 0em 13em;
     background-color: var(--body-background);
@@ -454,6 +460,7 @@ header {
   .search_option_result_category {
     font-weight: bold;
   }
+
   .search_option_result {
     opacity: 0;
     height: 0;
@@ -474,6 +481,14 @@ header {
   .search_option_result:checked + label{
     background-color: var(--selected-background);
     color: var(--selected-text);
+  }
+  .search_option_result:disabled + label, .search_option_result:disabled + div {
+    color: var(--disabled-text);
+    background-color: var(--disabled-background);
+  }
+  .search_option_result:checked:disabled + label {
+    color: var(--disabled-selected);
+    background-color: var(--disabled-selected-background);
   }
 
   .search_option_fields > label {
