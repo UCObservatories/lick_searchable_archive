@@ -99,7 +99,7 @@ class LickArchiveClient:
 
             post_data = {"username": username, "password":password, "csrfmiddlewaretoken": self._csrf_middleware_token}
             retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-            result = retryer(self._session.post, self.archive_url + "login", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+            result = retryer(self._session.post, self.archive_url + "api/login", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
 
             if result.status_code == 200:
                 response = result.json()
@@ -141,7 +141,7 @@ class LickArchiveClient:
             logger.debug("Logging out.")
             retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
             post_data = {"csrfmiddlewaretoken": self._csrf_middleware_token}
-            result = retryer(self._session.post, self.archive_url + "logout", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+            result = retryer(self._session.post, self.archive_url + "api/logout", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
             if result.status_code >= 200 and result.status_code < 300:
                 logger.debug("Successfully logged out")
                 return True
@@ -169,7 +169,7 @@ class LickArchiveClient:
         logger.debug(f"Getting CSRF token and login status")
         try:
             retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-            result = retryer(self._session.get, self.archive_url + "login", verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+            result = retryer(self._session.get, self.archive_url + "api/login", verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
 
             if result.status_code == 200:
                 response = result.json()

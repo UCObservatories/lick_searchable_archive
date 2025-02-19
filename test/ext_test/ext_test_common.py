@@ -1,8 +1,7 @@
 TEST_USER = "test_user"
 TEST_USER_OWNERHINT = "test user.testing user"
 PUBLIC_FILE = '2019-05/23/shane/r33.fits'
-PRIVATE_FILE = "ext_test_file_r33.fits"
-TEST_INSTR = "shane"
+PRIVATE_FILE = "2025-01/27/AO/s1000.fits"
 
 def enable_user(user_name):
     from lick_archive.apps.archive_auth.models import ArchiveUser
@@ -15,6 +14,72 @@ def disable_user(user_name):
     test_user = ArchiveUser.objects.filter(username=user_name)[0]
     test_user.is_active = False
     test_user.save()
+
+def get_obid(user_name):
+    from lick_archive.apps.archive_auth.models import ArchiveUser
+    user = ArchiveUser.objects.filter(username=user_name)[0]
+    return user.obid
+
+def get_file_metadata(session, full_filename):
+    from datetime import date
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+    from lick_archive.db import db_utils
+    from lick_archive.db.archive_schema import FileMetadata
+
+   
+    metadata = db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.filename == full_filename))
+    if metadata is not None:
+        if metadata.public_date <= date.today():
+            raise ValueError("Error, propreitary file is no longer proprietary, you need to update these tests to use a new file.")
+            
+        
+        return metadata
+    else:        
+        raise(f"Error, could not find {full_filename}")
+
+def add_user_access(filename, user):
+
+
+    from lick_archive.db import db_utils
+    from lick_archive.db.archive_schema import UserDataAccess
+
+    engine = db_utils.create_db_engine()
+    with db_utils.open_db_session(engine) as session:
+
+        metadata = get_file_metadata(session, filename)
+        obid = get_obid(user)
+        access_list = []
+        for uda in metadata.user_access:
+            if uda.obid == obid:
+                # Nothing to do
+                return
+            else:
+                access_list.append(uda)
+
+        access_list.append(UserDataAccess(file_id = metadata.id, obid = obid, reason="Added for testing"))
+
+        db_utils.update_file_metadata(session=session,id=metadata.id, row=metadata, user_access=access_list)
+        session.commit()
+
+def remove_user_access(filename, user):
+
+
+    from lick_archive.db import db_utils
+    from lick_archive.db.archive_schema import UserDataAccess
+
+    engine = db_utils.create_db_engine()
+    with db_utils.open_db_session(engine) as session:
+        metadata = get_file_metadata(session, filename)
+        obid = get_obid(user)
+        access_list = []
+        for uda in metadata.user_access:
+            if uda.obid != obid:
+                # Don't remove this observer id
+                access_list.append(uda)
+
+        db_utils.update_file_metadata(session=session,id=metadata.id, row=metadata, user_access=access_list)
+        session.commit()
 
 def add_override_access(override_date, override_instr, user_ownerhint, filename):
     from lick_archive.apps.archive_auth.models import DBOverrideAccessFile

@@ -5,7 +5,7 @@ import datetime
 import copy
 
 from lick_archive.client.lick_archive_client import LickArchiveClient
-from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, TEST_INSTR, replace_parsed_url_hostname
+from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, replace_parsed_url_hostname
 
 expected_metadata = {"telescope":  "Shane",
                      "instrument": "Kast Red",
@@ -18,6 +18,16 @@ expected_metadata = {"telescope":  "Shane",
                      "coversheet": "RECUR_S101",
                      "file_size":  3355200}
 
+expected_private_metadata = {"telescope":  "Shane",
+                             "instrument": "ShaneAO/ShARCS",
+                             "obs_date":   "2025-01-28T03:46:54.079000Z", 
+                             "exptime":    1.45479,
+                             "ra":         "267.653208",
+                             "dec":        "37.391362",
+                             "object":     "AurA",
+                             "program":    "2024B_S026i0",
+                             "coversheet": "2024B_S026i0",
+                             "file_size":  16804800}
 
 def test_query_public(archive_host, archive_config, ssl_ca_bundle):
 
@@ -89,20 +99,8 @@ def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_pa
         assert key in result, f"{key} not found in query results"
         assert result[key] == expected_results[key], f"Exepcted results for {key}: '{expected_results[key]}' != actual results '{result[key]}'"
 
-    # Find private file. We'll search in adjacent days in case of date roll over
-    ingest_dates = [datetime.date.today() - datetime.timedelta(days=1), datetime.date.today(), datetime.date.today() + datetime.timedelta(days=1)]
 
-    found=False
-    for ingest_date  in ingest_dates:
-        expected_filename = ingest_date.strftime("%Y-%m/%d/")  + TEST_INSTR + "/" + PRIVATE_FILE
-        results = client.query(field="filename", value=expected_filename,count=True)
-        if results[0] == 1:
-            found=True
-            break
-
-    assert found is True, "Could not find private file."
-
-    results = client.query(field="filename", value=expected_filename, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    results = client.query(field="filename", value=PRIVATE_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
@@ -116,8 +114,8 @@ def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_pa
 
     result = rows[0]  # First (and only) row 
 
-    expected_results = copy.copy(expected_metadata)
-    expected_results["filename"] = expected_filename
+    expected_results = copy.copy(expected_private_metadata)
+    expected_results["filename"] = PRIVATE_FILE
 
     for key in expected_results:
         assert key in result, f"{key} not found in query results"
@@ -129,10 +127,10 @@ def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_pa
     assert client.get_login_status() is True
     assert client.logged_in_user is None
 
-    results = client.query(field="filename", value=expected_filename,count=True)
+    results = client.query(field="filename", value=PRIVATE_FILE,count=True)
     assert results[0] == 0
 
-    results = client.query(field="filename", value=expected_filename, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    results = client.query(field="filename", value=PRIVATE_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
