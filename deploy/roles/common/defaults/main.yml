@@ -6,7 +6,7 @@ db_name: archive
 db_user: archive
 db_query_user: archive_query
 db_ingest_user: archive_ingest
-python_version: "3.10"
+python_version: "3.12"
 package_install_dir: "{{ venv_root }}/lib/python{{ python_version }}/site-packages"
 kroot: /opt/kroot/rel/default/
 lroot: /usr/local/lick/

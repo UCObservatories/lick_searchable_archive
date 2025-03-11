@@ -17,7 +17,7 @@
 - name: Copy the Django site directory
   ansible.builtin.copy:
     src: "{{ archive_source_dir }}/lick_archive/lick_archive_site"
-    dest: "{{ package_install_dir }}/lick_archive/lick_archive_site"
+    dest: "{{ package_install_dir }}/lick_archive/"
     owner: "{{ archive_service_user }}"
     group: "{{ archive_service_group }}"
     mode: 0770

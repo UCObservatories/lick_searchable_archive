@@ -15,6 +15,7 @@
     - django_site
     - django_apps
     - webserver
+    - frontend
   tasks:
     - name: Install services
       include_role: 

@@ -34,3 +34,6 @@ MANIFEST
 
 # Sphinx build
 _build
+
+# Data used for ansible deploy
+data/
