@@ -4,7 +4,7 @@ import pytest
 import copy
 
 
-from lick_searchable_archive.archive_auth.hashers import APR_MD5PasswordHasher
+from lick_archive.apps.archive_auth.hashers import APR_MD5PasswordHasher
 from passlib.hash import apr_md5_crypt
 from django.utils.crypto import get_random_string, RANDOM_STRING_CHARS
 
@@ -130,7 +130,7 @@ def test_generate_username():
 @django_db_setup
 def test_create_user():
     from scripts.admin_scripts.sync_archive_users import create_user, parse_sched_db_users
-    from archive_auth.models import ArchiveUser
+    from lick_archive.apps.archive_auth.models import ArchiveUser
     from django.contrib.auth import authenticate
 
     sched_db_map = parse_sched_db_users(test_sched_db_users)
@@ -159,7 +159,7 @@ def test_create_user():
 @django_db_setup
 def test_update_user():
     from scripts.admin_scripts.sync_archive_users import create_user, update_user, parse_sched_db_users
-    from archive_auth.models import ArchiveUser
+    from lick_archive.apps.archive_auth.models import ArchiveUser
     from django.contrib.auth import authenticate
 
     sched_db_map = parse_sched_db_users(test_sched_db_users)
@@ -296,7 +296,7 @@ def test_duplicate_username():
 
 @django_db_setup
 def test_sync_users_main(monkeypatch, tmp_path):
-    from lick_external.sched_db import ScheduleDB
+    from lick_archive.external.sched_db import ScheduleDB
     def mock_init(*args,**kwargs):
         return
 
@@ -315,7 +315,7 @@ def test_sync_users_main(monkeypatch, tmp_path):
         m.setattr(ScheduleDB, "__init__", mock_init)
         m.setattr(ScheduleDB, "get_observers", mock_get_observers)
         from scripts.admin_scripts.sync_archive_users import main, get_parser
-        from archive_auth.models import ArchiveUser
+        from lick_archive.apps.archive_auth.models import ArchiveUser
 
         parser = get_parser()
         args = parser.parse_args(["--log_path", str(tmp_path)])

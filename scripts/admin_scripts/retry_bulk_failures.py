@@ -7,7 +7,7 @@ import sys
 import logging
 from pathlib import Path
 
-from lick_archive.script_utils import setup_logging, get_unique_file
+from lick_archive.utils.script_utils import setup_logging, get_unique_file
 from lick_archive.db.db_utils import create_db_engine, insert_one, check_exists
 from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata.reader import read_file

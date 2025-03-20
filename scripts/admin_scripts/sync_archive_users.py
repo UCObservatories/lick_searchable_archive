@@ -16,18 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 # Read archive config
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
-from lick_external.sched_db import ScheduleDB
+from lick_archive.external.sched_db import ScheduleDB
 
 # Setup django before importing any django classes
-from lick_archive.django_utils import setup_django, setup_django_logging
+from lick_archive.utils.django_utils import setup_django, setup_django_logging
 setup_django()
 
 from django.db import transaction
-from archive_auth.models import ArchiveUser
-from archive_auth.hashers import APR_MD5PasswordHasher
+from lick_archive.apps.archive_auth.models import ArchiveUser
+from lick_archive.apps.archive_auth.hashers import APR_MD5PasswordHasher
 
 
 def get_parser():

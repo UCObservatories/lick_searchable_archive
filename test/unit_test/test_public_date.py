@@ -5,7 +5,7 @@ import pytest
 def test_invalid_period():
 
     from datetime import date
-    from lick_archive.archive_config import ProprietaryPeriod
+    from lick_archive.config.archive_config import ProprietaryPeriod
 
     with pytest.raises(ValueError,match="Invalid proprietary period"):
         public_date = ProprietaryPeriod("year")
@@ -33,8 +33,8 @@ def test_calculate_public_date():
 
     from datetime import date
     from lick_archive.authorization.user_access import calculate_public_date
-    from lick_archive.archive_config import ProprietaryPeriod
-    from lick_archive.data_dictionary import MIN_PUBLIC_DATE
+    from lick_archive.config.archive_config import ProprietaryPeriod
+    from lick_archive.metadata.data_dictionary import MIN_PUBLIC_DATE
 
     # Test the basics, with singular and plural units, mixed case
     file_date = date(2023, 1, 10)

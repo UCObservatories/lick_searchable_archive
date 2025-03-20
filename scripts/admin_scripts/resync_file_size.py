@@ -10,11 +10,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 import copy
 
-from lick_archive.script_utils import setup_logging, get_unique_file
+from lick_archive.utils.script_utils import setup_logging, get_unique_file
 from lick_archive.db.db_utils import create_db_engine, BatchedDBOperation
-from lick_archive.resync_utils import ErrorList, SyncType, get_metadata_from_command_line
+from lick_archive.utils.resync_utils import ErrorList, SyncType, get_metadata_from_command_line
 
-from lick_archive.archive_config import ArchiveConfigFile
+from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 logger = logging.getLogger(__name__)

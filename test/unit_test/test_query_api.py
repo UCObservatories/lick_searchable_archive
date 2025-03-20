@@ -14,7 +14,7 @@ from rest_framework.exceptions import APIException
 from datetime import date, timedelta
 
 from lick_archive.db.archive_schema import Base, FileMetadata, UserDataAccess
-from lick_archive.data_dictionary import FrameType
+from lick_archive.metadata.data_dictionary import FrameType
 
 not_public_date = date.today() + timedelta(days=30)
 
@@ -65,7 +65,7 @@ def test_no_filters():
 @basic_django_setup
 def test_filename_filter():
     """Test filtering on filename"""
-    request = create_test_request("files/", data=QueryDict("filename=testfile1.fits&results=filename"))
+    request = create_test_request("files/", data=QueryDict("filename=eq,testfile1.fits&results=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -82,7 +82,7 @@ def test_filename_filter():
 def test_object_filter():
     """Test an exact object filter"""
 
-    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("object=eq,object 2&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -101,7 +101,7 @@ def test_proprietary_filter():
     """Test an exact object filter with loggin in users"""
 
     # A user that does not own anything, they'll only get public results
-    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user3",obid=3)
+    request = create_test_request("files/", data=QueryDict("object=eq,object 2&results=filename,object&sort=filename"),user="test_user3",obid=3)
 
     # The public filenames matching "object 2"
     public_filenames = [os.path.basename(metadata.filename) for metadata in public_test_rows[2:5]]
@@ -117,7 +117,7 @@ def test_proprietary_filter():
             assert response.data["results"][i]["filename"] in public_filenames
 
     # A user that owns one file. They'll get public results + the extra file
-    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user2",obid=2)
+    request = create_test_request("files/", data=QueryDict("object=eq,object 2&results=filename,object&sort=filename"),user="test_user2",obid=2)
     all_filenames = public_filenames + ['testfile7.fits']
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -129,7 +129,7 @@ def test_proprietary_filter():
             assert response.data["results"][i]["filename"] in all_filenames
 
     # A super user that owns nothing. As a superuser they'll get all files that match the query
-    request = create_test_request("files/", data=QueryDict("object=object 2&results=filename,object&sort=filename"),user="test_user2",obid=4, is_superuser=True)
+    request = create_test_request("files/", data=QueryDict("object=eq,object 2&results=filename,object&sort=filename"),user="test_user2",obid=4, is_superuser=True)
     all_filenames = public_filenames + [os.path.basename(metadata.filename) for metadata in private_test_rows]
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -141,10 +141,10 @@ def test_proprietary_filter():
             assert response.data["results"][i]["filename"] in all_filenames
 
 @basic_django_setup
-def test_prefix_filter():
+def test_startswith_filter():
     """Test filtering with a string prefix"""
 
-    request = create_test_request("files/", data=QueryDict("object=object&prefix=t&results=filename,object&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("object=sw,object&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -159,10 +159,74 @@ def test_prefix_filter():
             assert response.data["results"][i-1]["object"]  == public_test_rows[i].object
 
 @basic_django_setup
+def test_contains_filter():
+    """Test filtering with a substring"""
+
+    request = create_test_request("files/", data=QueryDict("object=cn,ject 1&results=filename,object&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 1
+
+        assert len(response.data["results"][0].keys()) == 3
+        assert "id" in response.data["results"][0]
+        assert response.data["results"][0]["filename"]  == os.path.basename(public_test_rows[1].filename)
+        assert response.data["results"][0]["object"]  == public_test_rows[1].object
+
+@basic_django_setup
+def test_case_insensitive_filter():
+    """Test case insensitive filtering"""
+
+    request = create_test_request("files/", data=QueryDict("object=eqi,OBJECT 2&results=filename,object&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 3
+
+        for i in range(2,len(public_test_rows)):
+            assert len(response.data["results"][i-2].keys()) == 3
+            assert "id" in response.data["results"][i-2]
+            assert response.data["results"][i-2]["filename"]  == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i-2]["object"]  == public_test_rows[i].object
+
+
+    request = create_test_request("files/", data=QueryDict("object=swi,OBJECT&results=filename,object&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 4
+
+        for i in range(1,len(public_test_rows)):
+            assert len(response.data["results"][i-1].keys()) == 3
+            assert "id" in response.data["results"][i-1]
+            assert response.data["results"][i-1]["filename"]  == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i-1]["object"]  == public_test_rows[i].object
+
+    request = create_test_request("files/", data=QueryDict("object=cni,JECT 2&results=filename,object&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 3
+
+        for i in range(2,len(public_test_rows)):
+            assert len(response.data["results"][i-2].keys()) == 3
+            assert "id" in response.data["results"][i-2]
+            assert response.data["results"][i-2]["filename"]  == os.path.basename(public_test_rows[i].filename)
+            assert response.data["results"][i-2]["object"]  == public_test_rows[i].object
+
+@basic_django_setup
 def test_instrument_filter():
     """Test adding an instrument filter"""
 
-    request = create_test_request("files/", data=QueryDict("object=object 2&filters=instrument,SHARCS&results=filename,object&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("object=eq,object 2&filters=instrument,SHARCS&results=filename,object&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -183,15 +247,15 @@ def test_coord_filter():
 
 
     from astropy.coordinates import Angle
-    from lick_archive.archive_config import ArchiveConfigFile
-    from lick_searchable_archive.query.query_api import QuerySerializer
+    from lick_archive.config.archive_config import ArchiveConfigFile
+    from lick_archive.apps.query.views import QuerySerializer
 
     lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
 
 
     # Test with specific radius
-    request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656,0.1"))
+    request = create_test_request("files/", data=QueryDict("coord=in,349.99,-5.1656,0.1"))
     
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -202,7 +266,6 @@ def test_coord_filter():
         serializer = QuerySerializer(data=request.query_params, view=view)
         serializer.is_valid(raise_exception=True)
         request.validated_query = serializer.validated_data
-
         queryset = filter_backend.filter_queryset(request=request, queryset=queryset, view=view)
         # Dig into the SQLAlchemy stuff to validate the filter
         assert queryset.where_filters[0].left.name == "coord"
@@ -211,11 +274,11 @@ def test_coord_filter():
         assert queryset.where_filters[0].right.value.ra.unit == "rad"
         assert queryset.where_filters[0].right.value.dec == ("-5.1656 deg")
         assert queryset.where_filters[0].right.value.dec.unit == "rad"
-        assert queryset.where_filters[0].right.value.radius  == Angle("0.1 deg")
+        assert queryset.where_filters[0].right.value.radius  == Angle("0.1 arcsec")
         assert queryset.where_filters[0].right.value.radius.unit == "rad"
 
     # Test with default radius
-    request = create_test_request("files/", data=QueryDict("coord=349.99,-5.1656"))
+    request = create_test_request("files/", data=QueryDict("coord=in,349.99,-5.1656"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -241,7 +304,7 @@ def test_coord_filter():
 def test_date_filter():
     """Test a date filter"""
     
-    request = create_test_request("files/", data=QueryDict("obs_date=2018-12-1&results=filename,obs_date"))
+    request = create_test_request("files/", data=QueryDict("obs_date=eq,2018-12-1&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -263,7 +326,7 @@ def test_date_filter():
 def test_date_range_filter():
     """Test a date range filter"""
 
-    request = create_test_request("files/", data=QueryDict("obs_date=2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("obs_date=in,2018-12-31,2020-01-01&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -285,7 +348,7 @@ def test_date_range_filter():
 def test_reverse_date_range_filter():
     """Test that a reversed date range is handled correctly"""
 
-    request = create_test_request("files/", data=QueryDict("obs_date=2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("obs_date=in,2020-01-01,2018-12-31&results=filename,obs_date&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -307,7 +370,7 @@ def test_reverse_date_range_filter():
 def test_no_sort_attributes():
     """ Test a query with no specified sort attributes. The results should be sorted by id"""
 
-    request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&results=filename,obs_date"))
+    request = create_test_request("files/", data=QueryDict("filename=sw,testfile&results=filename,obs_date"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -329,7 +392,7 @@ def test_no_result_attributes():
     This also tests the header field post-processing
     """
 
-    request = create_test_request("files/", data=QueryDict("filename=testfile&prefix=t&sort=filename"))
+    request = create_test_request("files/", data=QueryDict("filename=sw,testfile&sort=filename"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -352,12 +415,14 @@ def test_no_result_attributes():
             # Post-processing by the view should turn the header into a URL
             assert response.data["results"][i]["header"]     == "http://testserver/archive/data/{}/header".format(os.path.basename(public_test_rows[i].filename))
 
+            # Post-processing by the view should include a download URL
+            assert response.data["results"][i]["download_link"]     == "http://testserver/archive/data/{}".format(os.path.basename(public_test_rows[i].filename))
 
 @basic_django_setup
 def test_count():
     """Test a count query """
 
-    request = create_test_request("files/", data=QueryDict("obs_date=2019-06-01&count=t"))
+    request = create_test_request("files/", data=QueryDict("obs_date=eq,2019-06-01&count=t"))
 
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
@@ -367,9 +432,60 @@ def test_count():
 @basic_django_setup
 def test_invalid_query():
 
-    request = create_test_request("files/", data=QueryDict("filename=file.fits&results=invalid_field"))
+    request = create_test_request("files/", data=QueryDict("filename=eq,file.fits&results=invalid_field"))
     with MockDatabase(Base, test_rows) as mock_db:
         view = create_mock_view(mock_db.engine, request)
 
         with pytest.raises(ValidationError):
             view.list(request)
+
+@basic_django_setup
+def test_multiple_field_query():
+
+    # Object and date
+    request = create_test_request("files/", data=QueryDict("obs_date=in,2018-01-01,2020-01-01&object=eq,object 2&results=filename,obs_date&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 1
+
+        assert len(response.data["results"][0].keys()) == 3
+        assert "id" in response.data["results"][0]
+        assert response.data["results"][0]["filename"]  == "testfile3.fits"
+        assert response.data["results"][0]["obs_date"]  == datetime(year=2019, month = 6, day = 1)
+
+    # Object, date, filename
+    request = create_test_request("files/", data=QueryDict("obs_date=in,2020-01-01,2023-01-01&object=eq,object 2&filename=sw,testfile&results=filename,obs_date&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 2
+
+        assert len(response.data["results"][0].keys()) == 3
+        assert "id" in response.data["results"][0]
+        assert response.data["results"][0]["filename"]  == "testfile4.fits"
+        assert response.data["results"][0]["obs_date"]  == datetime(year=2020, month = 6, day = 1)
+
+        assert len(response.data["results"][1].keys()) == 3
+        assert "id" in response.data["results"][1]
+        assert response.data["results"][1]["filename"]  == "testfile5.fits"
+        assert response.data["results"][1]["obs_date"]  == datetime(year=2022, month = 6, day = 1)
+
+    # object, date, filename + instrument filter
+
+    request = create_test_request("files/", data=QueryDict("obs_date=in,2020-01-01,2023-01-01&object=eq,object 2&filename=sw,testfile&filters=instrument,SHARCS&results=filename,obs_date&sort=filename"))
+
+    with MockDatabase(Base, test_rows) as mock_db:
+        view = create_mock_view(mock_db.engine, request)
+        response = view.list(request)
+
+        assert len(response.data["results"]) == 1
+
+        assert len(response.data["results"][0].keys()) == 3
+        assert "id" in response.data["results"][0]
+        assert response.data["results"][0]["filename"]  == "testfile5.fits"
+        assert response.data["results"][0]["obs_date"]  == datetime(year=2022, month = 6, day = 1)

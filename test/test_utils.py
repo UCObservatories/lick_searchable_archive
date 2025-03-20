@@ -17,6 +17,7 @@ def MockDatabase(base_class, rows=None):
     # This functions wraps a MockDatabaseClass so that the below imports
     # aren't made until after the archive configuration is set
     from lick_archive.db.archive_schema import FileMetadata,UserDataAccess
+    from lick_archive.metadata.data_dictionary import api_capabilities
     class MockDatabaseClass(contextlib.AbstractContextManager):
 
         def __init__(self, base_class, rows=None):
@@ -59,20 +60,19 @@ def MockDatabase(base_class, rows=None):
 def create_mock_view(engine, request=None):
 
     # We define the view in a function so the below imports happen after Django is initialized by the test case
-    from rest_framework.generics import ListAPIView
-    from lick_searchable_archive.query.query_api import QueryAPIMixin, QueryAPIPagination, QueryAPIFilterBackend
-    from lick_searchable_archive.query.sqlalchemy_django_utils import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
-    from lick_archive.data_dictionary import api_capabilities
+    from lick_archive.apps.query.views import QueryView, QueryAPIPagination, QueryAPIFilterBackend
+    from lick_archive.apps.query.api import SQLAlchemyQuerySet, SQLAlchemyORMSerializer
+    from lick_archive.metadata.data_dictionary import api_capabilities
     from lick_archive.db.archive_schema import FileMetadata
     
-    class MockView(QueryAPIMixin,ListAPIView):
+    class MockView(QueryView):
         """A test view for testing the query api"""
 
         pagination_class = QueryAPIPagination
         filter_backends = [QueryAPIFilterBackend]
         serializer_class = SQLAlchemyORMSerializer
         allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
-        allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header"]
+        allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header", "download_link"]
         required_attributes = list(api_capabilities['required']['db_name'])
         serializer_class = SQLAlchemyORMSerializer
 
@@ -95,7 +95,7 @@ def create_test_request(path, data,user=None,obid=None,is_superuser=None):
     request = Request(request_factory.get(path, data=data))
 
     if user is not None:
-        from archive_auth.models import ArchiveUser
+        from lick_archive.apps.archive_auth.models import ArchiveUser
         user_object = ArchiveUser(username=user,obid=obid,email=user+"@example.org",is_superuser=is_superuser)
         request.user=user_object
 
@@ -105,7 +105,7 @@ def create_test_request(path, data,user=None,obid=None,is_superuser=None):
 def create_validated_request(path, data, view):
     request = create_test_request(path, data)
 
-    from lick_searchable_archive.query.query_api import QuerySerializer
+    from lick_archive.apps.query.query_api import QuerySerializer
 
     serializer = QuerySerializer(data=request.query_params, view=view)
     try:

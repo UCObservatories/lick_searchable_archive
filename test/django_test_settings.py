@@ -11,8 +11,13 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
-from os import environ
+import sys
 
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path("{{ package_install_dir }}/lick_archive")
+
+# Add apps path to python path
+sys.path.insert(0, str(BASE_DIR))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
@@ -35,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'archive_auth',
+    'lick_archive.apps.archive_auth',
     'rest_framework',
 ]
 
@@ -49,7 +54,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'lick_searchable_archive.urls'
+ROOT_URLCONF = 'lick_archive.lick_archive_site.urls'
 
 TEMPLATES = [
     {
@@ -73,11 +78,11 @@ AUTHENTICATION_BACKENDS = ["archive_auth.backends.NonUpgradingBackend"]
 # Support the older Apache2 APR_MD5 password hash
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-    "lick_searchable_archive.archive_auth.hashers.APR_MD5PasswordHasher",
+    "lick_archive.apps.archive_auth.hashers.APR_MD5PasswordHasher",
 ]
 
 
-WSGI_APPLICATION = 'lick_searchable_archive.wsgi.application'
+WSGI_APPLICATION = 'lick_archive.lick_archive_site.wsgi.application'
 
 
 # Database
@@ -120,7 +125,7 @@ LOGGING = {
     'formatters': {
         'archive_log_formatter': {
             # log format used through out the lick searchable archive.
-            '()': 'lick_archive.script_utils.get_std_log_formatter',
+            '()': 'lick_archive.utils.script_utils.get_std_log_formatter',
             'log_pid': True,  # Log the gunicorn worker pid
         },
     },

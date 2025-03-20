@@ -8,15 +8,15 @@ def block_script_util_djangop_setup(monkeypatch):
     """Prevent script_utils from setting up django differently that what the tests want"""
     def mock_func(*args, **kwargs):
         return
-    import lick_archive.django_utils
-    monkeypatch.setattr(lick_archive.django_utils, "setup_django", mock_func)
-    monkeypatch.setattr(lick_archive.django_utils, "setup_django_logging", mock_func)
+    import lick_archive.utils.django_utils
+    monkeypatch.setattr(lick_archive.utils.django_utils, "setup_django", mock_func)
+    monkeypatch.setattr(lick_archive.utils.django_utils, "setup_django_logging", mock_func)
 
 @pytest.fixture(scope="session",autouse=True)
 def archive_config():
     # Force archive config to load the test version rather than the default config
-    from lick_archive.archive_config import ArchiveConfigFile
-    ArchiveConfigFile.from_file(Path(__file__).parent.parent / "archive_test_config.ini")
+    from lick_archive.config.archive_config import ArchiveConfigFile
+    return ArchiveConfigFile.from_file(Path(__file__).parent.parent / "archive_test_config.ini")
 
 @pytest.fixture(scope="session")
 def django_setup():

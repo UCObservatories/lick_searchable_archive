@@ -31,7 +31,7 @@ def test_check_filename():
 
 def test_obstype_access_rule():
     from lick_archive.authorization.override_access import OverrideAccessRule
-    from lick_archive.data_dictionary import FrameType
+    from lick_archive.metadata.data_dictionary import FrameType
 
     rule = OverrideAccessRule.from_str("s1* access owner.hint1 owner@hint2 _ownerhint_3")
     assert rule.pattern == "s1*"
@@ -128,7 +128,7 @@ def test_matching_rules():
     #import pdb; pdb.set_trace()
     matching_rule = find_matching_rules([oaf0, oaf1], "r1234.fits")
 
-    from lick_archive.data_dictionary import FrameType
+    from lick_archive.metadata.data_dictionary import FrameType
     assert matching_rule is not None
     assert matching_rule.pattern == "r1234.fits"
     assert matching_rule.obstype == FrameType.arc

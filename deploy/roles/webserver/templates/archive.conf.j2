@@ -1,0 +1,24 @@
+{% if frontend_scheme == "https" %}
+<VirtualHost *:443> 
+    ServerName {{ frontend_host }}
+    SSLEngine On
+    SSLCertificateFile {{ ssl_cert }}
+    SSLCertificateKeyFile {{ ssl_private_key }}
+{% else %}
+<VirtualHost *:80> 
+    ServerName {{ frontend_host }}
+{% endif %}
+    AssignUserId {{ webserver_user }} {{ webserver_group }}
+    DocumentRoot /var/www/archive
+    XSendFile On
+    XSendFilePath /data
+    RequestHeader set "X-Forwarded-Proto" expr=%{REQUEST_SCHEME} 
+    ProxyPass "/{{ archive_url_path_prefix }}/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
+    ProxyPassReverse "/{{ archive_url_path_prefix }}/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
+    ProxyPass "/{{ archive_url_path_prefix }}/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
+    ProxyPassReverse "/{{ archive_url_path_prefix }}/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
+    ProxyPass "/{{ archive_url_path_prefix }}/api" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/api"
+    ProxyPassReverse "/{{ archive_url_path_prefix }}/api" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/api"
+    ErrorLog ${APACHE_LOG_DIR}/error.log
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>

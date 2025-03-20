@@ -1,5 +1,5 @@
 import pytest
-from lick_archive.config_base import ConfigNamespace, ConfigDict, ParsedURL, ConfigFile
+from lick_archive.config.config_base import ConfigNamespace, ConfigDict, ParsedURL, ConfigFile
 import typing
 from dataclasses import dataclass
 import enum
