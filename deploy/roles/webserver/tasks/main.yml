@@ -3,6 +3,16 @@
     name: apache2, libapache2-mod-xsendfile, libapache2-mpm-itk
     state: present
   become: yes
+- name: Copy Apache2 configuration
+  ansible.builtin.copy:
+    backup: true
+    mode: 0644
+    owner: root
+    group: root
+    src: files/apache2.conf
+    dest: "/etc/apache2/apache2.conf"
+  become: yes
+  notify: "restart web server"
 - name: Copy Archive Virtual Host settings
   ansible.builtin.template:
     mode: 0644
