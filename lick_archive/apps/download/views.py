@@ -42,6 +42,7 @@ class DownloadSingleView(QueryAPIView, RetrieveAPIView):
     required_attributes = ["filename"]
     allowed_result_attributes = ["filename","instrument"]
     allowed_sort_attributes = ["id"]
+    throttle_scope = 'downloads'
 
     def __init__(self):
         super().__init__(_db_engine, FileMetadata)
@@ -70,6 +71,7 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
     batch_size = MAX_FILENAME_BATCH
     parser_classes = [JSONParser,FormParser]
     serializer_class = DownloadMultiSerializer
+    throttle_scope = 'downloads'
 
     def __init__(self):
         super().__init__(_db_engine, FileMetadata)
@@ -80,15 +82,16 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
         of archive filenames."""
 
         log_request_debug(request)
-        logger.info(f"Request data: {request.data}")
+        logger.debug(f"Request data: {request.data}")
+        logger.info(f"Received download request.")
         # Valiadate the incomming request.
         file_list = self._validate_json(request)
-
+        logger.info(f"Request contained {len(file_list)} files.")
         # Validate that the the files in request, and return their full paths.
         valid_files = self._get_validated_files(file_list)
         archive_names = self._get_archive_names(valid_files)
         tarfile_name = self.get_filename(valid_files[0], valid_files[-1])
-
+        logger.info(f"Validated {len(valid_files)} files for download, starting tarball stream...")
         tarball_stream = TarFileStream(tarfile_name,valid_files, arcfiles=archive_names, enable_gzip=True)
 
         headers = {"Content-Type":         "application/gzip",
@@ -195,7 +198,7 @@ class DownloadMultiView(QueryAPIView, GenericAPIView):
 
                 # Get the next batch of results
                 logger.debug(f"querying {next_index}:{next_index+self.batch_size}")
-                results = queryset[next_index:next_index+self.batch_size]
+                results = queryset[0:self.batch_size]
                 logger.debug(f"Results: {results}")
 
                 # Make sure each desired file was found, and make sure we don't exceed the maximum allowed combined file size

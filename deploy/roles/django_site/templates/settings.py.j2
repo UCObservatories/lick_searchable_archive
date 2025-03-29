@@ -237,6 +237,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
+    # Allow throttling of download API calls to keep users from overwhelming the system.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        # Limit it to one request / second. Is that too many?
+        'downloads': '1/s'
+    },
 {# Disable the BrowseableAPI when in ops #}
 {% if archive_config == "ops" %}
     # The order of renderers is important. The JSONRenderer must be first
