@@ -1,6 +1,6 @@
 
-UCSC Campus install of the Mt Hamilton archive
-==============================================
+UCSC Config
+===========
 
 Hosts
 -----
@@ -63,8 +63,8 @@ Installation Notes
 KROOT
 ^^^^^
 
-``etc/Config.perhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``kroot/etc/Config.perhost/Quarry.ucolick.org``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -90,8 +90,8 @@ KROOT
     TCL_DIR_CONFIG_SH=/usr/lib
     TK_DIR_CONFIG_SH=/usr/lib
 
-``music/services/svc.byhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``kroot/music/services/svc.byhost/Quarry.ucolick.org``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -102,8 +102,8 @@ KROOT
 LROOT
 ^^^^^
 
-``etc/Config.perhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``lroot/etc/Config.perhost/Quarry.ucolick.org``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -117,8 +117,8 @@ LROOT
     loadscript Config.byclass/locale-ucsc
 
 
-``etc/targetRules/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``lroot/etc/targetRules/Quarry.ucolick.org``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
