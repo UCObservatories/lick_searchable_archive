@@ -3,31 +3,60 @@ Source Code Organization
 
 doc
 ---
-The Sphinx documentation.
+The Sphinx developer documentation.
 
-host_vars
----------
-The Ansible by host configuration values. See :ref:`deployment`.
+deploy
+------
+The Ansible playbooks for deploying the archive. See :ref:`deployment`.
 
 lick_archive
 ------------
-This hosts the common Python software in a ``lick_archive`` package.
+This hosts Python software for the lick archive.
 
-roles
------
-The ansible roles containing tasks shared between playbooks.
+lick_archive/apps
+-----------------
+The lick_archive Django apps.
+
+lick_archive/authorization
+--------------------------
+The code for determining proprietary access for files in the archive.
+
+lick_archive/client
+-------------------
+Python classes that act as clients to the archive API.
+
+lick_archive/config
+-------------------
+Classes for defining/parsing the archive's configuration file.
+
+``frontend``
+------------
+The lick archive frontend.
+
 
 lick_archive/db
 ---------------
-The code directly accessing and setting up the database.
+The code directly accessing and setting up the metadata database.
+
+lick_archive/external
+---------------------
+Code for interacting with software external to the lick archive, namely code and utilities in KROOT and LROOT.
+
+lick_archive/job_queue
+----------------------
+Code needed for the interfacing with celery tasks.
+
+lick_archive/lick_archive_site
+------------------------------
+The Django project folder for the archive, in the standard Django layout.
 
 lick_archive/metadata
 ---------------------
-The code related to reading metadata from archvie files.
+The code related to reading metadata from archive files and defining what metadata fields are available.
 
-lick_searchable_archive
------------------------
-The Django project folder for the archive, in the standard Django layout.
+lick_archive/utilities
+----------------------
+Various utility functions used by the archive.
 
 scripts
 -------
@@ -41,9 +70,19 @@ scripts/postgres_scripts
 ------------------------
 Command line scripts specifically for the postgres user.
 
-unit_test
----------
-The unit tests.
+test
+----
+Code for testing the archive.
 
+test/dev_test
+-------------
+Tests deployed to the archive in development for testing specific things against a live system.
 
+test/ext_test
+-------------
+Tests intended to be run externally from a deployed archive host to sanity check it.
+
+test/unit_test
+--------------
+Unit tests.
 

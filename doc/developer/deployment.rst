@@ -1,3 +1,5 @@
+.. _deployment:
+
 Deployment
 ==========
 
@@ -8,15 +10,16 @@ Setting up a Development/Deployment Machine
 -------------------------------------------
 I used conda to setup my personal machine to create a distinct python environment::
 
-    conda create -n archive python=3.10
+    conda create -n archive python=3.12
     conda activate archive
 
     *or*
 
-    python3.10 -m venv archive
+    python3.12 -m venv archive
     source archive/bin/activate
 
-Then install packages needed for unit testing:
+Then install packages needed for unit testing::
+
     pip install pytest
     pip install django
     pip install astropy
@@ -26,12 +29,21 @@ Then install packages needed for unit testing:
     pip install tenacity
     pip install coverage
 
-Packages needed for external tests (in test/ext_test)
+Packages needed for external tests (in test/ext_test)::
+
     pip install requests
 
-Packages needed for deploying
-    pip install sphinx TODO, is this needed?
+Packages needed for building the frontend
+    TODO
+
+Packages needed for deploying::
+
     sudo apt install ansible
+
+Packages needed for building developer docs::
+
+    pip install sphinx
+
 
 In addition the following packages are not used on the development machine, but might be good to install
 to keep IDEs looking for imports happy::
@@ -47,7 +59,7 @@ Requirements for deploying the archive
 --------------------------------------
     * A host for the archive software
   
-      * This host must use Ubuntu 22.04 as its OS.
+      * This host must use Ubuntu 24.04 as its OS.
       * This host must have a user, with sudo access, that can ssh to the target machine without being prompted for a password.
       * The software host requires a database data partition of at least 128GiB (Which will be formatted and mounted during the deployment).
       * KROOT and LROOT must be installed on the software host.
@@ -55,102 +67,16 @@ Requirements for deploying the archive
        
     * A host providing the archive data
 
-      * The archive data must be exported to the software host via NFS. Only read-only access is required.
+      * The archive data must be exported to the software host via NFS. Only read-only access is required. The ansible deployment
+        will update the archive host's ``/etc/fstab`` to mount it.
     
 
 
 Configuring the Deployment
 --------------------------
 The ansible deployment is configured using inventory files and host_vars. If needed default variables can
-also be changed.
+also be changed. See :ref:`configuration` for detailed descriptions of these files.
 
-Ansible Inventories
-^^^^^^^^^^^^^^^^^^^
-
-Inventory files control where Ansible deploys to. For the Lick Searchable Archive we use an "ops" file to define the ops environment.
-Other names can be used for development environments.  The ops environment has less debugging information configurated
-than development environments.
-
-For ops the current inventory is::
-
-    [all:vars]
-    archive_config=ops
-    remote_watchdog=False 
-    # Front end user facing connection info
-    frontend_scheme="https"
-    frontend_host= "quarry.ucolick.org"
-
-    # API access from frontend/backend
-    api_scheme=http
-    api_server=localhost
-    api_port=8000
-    # Where ansible should copy from 
-    archive_source_dir=/home/dusty/work/lick_searchable_archive
-    # Connection info Lick Observatory schedule database
-    schedule_db_host=schedpsql.ucolick.org
-    schedule_db_name=info
-    # Set this to "restarted" to restart everything after deploy
-    # "stopped" to keep the archive down after deploy
-    archive_service_state=restarted
-
-    [backend]
-    quarry.ucolick.org
-
-    [backend:vars]
-    archive_apps=['ingest', 'query', 'archive_admin', 'archive_auth','frontend']
-    services=['job_queue', 'ingest_watchdog']
-    host_type=single_host
-    gshow_path=/opt/kroot/rel/default/bin/gshow
-    # Gunicorn settings for frontend
-    frontend_proxy_server="localhost"
-    frontend_proxy_port=8000
-
-
-This is for a single machine configurations. 
-Theoretically different machines could be used for all of these sections but currently
-only deploying the ingest_watchdog to a different machine via the ``watchdog`` section is supported.
-
-Ansible ``host_vars``
-^^^^^^^^^^^^^^^^^^^^^
-Configuration for a specific machine can be set in a file in the ``host_vars`` directory. For example there's a
-file named ``host_vars/quarry.ucolick.org`` for the ops environment::
-
-    db_data_device: /dev/sdh
-    postgres_version: 12
-    archive_nfs_source: legion:/data/mthamilton
-    archive_nfs_uid: 1009
-    archive_nfs_gid: 1039
-    archive_data_root: /data/data
-    archive_data_mount: /data
-    archive_nfs_name: mhadmin
-    archive_nfs_group: mhdata
-
-``db_data_device``
-    This is the device that the database storage is available at. Deployment will create a new
-    file system for this device, and will mount it to ``/pg_data``.
-
-``postgres_version``
-    This is the version of postgres being used. For Ubuntu 20.04 LTS the correct value is "12".
-    For Ubuntu 22.04 LTS it's "14".
-
-``archive_nfs_source``
-    This is the NFS source used to NFS mount the archive's storage. It is added to the fstab to
-    mount the storage when the machine boots.
-
-``archive_nfs_uid`` and ``archive_nfs_gid``
-    The UID and GID of files stored in the archive storage. Deployment will create users with these
-    ids.
-
-``archive_data_root``
-    This is the path to the root directory of the data files stored in the archive file system.
-
-``archive_data_mount``
-    This is the path to the archive file system is mounted to. This may not be the same as ``archive_data_root`` if
-    there is additional non archive data on that file system.
-
-``archive_nfs_name`` and ``archive_nfs_group``
-    The user and group names that should own the archive file system NFS mount. They are assigned to ``archive_nfs_uid``
-    and ``archive_nfs_gid`` respectively.
 
 Schedule Database User
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -160,53 +86,12 @@ user information must be manually set in a separate text file stored in the arch
 
     $ cat '<user_name>:<password>' > /opt/lick_archive/etc/sched_db_user_info.txt
 
-Ansible defaults
-^^^^^^^^^^^^^^^^
-The default values for variables used by the Ansible scripts are stored in ``roles/common/defaults/main.yml``. They
-can be overridden by variables in host_vars, or be changed directly before deploying.
+Building the Frontend
+---------------------
+Before deploying the archive, the frontend must be built:
 
-``venv_root``
-    The root directory where lick archive software is installed. Defaults to ``/opt/lick_archive``
-
-``archive_servie_user`` and ``archive_service_group``
-    The user and group used to run archive services including the ingest_watchdog and the django applications. 
-    Defaults to ``archive``.
-
-``python_version``
-    The version of Python in use. Defaults to ``3.9``
-
-``python_install_dir``
-    Where Python packages are installed. Defaults to ``{{ venv_root }}/lib/python{{ python_version }}/site-packages``.
-
-``archive_log_dir``
-    Where archive software will place any logs. Defaults to ``{{ venv_root }}/var/log``.
-
-``archive_config_dir``
-    Where configuration files for archive software are kept. Defaults to ``{{ venv_root }}/etc``.
-
-``ingest_port``
-    The port the ingest_watchdog uses to connect to the ingest Django application. Defaults to ``8000``
-
-``watchdog_config``
-    The name of the configuration file for the ingest_watchdog. Defaults to ``ingest_watchdog.conf``.
-
-``django_settings``
-    The name of the Django settings file. Defaults to ``settings.py``.
-
-``django_secret_keyfile``
-    The name of the file storing Django's secret key. This is only created in ops. Defaults to: ``{{ archive_config_dir }}/secret_key``.
-
-``django_log``
-    The name of the log file for Django apps. Defaults to ``{{ archive_log_dir }}/lsa_apps.log``
-
-``gunicorn_log``
-    The name of the gunicorn log file. Defaults to ``{{ archive_log_dir }}/gunicorn.log``
-
-``redis_url``
-    The URL for connecting to Redis. Used by Celery.  Defaults to ``redis://localhost:6379/0``
-
-``supported_instrument_dirs``
-    The currently supported instrument directories. Defaults to ``['AO', 'shane']``
+    $ cd lick_searchable_archive/frontend
+    make all
 
 
 Deploying
@@ -361,18 +246,4 @@ An admin superuser account should be created on a fresh installation of the arch
     $ source /opt/lick_archive/bin/activate
     $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
     $ ./manage.py createsuperuser
-
-Frontend Host
-^^^^^^^^^^^^^
-If using a separate frontend host, it will use a sqllite datebase to store session information. Use
-the following commands to initialize this::
-
-    $ source /opt/lick_archive/bin/activate
-    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
-
-    # For new system installs only
-    $ ./manage.py makemigrations
-
-    # For both new and updated system installs
-    $ ./manage.py migrate
 

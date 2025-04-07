@@ -11,9 +11,12 @@ Welcome to Lick Observatory Searchable Archive's documentation!
    :caption: Developer Documentation
 
    developer/architecture
+   developer/configuration
+   developer/deployment
+   developer/maintenance
    developer/database
    developer/code
-   developer/deployment
+   developer/ucsc_specific_config
    developer/todo
 
 .. toctree::
@@ -22,45 +25,17 @@ Welcome to Lick Observatory Searchable Archive's documentation!
 
    api/schema
 
-.. toctree::
-   :maxdepth: 1
-   :caption: User Documentation
-
-   user/intro
 
 The Lick Observatory Searchable Archive is a project intended to allow easy searching and retrieval of 
 data gathered by the Observatory. It is currently under development.
 
 Goals
-------
-1 Provide a searchable interface to access to the data in the current Lick Archive.
-2 Provide continuing access to data gathered in the future.
-3 Respect proprietary access for recently gathered data.
+-----
+1. Provide a searchable interface to access to the data in the current Lick Archive.
 
+2. Provide continuing access to data gathered in the future.
 
-Development Plan
-=================
-The development of the Searchable Archive is broken up into several phases.
-
-1. Infrastructure (Complete)
-2. Catalog Existing of Shane Kast and Shane AO/ShARCS data.(Complete)
-3. Catalog new Shane Kast and Shane AO/ShARCS data (Complete)
-4. Provide a simple web interface for querying the archive. (Expected end of 2022)
-5. Provide Authentication and access to proprietary data (Q1 2023)
-6. Provide ability to download data.
-
-After phase 6 the archive will be ready to become publically accessible, although there is be
-the potential for future work:
-
-* Add additional instruments.
-* Add environmental web cam/sky cam images
-* Add api support to astroquery
+3. Respect proprietary access for recently gathered data.
 
 
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

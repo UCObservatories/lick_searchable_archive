@@ -1,8 +1,8 @@
 ********
 Database
 ********
-The Archive PostgresSQL cluster is named ``archive_db``. It currently has one database ``archive``.
-The ``archive`` user owns it. At least the naming convention is consistent.
+The Archive PostgresSQL cluster is named ``archive_db``. It currently has two databases ``archive``
+and ``archive_django``. The ``archive`` user owns both. At least the naming convention is consistent.
 
 Tables
 ======
@@ -111,23 +111,6 @@ database::
     postgres@Quarry:~$ pg_dump  -U postgres archive --no-owner --no-comments | gzip > backup.dump.gz
 
 Notice this **must be done as the postgres user**.
-
-
-Bulk Ingest of Metadata
-^^^^^^^^^^^^^^^^^^^^^^^
-To ingest metadata from the archive in bulk, use the following command as an admin user::
-
-    $ cd ~/scripts
-    $ python3 bulk_ingest_metadata.py /data/data --date_range 2007-08-01:2007-08-31 --instruments shane
-
-The date range above can be larger or smaller as needed. The currently supported instruments are ``shane`` and
-``AO``. If no instrument is specified all files for supported instruments will be read.
-
-This will create a log named ``bulk_ingest_metadata_YYYY-MM-DDTHH:MM:SS.SS+00:00.log``. It will also 
-create a failure file named ``ingest_failures.txt``. This failure file can be given to the
-``retry_bulk_failures.py`` script to retry ingesting those files::
-
-    $ python3 retry_bulk_failures.py ingest_failures.txt
 
 
 Upgrading database to a new schema

@@ -45,7 +45,7 @@ DEBUG = True
 
 {% endif %}
 
-# Django can be accessed from localhost or it's external hostname/ip
+# Django can be accessed as localhost or as its external hostname/ip
 {% if host_type == 'backend' %}
 ALLOWED_HOSTS = ['{{ groups['frontend']|first }}', '{{ groups['backend']|first }}', 'localhost']
 {% elif host_type == 'frontend' %}
