@@ -3,6 +3,11 @@
 Archive Configuration
 =====================
 
+Deploymen Configuration
+-----------------------
+
+.. _inventory:
+
 Ansible Inventories
 ^^^^^^^^^^^^^^^^^^^
 
@@ -59,6 +64,8 @@ For ops the current inventory is::
     frontend_proxy_port=8000
 
 This is for a single machine configuration.  Theoretically different machines could be used for the frontend and backend but this has not been tested.
+
+.. _host_vars:
 
 Ansible ``host_vars``
 ^^^^^^^^^^^^^^^^^^^^^
@@ -176,3 +183,16 @@ can be overridden by variables in host_vars, or be changed directly before deplo
 ``sync_users_cron_minute``
     The minutes portion of the cronjob used to sync users from the schedule database to the archive. Defaults to every two minutes, i.e. ``1-59/2``
 
+Runtime Configuration
+---------------------
+TODO
+
+* archive_config.ini
+
+* ingest_watchdog.conf
+
+* settings.py
+
+* celery.env 
+
+* guniconr.conf.py

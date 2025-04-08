@@ -10,7 +10,7 @@ Hosts
 +=========================+=======================+
 | ``Quarry.ucolick.org``  | Archive Software Host |
 +-------------------------+-----------------------+
-| ``romulus.ucolick.org`` | Archive data host     |
+| ``legion.ucolick.org``  | Archive data host     |
 +-------------------------+-----------------------+
 
 Users on Quarry
@@ -56,6 +56,8 @@ Database Users
 +----------------+------------------------------------------------------+
 | archive_ingest | Used to ingest new files into the metadata database. |
 +----------------+------------------------------------------------------+
+
+.. _installation_notes:
 
 Installation Notes
 ------------------
