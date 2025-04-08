@@ -9,12 +9,10 @@ Deployment Todo
 ---------------
 
 * Run django migrate against the archive_django db
-* Playbook for deploying a development node?
 * Document django db stuff with database, include manually resetting everything.
-* Deploy in Python packages? Debian Packages for ingest_watchdog? 
-* Delete code prior to copying, or sync via rsync?
-* Auto deploy django/metadata dbs fs the tables aren't there?
-* common_sw role deploys the entire lick_archive directory, it should 
+* Delete code prior to copying, or sync via rsync, to make sure old files are removed.
+* Auto deploy django/metadata dbs if the tables aren't there?
+* Current ``common_sw`` role deploys the entire lick_archive directory, it should 
   exclude portions installed by other roles.
 
 Code Quality
@@ -38,9 +36,9 @@ API Cleanup
 * Make date format returned by api consistent, easy to parse and document.
 * I passed in the instrument as a "filter", I don't really like that.
   I'd like the api to accept any field as a "filter", but to do that the
-  api validation couldn't use a serializer like it does now. Also there'data
-  have to be a fancy frontend to add new filter.
-* Support `IVOA TAP <https://www.ivoa.net/Documents/TAP/20190927/index.html>` api?
+  api validation couldn't use a serializer like it does now. Also there'd
+  have to be a fancy frontend to add new filters.
+* Support `IVOA TAP <https://www.ivoa.net/Documents/TAP/20190927/index.html>`_ api?
   
 Additional Features
 -------------------
@@ -55,5 +53,6 @@ Testing Todo
 Administration Todo
 -------------------
 * Monitor scripts to send e-mails when something's down
+* Monitor scripts to notice if database backups aren't working.
 * Statistics on ingest, queries, downloads
 * Change the database back ups to record enough information to re-use the existing database device.

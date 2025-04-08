@@ -1,32 +1,32 @@
 Source Code Organization
 ========================
 
-doc
----
+``doc``
+-------
 The Sphinx developer documentation.
 
-deploy
-------
+``deploy``
+----------
 The Ansible playbooks for deploying the archive. See :ref:`deployment`.
 
-lick_archive
-------------
+``lick_archive``
+----------------
 This hosts Python software for the lick archive.
 
-lick_archive/apps
------------------
+``lick_archive/apps``
+---------------------
 The lick_archive Django apps.
 
-lick_archive/authorization
---------------------------
+``lick_archive/authorization``
+------------------------------
 The code for determining proprietary access for files in the archive.
 
-lick_archive/client
--------------------
+``lick_archive/client``
+-----------------------
 Python classes that act as clients to the archive API.
 
-lick_archive/config
--------------------
+``lick_archive/config``
+-----------------------
 Classes for defining/parsing the archive's configuration file.
 
 ``frontend``
@@ -34,55 +34,55 @@ Classes for defining/parsing the archive's configuration file.
 The lick archive frontend.
 
 
-lick_archive/db
----------------
+``lick_archive/db``
+-------------------
 The code directly accessing and setting up the metadata database.
 
-lick_archive/external
----------------------
+``lick_archive/external``
+-------------------------
 Code for interacting with software external to the lick archive, namely code and utilities in KROOT and LROOT.
 
-lick_archive/job_queue
-----------------------
+``lick_archive/job_queue``
+--------------------------
 Code needed for the interfacing with celery tasks.
 
-lick_archive/lick_archive_site
-------------------------------
+``lick_archive/lick_archive_site``
+----------------------------------
 The Django project folder for the archive, in the standard Django layout.
 
-lick_archive/metadata
----------------------
+``lick_archive/metadata``
+-------------------------
 The code related to reading metadata from archive files and defining what metadata fields are available.
 
-lick_archive/utilities
-----------------------
+``lick_archive/utilities``
+--------------------------
 Various utility functions used by the archive.
 
-scripts
--------
+``scripts``
+-----------
 Command line scripts.
 
-scripts/admin_scripts
----------------------
+``scripts/admin_scripts``
+-------------------------
 Command line scripts that are installed during deployment for administrating the archive.
 
-scripts/postgres_scripts
-------------------------
+``scripts/postgres_scripts``
+----------------------------
 Command line scripts specifically for the postgres user.
 
-test
-----
+``test``
+--------
 Code for testing the archive.
 
-test/dev_test
--------------
+``test/dev_test``
+-----------------
 Tests deployed to the archive in development for testing specific things against a live system.
 
-test/ext_test
--------------
+``test/ext_test``
+-----------------
 Tests intended to be run externally from a deployed archive host to sanity check it.
 
-test/unit_test
---------------
+``test/unit_test``
+------------------
 Unit tests.
 

@@ -4,11 +4,12 @@ Deployment
 ==========
 
 The lick searchable archive is deployed using `Ansible <https://www.ansible.com/>`_. This requires
-a development/deployment machine that has ansible on it.
+a development/deployment machine that has ansible on it. This machine should be separate from the 
+host that will run the archive.
 
 Setting up a Development/Deployment Machine
--------------------------------------------
-I used conda to setup my personal machine to create a distinct python environment::
+--------------------------------------------
+Use ``conda`` or ``venv`` to setup a deployment machine to create a distinct python environment::
 
     conda create -n archive python=3.12
     conda activate archive
@@ -28,13 +29,17 @@ Then install packages needed for unit testing::
     pip install psycopg2-binary
     pip install tenacity
     pip install coverage
+    pip install passlib
 
 Packages needed for external tests (in test/ext_test)::
 
     pip install requests
 
-Packages needed for building the frontend
-    TODO
+Packages needed for building the frontend::
+
+    pip install docutils
+    sudo apt install npm 
+    npm install --save-exact --save-dev esbuild
 
 Packages needed for deploying::
 
@@ -50,7 +55,8 @@ to keep IDEs looking for imports happy::
 
     pip install Celery
 
-QoL packages:
+Quality of Life packages::
+
     pip install ipython
 
 .. _deploy-requirements:
@@ -61,9 +67,8 @@ Requirements for deploying the archive
   
       * This host must use Ubuntu 24.04 as its OS.
       * This host must have a user, with sudo access, that can ssh to the target machine without being prompted for a password.
+      * This host should have at least 8 GiB of memory.
       * The software host requires a database data partition of at least 128GiB (Which will be formatted and mounted during the deployment).
-      * KROOT and LROOT must be installed on the software host.
-
        
     * A host providing the archive data
 
@@ -71,51 +76,56 @@ Requirements for deploying the archive
         will update the archive host's ``/etc/fstab`` to mount it.
     
 
-
 Configuring the Deployment
 --------------------------
-The ansible deployment is configured using inventory files and host_vars. If needed default variables can
-also be changed. See :ref:`configuration` for detailed descriptions of these files.
 
+1. Install SSL certs
 
-Schedule Database User
-^^^^^^^^^^^^^^^^^^^^^^
-To avoid putting database password information into source code, the schedule database
-user information must be manually set in a separate text file stored in the archive configuration directory
-(typically '/opt/lick_archive/etc', but see Ansible defaults below for how to change this)::
+    The ansible installation epects SSL certs to already be installed on the archive webserver. Install the certs into /etc/ssl/certs/
+    and the private key into /etc/ssl/private/.  The actual name of the certs do not matter as long as the Ansible :ref:`host variables <host_vars>` are pointed to
+    these files.
 
-    $ cat '<user_name>:<password>' > /opt/lick_archive/etc/sched_db_user_info.txt
+    If the SSL certs do not appear to be working, it may be neccessary to open the certs file and manually reverse the order of certs within the file.
+
+2. Ansible Inventory
+
+    Create or configure an ansible inventory. This will control where the archive is deployed to and other configuration information. 
+    See :ref:`Inventory <inventory>` for more information. 
+
+3. Host Variables
+
+    Create or configure ansible host variables for deploying. This configures host specific things and user/group ids.
+    See :ref:`Host Variables <host_vars>` for more information.
+
+4. Schedule Database User
+
+    To avoid putting database password information into source code, any files with sensitive information
+    are stored in the ``deploy/data`` directory in a subdirectory named after the ansible inventory.
+    For example ``deploy/data/ops``. Currently only one file is deployed this way: ``sched_db_user_info``. This
+    file stores the login information for the schedule database used to help determine ownership of proprietary data.
+    To create this file run::
+
+        $ cat '<user_name>:<password>' > deploy/data/ops/sched_db_user_info
+
+    Replace ops with the correct inventory name.
+
+    Ansible deploys this file to ``/opt/lick_archive_etc/sched_db_user_info`` on the target host.
 
 Building the Frontend
 ---------------------
-Before deploying the archive, the frontend must be built:
+Before deploying the archive, the frontend must be built::
 
     $ cd lick_searchable_archive/frontend
-    make all
+    $ make all
 
 
 Deploying
 ---------
 Ansible is a declaritive tool: you define how the system *should* be and it tries to make that happen.
-This means it will only run changes that are needed. For example for database
-servers, if PostgreSQL is already installed, it will not re-install it.  
-Running ansible twice is safe and will just verify that everything worked. This deploy process
-is controlled by the following Ansible playbooks.
-
-``single_host_archive.yml``
-  Installs everything in a single machine configuration.
-
-``dbservers.yml``
-  Installs the PostgreSQL database software and related administrative software.
-
-``django_apps.yml``
-  Installs the Django applications and the related services they rely one. (Celery, Gunicorn, etc).
-
-``local_watchdog.yml``
-  Installs the ingest_watchdog on the same machine as the rest of the archive.
-
-``remote_watchdog.yml``
-  Installs the ingest_watchdog on a machine separate from the rest of the archive.
+This means it will only run changes that are needed. For example if PostgreSQL is already installed it will not re-install it.  
+Running ansible twice is safe and will just verify that everything worked. Only the ``single_host_archive.yml`` ansible playbook
+is needed to deploy the archive. However, this can be time consuming if only a portion of the archive needs to  be deployed. 
+To alleviate this additional playbooks are provided to install portions of the archive.
 
 
 Deploying everything to a single machine
@@ -139,78 +149,32 @@ If neccessary it is possible to specify a specific ssh key to use for this. For 
 
     ansible-playbook  single_host_archive.yml -i ops --key-file ~/work/keys/id_quarry_localdusty -u localdusty -K
 
-This is all that is needed to deploy the archive software. However there are additional playbooks that can
-be used to only deploy parts of the archive.
 
-Deploying the database
-^^^^^^^^^^^^^^^^^^^^^^
-
-To deploy only the database to a target environment use the following::
-    
-    ansible-playbook  dbservers.yml -i  your_env -u your_user -K
-
-This playbook will do the following (if needed):
-
-* Create a Python virtual environment for the archive Python software.
-* Install the common archive Python packages and setup the service user and group.
-* Install PostgreSQL
-* Make an ext4 file system for the database storage, and mount it as ``/pg_data``.
-* Setup the ``archive_db`` database cluster, ``archive`` database, and ``archive`` database user.
-* Install the automatic backup cron jobs and backup scripts.
-* Setup the NFS mount to the archive's file storage as ``/data``.
-
-Deploying the Django applications
+Deploying portions of the Archive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+During development and testing it is useful to be able to deploy only a portion of the archive. The following ansible playbooks are provided to do so.
 
-To deploy only the Django apps to a target environment, use the following::
+``admin_scripts.yml``
+Installs the admin scripts intended to be run at the command line by administrators.
 
-    ansible-playbook  django_apps.yml -i your_env -u your_user -K
+``dbservers.yml``
+  Installs the PostgreSQL database software and related administrative software. Also makes sure the database data parition is formatted and mounted.
 
-This play book will do the following (if needed):
+``django_apps.yml``
+  Installs the python code for the archive's Django applications.
 
-* Create a Python virtual environment for the archive Python software.
-* Install the common archive Python packages and setup the service user and group.
-* Install Redis
-* Celery, Gunicorn, Django and other related Python packages into the archive
-  virtual environment.
-* Setup the configuration and logging for Django, Celery and Gunicorn.
-* If on ops, create a new Django secret key file.
-* Create systemd services for Celery and Gunicorn.
-* Start the Celery and Gunicorn services.
+``django_site.yml``
+  Installs the Gunicorn proxy service used to serve django apps, along with the apps themselves and the
+  django configuration.
 
-Deploying the ingest_watchdog service
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``frontend.yml``
+  Installs the Apache webserver, the archive virtual host, and archive frontend.
 
-The ingest_watchdog service can be deployed in two configurations: local to the rest of the
-archive software or separately on the storage server hosting the lick archive file system.
+``ingest_watchdog.yml``
+  Installs the ingest_watchdog systemd service.
 
-To deploy locally with the rest of the archive services, use the following::
-
-    ansible-playbook  local_watchdog.yml -i your_env -u your_user -K
-
-This play book will do the following (if needed):
-
-* Create a Python virtual environment for the archive Python software.
-* Install the common archive Python packages and setup the service user and group.
-* Copy the ingest_watchdog script the archive's Python virtual environment.
-* Setup logging and users for the ingest_watchdog.
-* Configure the ingest_watchdog to poll the archive file system for new files.
-* Configure the ingest_watchdog to communicate with the local Django apps.
-* Create a systemd service to run the ingest_watchdog script, and start that service.
-
-To deploy the ingest_watchdog separately on the storage server, use the following::
-
-    ansible-playbook  remote_watchdog.yml -i your_env -u your_user -K
-
-This play book will do the following (if needed):
-
-* Create a Python virtual environment for the archive Python software.
-* Install the common archive Python packages and setup the service user and group.
-* Copy the ingest_watchdog script to the archive's Python virtual environment.
-* Setup logging and users for the ingest_watchdog.
-* Configure the ingest_watchdog to use the inotify Linux api to find new files.
-* Configure the ingest_watchdog to communicate with the remote Django apps.
-* Create a systemd service to run the ingest_watchdog script, and start that service.
+``webserver.yml``
+  Installs the apache webserver and the archive virtual host.
 
 Post Deployment Steps
 ---------------------
@@ -218,9 +182,19 @@ Post Deployment Steps
 Backend Host
 ^^^^^^^^^^^^^
 
+``KROOT`` and ``LROOT`` must be installed on the backend software host. See :ref:`Installation Notes <installation_notes>` for the example configuration files.
+
+For ``KROOT`` instructions see the ``HowToKroot`` documentation. For ``LROOT`` Use the following commands::
+
+    $ cd cvs/lroot
+    $ make bootstrap
+    $ cd schedule
+    $ make install
+
+
 Metadata Database
 +++++++++++++++++
-On a fresh environment, the deployment will create the archive database but will not create the schema.
+On a fresh environment, the deployment will create the ``archive`` database but will not create the schema.
 This is to allow the administrator to restore a previous database or create a new one. 
 See :ref:`Database Administration <db_admin>` for how to do this.
 
@@ -230,20 +204,29 @@ Django Database
 The Django environment will also need to be created. Use these commands to do so::
 
     $ source /opt/lick_archive/bin/activate
-    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
 
     # For new database only
-    $ ./manage.py makemigrations archive_auth
-    $ ./manage.py makemigrations ingest
+    $ manage.py makemigrations archive_auth
+    $ manage.py makemigrations ingest
 
     # For both new and updated
-    $ ./manage.py migrate
+    $ manage.py migrate
+
+User Sync
++++++++++
+Make sure the external schheduling database host will accept connections from archive database host. To do so inspect
+``/var/log/lick_archive/sync_archive_users.log``. You should see something like::
+
+    ...
+    INFO     2025-03-11 21:15:02.855 pid:16663 sync_archive_users:create_user:296 Creating user obid:1946/brsafdi@berkeley.edu
+    INFO     2025-03-11 21:15:02.855 pid:16663 sync_archive_users:create_user:296 Creating user obid:1947/rbowru@ucsc.edu
+    INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:132 Committed 212 users.
+    INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:138 Completed syncing users. Duration: 0:00:00.308459.
 
 Admin Superuser
 +++++++++++++++
 An admin superuser account should be created on a fresh installation of the archive::
 
     $ source /opt/lick_archive/bin/activate
-    $ cd /opt/lick_archive/lib/python3.10/site-packages/lick_searchable_archive
-    $ ./manage.py createsuperuser
+    $ manage.py createsuperuser
 
