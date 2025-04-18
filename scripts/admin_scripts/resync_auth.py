@@ -29,7 +29,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='Re-evaluate the authoriztion of files and re-ingest any override access files.')
 
     parser.add_argument("--id_file", type=Path, help="A file containing database ids separated by whitespace.")
-    parser.add_argument("--ids", type=str, help="A list of database ids.")
+    parser.add_argument("--ids", nargs="+", type=int, help="A list of database ids.")
     parser.add_argument("--files", type=str, help="A list of filenames.")
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all.')
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
@@ -71,7 +71,11 @@ def main(args):
             # Update the auth information in batches
             with BatchedDBOperation(db_engine, args.batch_size) as batch:
                 for file_metadata in metadata:
-                    
+                    if file_metadata is None:
+                        # One of the datasets could not be found
+                        continue
+                    else:
+                        logger.info(f"Processing metadata {file_metadata.id}")
                     # Make sure all override access files in a path have been synced before 
                     # re-running the authorization code on any files in it
                     file_path = Path(file_metadata.filename).parent
@@ -89,7 +93,6 @@ def main(args):
                         logger.error(msg, exc_info=True)
                         error_list.add_file(file_metadata.filename)
                         continue
-
                     batch.update(file_metadata.id, new_metadata, new_metadata.user_access)
 
         logger.info(f"Updated {batch.success} of {batch.total} files with {batch.total - batch.success} failures and {batch.success_retries} successful retries.")
