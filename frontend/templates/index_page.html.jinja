@@ -69,7 +69,7 @@
                     <label for="search_value_filename_1" class="search_terms_value1_label">
                         <input type="text" maxlength="256" class="search_terms_value1" id="search_value_filename_1" />
                     </label>
-                    <span class="search_terms_help">Example:<p>"2014-04/08/AO/m140409_0040.fits"</p></span>
+                    <span class="search_terms_help">Example:<p>"2015-01/06/AO/s0582.fits"</p></span>
                 </fieldset>
             </li>
             <!-- Location / Sky Coordinate search term -->
@@ -248,7 +248,7 @@
 <h2 class="header2">Search Results</h2>
 <span id="search_results_count_header">Number of results: 0</span>
 <!--The results are treated as a form whose submissions allows for downloading the selected files -->
-<form id = "search_results_form" method="POST" action="api/download">    
+<form id = "search_results_form" method="POST" action="archive/api/download">    
     <!--Hidden form controls filled out by javascript to download tarballs from the archive-->
     <input name="download_files" type="hidden"/>
     <input name="csrfmiddlewaretoken" type="hidden"/>

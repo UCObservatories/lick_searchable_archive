@@ -13,15 +13,9 @@ Any questions about the archive may be sent to sa@ucolick.org.
 Connecting to the Archive: The Archive URLs
 ===========================================
 
-When you are working at Mt. Hamilton, use the mountain server's URL to verify 
-that your data are on the archive before leaving the Observatory:
+The archive is currently hosted at the UCSC campus at:
 
-    https://mtham.ucolick.org/archive/ **TODO** *Determine actual URL*
-
-When you are at an off-mountain site, use this UCO/Lick headquarters URL to 
-retrieve your data or verify that they are on the archive:
-
-    https://mthamilton.ucolick.org/archive/ **TODO** *Determine actual URL*
+    https://archive.ucolick.org/
 
 
 For Observers

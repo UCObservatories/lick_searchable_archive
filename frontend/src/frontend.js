@@ -11,7 +11,7 @@ const errorSection = new ErrorSection()
 
 
 
-const archiveClient = new LickArchiveClient()
+const archiveClient = new LickArchiveClient(config.backendURLBase)
 const loginControls = new LoginControls(archiveClient, errorSection)
 
 function connectControls(eventType, controllingElemId, controlledElemIds, action) {
@@ -310,7 +310,7 @@ function queryParamsToString(queryParams) {
             urlSearchParams.append(key, value)
         }
     }
-    return "data/?" + urlSearchParams.toString()
+    return config.backendURLBase + "data/?" + urlSearchParams.toString()
 }
 /* Query Results section */
 const downloadSelectedButtons = document.querySelectorAll("button[id^='download_selected'")

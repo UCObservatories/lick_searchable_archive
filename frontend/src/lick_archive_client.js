@@ -2,11 +2,15 @@ export class LickArchiveClient {
     loginUser = null
     apiCSRFToken = null
     errorMessage = null
+    urlBase = null
 
+    constructor(apiURLBase) {
+        this.urlBase = apiURLBase
+    }
 
     async getLoginStatus() {
         try {
-            const response = await fetch("api/login")
+            const response = await fetch(this.urlBase + "api/login")
             if (!response.ok) {
                 this.loginUser = null
                 this.apiCSRFToken = null
@@ -45,7 +49,7 @@ export class LickArchiveClient {
             postBody.append("csrfmiddlewaretoken", this.apiCSRFToken)
             postBody.append("username", username)
             postBody.append("password", password)
-            const response = await fetch("api/login", {
+            const response = await fetch(this.urlBase + "api/login", {
                 method: "POST",
                 body: postBody
             })
@@ -83,7 +87,7 @@ export class LickArchiveClient {
             }
             const postBody = new FormData()
             postBody.append("csrfmiddlewaretoken", this.apiCSRFToken)
-            const response = await fetch("api/logout", {
+            const response = await fetch(this.urlBase + "api/logout", {
                 method: "POST",
                 body: postBody
             })
@@ -107,7 +111,7 @@ export class LickArchiveClient {
     async get_token() {
         try {
             if (this.apiCSRFToken == null) {
-                const response = await fetch("api/get_csrf_token")
+                const response = await fetch(this.urlBase + "api/get_csrf_token")
                 if (!response.ok) {
                     this.apiCSRFToken = null
                     this.errorMessage = `Received status ${response.status} from archive.`

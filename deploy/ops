@@ -3,7 +3,7 @@ archive_config=ops
 remote_watchdog=False 
 # Front end user facing connection info
 frontend_scheme="https"
-frontend_host= "quarry.ucolick.org"
+frontend_host= "archive.ucolick.org"
 
 # API access from frontend/backend
 api_scheme=http
