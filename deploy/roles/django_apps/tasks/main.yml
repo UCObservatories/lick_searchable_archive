@@ -27,5 +27,24 @@
   become: yes
   loop: "{{ archive_apps }}"
   notify: "restart web services"
-
+- name: Gather Django static files
+  ansible.builtin.command:
+    cmd: "{{ venv_root }}/bin/python {{ venv_root }}/bin/manage.py collectstatic --no-input --clear"
+  become: yes
+  become_user: "{{ archive_service_user }}"
+  notify: "restart web services"
+  when: "'archive_admin' in archive_apps"
+- name: Copy Django static files
+  ansible.builtin.copy:
+    src: "{{ venv_root }}/static/"
+    dest: "/var/www/archive_static/archive/static/"
+    remote_src: true
+    owner: "{{ archive_service_user }}"
+    group: "{{ archive_service_group }}"
+    mode: 0770
+    directory_mode: 0770
+  become: yes
+  loop: "{{ archive_apps }}"
+  notify: "restart web services"
+  when: "'archive_admin' in archive_apps"
   

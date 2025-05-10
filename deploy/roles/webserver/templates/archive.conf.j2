@@ -1,13 +1,21 @@
-{% if frontend_scheme == "https" %}
+{% if "archive_admin" in archive_apps %}
+# Serve the Admin Page on localhost:8080
+<VirtualHost localhost:8080>
+    DocumentRoot /var/www/archive_static
+    ProxyPass "/archive/admin/" "http://localhost:8000/{{ archive_url_path_prefix }}/admin/"
+    AssignUserId www-data stuff
+    ProxyPassReverse "/{{ archive_url_path_prefix }}/admin/" "http://localhost:8000/{{ archive_url_path_prefix }}/admin/"
+    ErrorLog ${APACHE_LOG_DIR}/static_error.log
+    CustomLog ${APACHE_LOG_DIR}/static_access.log combined
+</VirtualHost>
+{% endif %}
+
+# Serve the archive frontend and proxy api calls to gunicorn
 <VirtualHost *:443> 
     ServerName {{ frontend_host }}
     SSLEngine On
     SSLCertificateFile {{ ssl_cert }}
     SSLCertificateKeyFile {{ ssl_private_key }}
-{% else %}
-<VirtualHost *:80> 
-    ServerName {{ frontend_host }}
-{% endif %}
     AssignUserId {{ webserver_user }} {{ webserver_group }}
     DocumentRoot /var/www/archive
     XSendFile On

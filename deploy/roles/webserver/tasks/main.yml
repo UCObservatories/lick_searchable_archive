@@ -13,6 +13,15 @@
     dest: "/etc/apache2/apache2.conf"
   become: yes
   notify: "restart web server"
+- name: Copy Apache2 port settings
+  ansible.builtin.template:
+    mode: 0644
+    owner: root
+    group: root
+    src: templates/ports.conf.j2
+    dest: "/etc/apache2/ports.conf"
+  become: yes
+  notify: "restart web server"
 - name: Copy Archive Virtual Host settings
   ansible.builtin.template:
     mode: 0644
