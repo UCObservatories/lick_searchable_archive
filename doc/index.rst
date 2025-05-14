@@ -13,6 +13,7 @@ Welcome to Lick Observatory Searchable Archive's documentation!
    developer/architecture
    developer/configuration
    developer/deployment
+   developer/access_rules
    developer/maintenance
    developer/database
    developer/code

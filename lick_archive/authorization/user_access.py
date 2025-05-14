@@ -64,7 +64,7 @@ def set_auth_metadata(file_metadata : FileMetadata) -> FileMetadata:
             public_date, reason_str, is_public = get_public_date(file_metadata, access.observing_night, access.ownerids)
             
             access.public_date = public_date
-            access.reason.append(reason("0", reason_str))
+            access.reason.append(reason_str)
             if is_public:
                 access.visibility=Visibility.PUBLIC
 

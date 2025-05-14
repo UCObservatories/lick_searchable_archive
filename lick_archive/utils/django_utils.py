@@ -36,6 +36,7 @@ def setup_django_logging(log_file : Path | str, log_level : int | str, stdout_le
         log_settings['handlers']['django_log']['level'] = log_level
     if stdout_level is not None:
         log_settings['handlers']['stdout'] = {"class": "logging.StreamHandler"}
+        log_settings['handlers']['stdout']['level'] = stdout_level
         log_settings['loggers']['']['handlers'].append('stdout')
     configure_logging(settings.LOGGING_CONFIG, settings.LOGGING)
 

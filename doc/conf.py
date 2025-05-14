@@ -7,9 +7,9 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Lick Observatory Searchable Archive'
-copyright = '2022, D. Reichwein'
+copyright = '2022-2025, D. Reichwein'
 author = 'D. Reichwein'
-release = '0.1'
+release = '1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -24,5 +24,13 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'agogo'
 html_static_path = ['_static']
+html_theme_options = {
+    "rightsidebar": False,
+    "textalign": "left",
+    "documentwidth": "75em",
+    "pagewidth": "90em",
+    "sidebarwidth": "15em",
+}
+#TODO customize CSS to fix table column widths in ucsc_specific_config.rst?

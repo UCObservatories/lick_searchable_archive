@@ -65,10 +65,7 @@ Installation Notes
 KROOT
 ^^^^^
 
-``kroot/etc/Config.perhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
+``kroot/etc/Config.perhost/Quarry.ucolick.org``::
 
     #
     # This machine starts with the standard Lick configuration:
@@ -92,10 +89,7 @@ KROOT
     TCL_DIR_CONFIG_SH=/usr/lib
     TK_DIR_CONFIG_SH=/usr/lib
 
-``kroot/music/services/svc.byhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
+``kroot/music/services/svc.byhost/Quarry.ucolick.org``::
 
     host:Quarry.ucolick.org
     include:%D/svc.bylocale/locale-lickShared
@@ -104,10 +98,7 @@ KROOT
 LROOT
 ^^^^^
 
-``lroot/etc/Config.perhost/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
+``lroot/etc/Config.perhost/Quarry.ucolick.org``::
 
     #
     # This machine starts with the standard SPG configuration:
@@ -119,10 +110,7 @@ LROOT
     loadscript Config.byclass/locale-ucsc
 
 
-``lroot/etc/targetRules/Quarry.ucolick.org``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
+``lroot/etc/targetRules/Quarry.ucolick.org``::
 
     # Build anything:
     target : !*install => allow
