@@ -223,6 +223,8 @@ Make sure the external schheduling database host will accept connections from ar
     INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:132 Committed 212 users.
     INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:138 Completed syncing users. Duration: 0:00:00.308459.
 
+.. _admin_superuser
+
 Admin Superuser
 +++++++++++++++
 An admin superuser account should be created on a fresh installation of the archive::

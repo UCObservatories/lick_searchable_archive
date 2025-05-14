@@ -40,11 +40,6 @@ Constraints
 * Unique constraint on ``filename`` to prevent duplicates in the archive database.
 
 
-``version_history``
--------------------
-This table is intended to keep track of the version history of the database schema when updating the database.
-This may be removed if it turns out to be not useful.
-
 .. _db_admin:
 
 Administration

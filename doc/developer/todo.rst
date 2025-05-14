@@ -1,4 +1,4 @@
-Todo List
+TODO List
 =========
 Here are various to do items for the Lick Searchable Archive, in no particular order.
 See :ref:`architecture_simplification` for additional larger scale cleanup that could
@@ -14,6 +14,7 @@ Deployment Todo
 * Auto deploy django/metadata dbs if the tables aren't there?
 * Current ``common_sw`` role deploys the entire lick_archive directory, it should 
   exclude portions installed by other roles.
+* Where do the developer docs get deployed? Do they get deployed? Do we continue to use sphinx?
 
 Code Quality
 ------------
