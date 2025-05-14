@@ -21,8 +21,6 @@
     XSendFile On
     XSendFilePath /data
     RequestHeader set "X-Forwarded-Proto" expr=%{REQUEST_SCHEME} 
-    ProxyPass "/{{ archive_url_path_prefix }}/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
-    ProxyPassReverse "/{{ archive_url_path_prefix }}/users/" "http://{{ frontend_proxy_server }}:{{ frontend_proxy_port }}/{{ archive_url_path_prefix }}/users/"
     ProxyPass "/{{ archive_url_path_prefix }}/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
     ProxyPassReverse "/{{ archive_url_path_prefix }}/data" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/data"
     ProxyPass "/{{ archive_url_path_prefix }}/api" "{{ api_scheme }}://{{ api_server }}:{{ api_port }}/{{ archive_url_path_prefix }}/api"
