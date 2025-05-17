@@ -115,9 +115,6 @@ file named ``deploy/host_vars/quarry.ucolick.org`` for the ops environment::
     The user and group names that should own the archive file system NFS mount. They are assigned to ``archive_nfs_uid``
     and ``archive_nfs_gid`` respectively.
 
-    ssl_cert: /etc/ssl/certs/server_cert.pem
-    ssl_private_key: /etc/ssl/private/server_privkey.pem
-
 ``archive_service_group``, ``archive_service_uid``, ``archive_service_gid``
     The user and group to be used for running all services, django apps, and scripts used by the archive.
     This user/group combination should have read permissions to all of the archive data files and directories.
@@ -125,6 +122,9 @@ file named ``deploy/host_vars/quarry.ucolick.org`` for the ops environment::
 ``webserver_user``, ``webserver_group``
     The user and group that the apache virtual host server will run as. This user/group combination 
     should have read permissions to all of the archive data files and directories.
+
+``ssl_cert`` and ``ssl_private_key``
+    The location of the SSL certs and private key, typically under ``/etc/ssl/certs`` and ``/etc/ssl/private`` respectively.
 
 Ansible defaults
 ^^^^^^^^^^^^^^^^
@@ -194,7 +194,7 @@ Git repository to prevent changes from being overridden.
 Main Archive Configuration File
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The python scripts and django apps read their configuration from :file:`/opt/lick_archive/etc/archive_config.ini``. This
+The python scripts and django apps read their configuration from :file:`/opt/lick_archive/etc/archive_config.ini`. This
 file is generated from the :file:`deploy/roles/common_sw/templates/archive_config.ini.j2` template.
 
 Host Section
@@ -213,7 +213,7 @@ This section holds values specific to this host.
 
 ``url_path_prefix``
     The prefix to use when determining the URL for the API endpoints. This appears after the host and before
-    the rest of the path in the URL. Typically this is ``archive`` as in https://archive.ucolick.org/**archive**/data.
+    the rest of the path in the URL. Typically this is ``archive`` as in :samp:`https://archive.ucolick.org/{archive}/data`.
 
 ``api_url``
     The full URL used to reach the archive's backend API. This is not neccessarilly visible to the outside world.
@@ -352,7 +352,7 @@ most interesting for the archive are described below.
 
 Log rotation
 ^^^^^^^^^^^^
-Log rotation is configured in ``/etc/logrotate.d/lick_archive```, which is deployed from the 
+Log rotation is configured in ``/etc/logrotate.d/lick_archive``, which is deployed from the 
 :file:`deploy/roles/common_sw/templates/archive_logrotate.j2` template. See *man logrotate* for more information.
 
 Python Path
@@ -388,7 +388,7 @@ These are controlled with the following settings::
             'downloads': '1/s'
         },
 
-See the ``DRF Throttling docs <https://www.django-rest-framework.org/api-guide/throttling/>_`` for more information.
+See the `DRF Throttling docs <https://www.django-rest-framework.org/api-guide/throttling/>`_ for more information.
 
 Logging
 +++++++
@@ -402,7 +402,7 @@ The connection information for the ``archive_django`` database is set in the ``D
 
 Celery Configuration
 ^^^^^^^^^^^^^^^^^^^^
-Celery is configured in the ``/opt/lick_archive/etc/celery.env `` file, and by values starting with ``CELERY`` in the Django 
+Celery is configured in the ``/opt/lick_archive/etc/celery.env`` file, and by values starting with ``CELERY`` in the Django 
 ``/opt/lick_archive/etc/settings.py`` file.
 
 The ``celery.env`` file is used to configure the systemd service configuration for celery.It is generated from the 
@@ -410,12 +410,12 @@ The ``celery.env`` file is used to configure the systemd service configuration f
 be changed is ``CELERYD_LOG_LEVEL`` to add more debugging information by changing the level to ``DEBUG``.
 
 See `Celery configuration <https://docs.celeryq.dev/en/stable/userguide/configuration.html#configuration>`_ and
-`Celeryv Daemonization <https://docs.celeryq.dev/en/stable/userguide/daemonizing.html>`_ for more information.
+`Celery Daemonization <https://docs.celeryq.dev/en/stable/userguide/daemonizing.html>`_ for more information.
 
 Gunicorn Configuration
 ^^^^^^^^^^^^^^^^^^^^^^
 Gunicorn is configured using ``/opt/lick_archive/etc/gunicorn.conf.py``.  It is generated from the :file:`deploy/roles/django_site/templates/settings.py.j2` template. 
-See ``Gunicorn Settings <https://docs.gunicorn.org/en/latest/settings.html>``_  for more information.
+See `Gunicorn Settings <https://docs.gunicorn.org/en/latest/settings.html>`_  for more information.
 
 The following Gunicorn settings may be of interest for configuring archive performance and logging.
 

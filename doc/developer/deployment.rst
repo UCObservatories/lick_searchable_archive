@@ -81,9 +81,8 @@ Configuring the Deployment
 
 1. Install SSL certs
 
-    The ansible installation epects SSL certs to already be installed on the archive webserver. Install the certs into /etc/ssl/certs/
-    and the private key into /etc/ssl/private/.  The actual name of the certs do not matter as long as the Ansible :ref:`host variables <host_vars>` are pointed to
-    these files.
+    The ansible installation epects SSL certs to already be installed on the archive webserver. Install the certs into ``/etc/ssl/certs/``
+    and the private key into ``/etc/ssl/private/``.  The actual name of the certs do not matter as they match the Ansible :ref:`host variables <host_vars>`.
 
     If the SSL certs do not appear to be working, it may be neccessary to open the certs file and manually reverse the order of certs within the file.
 
@@ -223,7 +222,7 @@ Make sure the external schheduling database host will accept connections from ar
     INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:132 Committed 212 users.
     INFO     2025-03-11 21:15:02.910 pid:16663 sync_archive_users:main:138 Completed syncing users. Duration: 0:00:00.308459.
 
-.. _admin_superuser
+.. _admin_superuser:
 
 Admin Superuser
 +++++++++++++++

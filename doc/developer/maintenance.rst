@@ -134,6 +134,7 @@ to ingest the metadata for those files.  Files can be specified by using a date 
 a list of files, or an instrument directory name.
 
 ::
+
     # Resync files from May 23, 2019.
     $ resync_archive_files.py --date_range 2019-05-23
 
@@ -206,7 +207,7 @@ The ``update_authorized_users.py`` script can directly set the user that can acc
 should an override.access file ingested. Running ``resync_auth.py`` will also undo the results of this script. 
 
 
-Examples:
+Examples::
 
     # Make a file public
     $ update_authorized_users set public --files /data/data/2024-12/05/shane/r33.fits
@@ -221,8 +222,11 @@ Examples:
     $ update_authorized_users set unknown --files /data/data/2024-12/05/shane/r33.fits
 
 
-To check if the user sync cronjob is running correctly::
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To check if the user sync cronjob is running correctly
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
     $ cd /var/log/lick_archive/
     $ tail sync_archive_users.log 
     INFO     2025-04-07 20:27:02.757 pid:83391 sync_archive_users:main:138 Completed syncing users. Duration: 0:00:00.169757.
@@ -243,7 +247,7 @@ To check if the database backups are running correctly
 
    $ sudo ls -lrt /pg_data/backups/
 
-Make sure there is a recent backup named ``archive_db_YYYYMMDD_HHMM.dump.gz`` and ``archive_db_django_20250407_1500.dump.gz``.
+Make sure there is a recent backup named ``archive_db_YYYYMMDD_HHMM.dump.gz`` and ``archive_db_django_YYYYMMDD_HHMM.dump.gz``.
 
 Note that these database backups are intended to protect against administrator error. For disaster recover it's expected that the
 the VM is being backed up by a system like Veeam.

@@ -20,17 +20,18 @@ by multiple `Django <https://docs.djangoproject.com/en/5.1/>`_ apps using
 the `Django REST Framework <https://www.django-rest-framework.org/>`_.
 
 The backend implments query, header download, file donwload, and tarball downloads.
-See TODO for detailed API documentation.
+See :ref:`Lick Archive API <archive_api>` for detailed API documentation.
 
 The backend implements an authentication scheme using the users and password hashes from
-the scheduling software database and Django session authentication. It authorizes access to
-proprietary data using the rules in TODO.
+the scheduling software database and Django session authentication. This is used to limit 
+access to propreitary data. See :ref:`Access Rules for Propreitary Data <access_rules>`
+for more information.
 
 
 Admin Interface
 ---------------
 The archive currently supports the `Django Admin Interface <https://docs.djangoproject.com/en/5.1/ref/contrib/admin/>`_,
-however it is not available externally. Currently its use is limited because users are synced via a cronjob
+however it is not available externally and can only be accessed via ssh tunnel. Currently its use is limited because users are synced via a cronjob
 from the scheduling software's database.  It can however create/delete staff and admin users which are not 
 overwritten by the cronjob.
 

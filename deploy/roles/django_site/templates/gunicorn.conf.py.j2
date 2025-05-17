@@ -4,8 +4,7 @@ wsgi_app = "lick_archive.lick_archive_site.wsgi:application"
 # Create a pidfile
 pidfile="/var/run/gunicorn/gunicorn.pid"
 
-# Number of workers. Currently the front end runs on the same gunicorn server 
-# as the backend, so each query request requires 2 workers.
+# Number of workers.
 workers=2
 
 # Type of worker, multi threaded to help support streaming tar files
