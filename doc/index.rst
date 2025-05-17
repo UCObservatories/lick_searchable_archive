@@ -8,27 +8,27 @@ Welcome to Lick Observatory Searchable Archive's documentation!
 
 .. toctree::
    :maxdepth: 1
-   :caption: Developer Documentation
+   :caption: Maintenance Documentation
 
-   developer/architecture
-   developer/configuration
    developer/deployment
-   developer/access_rules
    developer/maintenance
+   developer/configuration
+   developer/access_rules
    developer/database
-   developer/code
    developer/ucsc_specific_config
    developer/todo
 
 .. toctree::
    :maxdepth: 1
-   :caption: API Documentation
+   :caption: Developer Documentation
 
-   api/schema
-
+   developer/architecture
+   developer/code
+   api/api.rst
+   api/schema.rst
 
 The Lick Observatory Searchable Archive is a project intended to allow easy searching and retrieval of 
-data gathered by the Observatory. It is currently under development.
+data gathered by the Observatory.
 
 Goals
 -----

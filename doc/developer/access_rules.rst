@@ -28,7 +28,7 @@ Access Rules Summary, in Order of Precedence
  *  If the proprietary period for a program has expired, its data is public.
     Some instruments' data is always public (e.g. allsky cameras).
 
- *  If the data directory contains a file "override.access", that file says
+ *  If the data directory contains a file ``override.access``, that file says
     who can access certain files.  Example: you can re-assign ownership for
     a few FITS files that were acquired as part of a target-of-opportunity.
 
@@ -68,7 +68,7 @@ Access Rules, Full Details
     the observers for a file, the access becomes "unknown".
 
 
-1.  If the data directory has a file named override.access, this will
+1.  If the data directory has a file named ``override.access``, this will
     propagate to the archive directory along with the regular data files.
     after observing is complete. If it is a directory from the past week, 
     the ``ingest_watchdog`` service should pick up the change automatically.
