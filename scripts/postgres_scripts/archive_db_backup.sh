@@ -12,7 +12,7 @@ if pg_dump  -U postgres archive --no-owner --no-comments | gzip > $metadata_file
     if [[ -s $metadata_file ]] ; then 
         if pg_dump -U postgres archive_django --no-owner --no-comments | gzip > $django_file ; then
             # Only if both succeed, run a find command to delete backups older than a week
-            if [[ -s $file ]]; then
+            if [[ -s $django_file ]]; then
                 find $bkup_dir -mtime +7 -type f -delete
             fi
         fi
