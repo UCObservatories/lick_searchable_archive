@@ -137,3 +137,16 @@ def get_hdul_from_string(string_list):
         hdul.append(_MockHDU(fits.Header.fromstring(header_string, sep='\n')))
 
     return hdul
+
+def validate_header(header_text):
+    """
+    Validate the header text from a file is valid for inserting into the database
+    
+    Returns: True if the header was valid, False if it was not if it was not valid, a
+    fixed version of the header is returned as a second return value
+    """
+
+    # Currently only a NULL (\x00) value is invalid.
+    if header_text.find('\x00') != -1:
+        return False, header_text.replace('\x00', ' ')
+    return True, None

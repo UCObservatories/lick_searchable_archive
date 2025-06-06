@@ -8,7 +8,7 @@ import logging
 from dateutil.parser import parse
 
 from lick_archive.metadata.abstract_reader import AbstractReader
-from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_name, get_shane_lamp_status, get_ra_dec
+from lick_archive.metadata.metadata_utils import safe_header, safe_strip, parse_file_name, get_shane_lamp_status, get_ra_dec, validate_header
 from lick_archive.db.archive_schema import  FileMetadata
 from lick_archive.metadata.data_dictionary import FrameType, IngestFlags, Instrument, Telescope
 
@@ -211,8 +211,9 @@ class ShaneKastReader(AbstractReader):
         # Save the header for future updates, and 
         # check for an invalid \x00 in the header string, which the DB rejects
         m.header = header.tostring(sep='\n', endcard=False, padding=False)
-        if m.header.find('\x00') != -1:
-            m.header = m.header.replace('\x00', ' ')
+        valid, fixed_header = validate_header(m.header)
+        if not valid:
+            m.header = fixed_header
             ingest_flags |= IngestFlags.INVALID_CHAR
 
         m.ingest_flags = f'{ingest_flags:032b}'            

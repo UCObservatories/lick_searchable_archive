@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import BIT
 from sqlalchemy import cast
 
 from lick_archive.metadata.abstract_reader import AbstractReader
-from lick_archive.metadata.metadata_utils import safe_header, parse_file_name, get_shane_lamp_status, get_ra_dec
+from lick_archive.metadata.metadata_utils import safe_header, parse_file_name, get_shane_lamp_status, get_ra_dec, validate_header
 from lick_archive.db.archive_schema import  FileMetadata
 from lick_archive.metadata.data_dictionary import FrameType, IngestFlags, Telescope, Instrument
 
@@ -186,6 +186,10 @@ class ShaneAO_ShARCS(AbstractReader):
         ingest_flags |= frame_flags
         m.ingest_flags = f'{ingest_flags:032b}'
         m.header = header.tostring(sep='\n', endcard=False, padding=False)
+        valid, fixed_header = validate_header(m.header)
+        if not valid:
+            m.header = fixed_header
+            ingest_flags |= IngestFlags.INVALID_CHAR
 
         return m
 
