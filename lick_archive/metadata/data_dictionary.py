@@ -60,6 +60,7 @@ class IngestFlags(enum.IntFlag):
     UNKNOWN_FORMAT      = 256      # The FITS file could not be identified (used internally, should not be inserted to DB).
     NO_COORD            = 512      # The RA/DEC in the header could be parsed, so cone searches will not match it.
     INVALID_CHAR        = 1024     # An invalid character (such as '\x00') was found in the header.
+    NO_OBSTYPE          = 2048     # There was no OBSTYPE in the header when one was expected.
 
 class Telescope(enum.Enum):
     SHANE  = "Shane"
@@ -83,7 +84,8 @@ class Instrument(enum.Enum):
     HAM120    = "Ham 120"
     HAM_CAM1  = "HamCam 1"
     HAM_CAM2  = "HamCam 2"
-    NICKEL    = "Nickel"
+    NICKEL_DIR    = "Nickel Direct"
+    NICKEL_SPEC   = "Nickel Spectrograph"
     PEAS      = "PEAS"
     PFCAM     = "PF Cam"
     SKYCAM2   = "SkyCam 2"
@@ -93,6 +95,7 @@ class Category(OrderedEnum):
     COMMON     = "Common Fields"
     SHANE_KAST = "Shane Kast Specific"
     SHARCS     = "Shane AO/ShARCS Specific"
+    NICKEL     = "Nickel Specific"
 
 # Allow for some type concepts that python's type system doesn't have but is useful for databases
 class LargeInt(int):
@@ -125,6 +128,7 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['airmass',            'Airmass',                  float,       Category.COMMON,      'Airmass of the observation.'],
                                    ['frame_type',         'Frame Type',               FrameType,   Category.COMMON,      'Type of the observation.'],
                                    ['filename',           'File Name',                str,         Category.COMMON,      'Relative filename and path within the archive filesystem.'],
+                                   ['filter1',            'Filter 1',                 str,         Category.COMMON,      'Filter wheel 1, named position'],
                                    ['program',            'Program',                  str,         Category.COMMON,      'The name of the program the observation was taken for.'],
                                    ['coversheet',         'Coversheet Id',            str,         Category.COMMON,      'The coversheet id(s) the observation was taken for.'],
                                    ['observer',           'Observers',                str,         Category.COMMON,      'The name or names of the person taking the observation.'],
@@ -138,9 +142,8 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['grism',              'Grism  (Blue only)',       str,         Category.SHANE_KAST,  'The grism used. Only applies to Kast Blue.'],
                                    ['grating_name',       'Grating Name  (Red only)', str,         Category.SHANE_KAST,  'The grating used. Only applies to Kast Red.'],
                                    ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.SHANE_KAST,  'The grating tilt used. Only applies to Kast Red.'],
-                                   ['apername',           'Aperture Position',        str,         Category.SHARCS,      'Dewar aperture wheel, named position'],
-                                   ['filter1',            'Filter 1',                 str,         Category.SHARCS,      'Dewar filter wheel 1, named position'],
-                                   ['filter2',            'Filter 2',                 str,         Category.SHARCS,      'Dewar filter wheel 2, named position'],
+                                   ['apername',           'Aperture Position',        str,         Category.SHARCS,      'Aperture wheel, named position'],
+                                   ['filter2',            'Filter 2',                 str,         Category.SHARCS,      'Filter wheel 2, named position'],
                                    ['sci_filter',         'Science Filter',           str,         Category.SHARCS,      'External (warm) science filter wheel position'],
                                    ['coadds_done',        'Number of Coadds',         int,         Category.SHARCS,      'Number of coadds.'],
                                    ['true_int_time',      'True Integration Time',    float,       Category.SHARCS,      'True integration time in seconds per coadd'],
@@ -168,4 +171,4 @@ field_units = {"obs_date":       "date",
                "mtime":          "date", 
                "true_int_time":  "seconds"}
 
-supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS]
+supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS, Instrument.NICKEL_DIR, Instrument.NICKEL_SPEC]

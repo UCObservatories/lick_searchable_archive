@@ -13,6 +13,8 @@ from astropy.io import fits
 # Importing each reader registers them as a subclass
 import lick_archive.metadata.shane_kast
 import lick_archive.metadata.shane_ao_sharcs
+import lick_archive.metadata.nickel
+
 from lick_archive.metadata import metadata_utils
 
 from lick_archive.metadata.data_dictionary import IngestFlags
@@ -49,12 +51,16 @@ def open_fits_file(file_path):
     hdul = None
     ignore_missing_end = False
     ignore_missing_simple = False
+    fix_verify = False
     while(True):
         try:
             hdul = fits.open(file_path, 
                              ignore_missing_end = ignore_missing_end, 
                              ignore_missing_simple=ignore_missing_simple)
-            hdul.verify('exception')
+            if fix_verify:
+                hdul.verify('silentfix')
+            else:
+                hdul.verify('exception')
             break
         except OSError as e:
             if len(e.args) == 1:
@@ -88,10 +94,20 @@ def open_fits_file(file_path):
                 raise
             
         except fits.verify.VerifyError:
-            ingest_flags |= IngestFlags.FITS_VERIFY_ERROR
-            break
+            if fix_verify is True:
+                logger.error(f"{file_path} failed to fix FITS verification issue.")
+                break
+            else:
+                logger.error(f"{file_path} failed FITS verification, will try to fix.")
+                ingest_flags |= IngestFlags.FITS_VERIFY_ERROR
+                fix_verify = True
+
         except Exception as e:
-            raise RuntimeError(f"Failed to open {file_path}.")
+            if fix_verify is True:
+                logger.error(f"{file_path} failed to fix FITS verification issue.")
+                break
+            else:
+                raise RuntimeError(f"Failed to open {file_path}.")
         
     return hdul, ingest_flags
 

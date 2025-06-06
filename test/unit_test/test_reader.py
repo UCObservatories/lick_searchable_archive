@@ -42,6 +42,12 @@ def test_open_fits_file():
     assert ingest_flags == IngestFlags.FITS_VERIFY_ERROR
     hdul.close()
 
+    hdul, ingest_flags = open_fits_file(test_data_dir / 'version_verify_error_2006_09_20_nickel_spec122.ccd')
+    assert hdul is not None
+    assert hdul[0].header['VERSION'] == "'nickel_spectrograph"
+    assert ingest_flags == IngestFlags.FITS_VERIFY_ERROR
+    hdul.close()
+
     with pytest.warns((AstropyUserWarning,VerifyWarning)):    
         hdul, ingest_flags = open_fits_file(test_data_dir / 'SC2_20190502185845.jpg')
         assert hdul is None
