@@ -86,9 +86,11 @@ class Instrument(enum.Enum):
     HAM_CAM2  = "HamCam 2"
     NICKEL_DIR    = "Nickel Direct"
     NICKEL_SPEC   = "Nickel Spectrograph"
+    VILLAGES = "Nickel Villages"
     PEAS      = "PEAS"
     PFCAM     = "PF Cam"
     SKYCAM2   = "SkyCam 2"
+    UNKNOWN   = "Unknown"
 
 # Constants to prevent typos in group names
 class Category(OrderedEnum):

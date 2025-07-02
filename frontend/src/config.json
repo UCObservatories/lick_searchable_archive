@@ -1,14 +1,19 @@
 {
-    "instruments":   {"KAST":      {"human_name": "Kast", "category": true, "parent": "", "children": ["KAST_BLUE", "KAST_RED"]},
-                      "KAST_BLUE": {"human_name": "Kast Blue", "category": false, "parent": "KAST"},
-                      "KAST_RED":  {"human_name": "Kast Red",  "category": false, "parent": "KAST"},
-                      "SHARCS":    {"human_name": "ShaneAO/ShARCS", "category": false, "parent":""}
+    "instruments":   {"KAST":        {"human_name": "Kast", "category": true, "parent": "", "children": ["KAST_BLUE", "KAST_RED"]},
+                      "KAST_BLUE":   {"human_name": "Kast Blue", "category": false, "parent": "KAST"},
+                      "KAST_RED":    {"human_name": "Kast Red",  "category": false, "parent": "KAST"},
+                      "SHARCS":      {"human_name": "ShaneAO/ShARCS", "category": false, "parent":""},
+                      "NICKEL":      {"human_name": "Nickel", "category": true, "parent":"", "children": ["NICKEL_DIR", "NICKEL_SPEC", "VILLAGES", "UNKNOWN"]},
+                      "NICKEL_DIR":  {"human_name": "Nickel Direct",  "category": false, "parent": "NICKEL"},
+                      "NICKEL_SPEC": {"human_name": "Nickel Spectrograph",  "category": false, "parent": "NICKEL"},
+                      "VILLAGES":    {"human_name": "Nickel Villages",  "category": false, "parent": "NICKEL"},
+                      "UNKNOWN":     {"human_name": "Nickel Other/Unknown",  "category": false, "parent": "NICKEL"}
     },
     "backendURLBase":   "archive/",
     "resultFieldOrder": ["filename", "header", "instrument", "frame_type", "obs_date", "object", "exptime", "ra", "dec"],
     "searchFields":     ["object", "obs_date", "filename", "coord"],
     "searchArgs":       {"object": 1, "obs_date": 2, "filename": 1, "coord": 3},
     "defaults":         {"page_size": 500} ,
-    "instrumentOrder":  ["KAST", "KAST_BLUE", "KAST_RED", "SHARCS"],
+    "instrumentOrder":  ["KAST", "SHARCS", "NICKEL"],
     "defaultTheme":     "light"
 }

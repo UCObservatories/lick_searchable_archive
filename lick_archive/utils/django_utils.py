@@ -20,7 +20,7 @@ def setup_django():
     import django
     django.setup()
 
-def setup_django_logging(log_file : Path | str, log_level : int | str, stdout_level=int | str | None):
+def setup_django_logging(log_file : Path | str, log_level : int | str, stdout_level: int | str | None = None):
     """Override Django logging to use a new path and loggging level.
     Intended to allow command line scripts to use Django code but
     log to a different location than Django web apps."""

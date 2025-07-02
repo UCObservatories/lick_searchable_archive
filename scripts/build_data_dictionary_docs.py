@@ -20,9 +20,9 @@ def get_parser():
 def main(args):
     with open(args.output, "w") as outfile:
         for cat in Category:
-            write_subheader(outfile, cat.value)
             cat_fields = data_dictionary['category']==cat
             if len(data_dictionary[cat_fields]) > 0:
+                write_subheader(outfile, cat.value)
                 write_fields(outfile, data_dictionary[cat_fields])
 
 
