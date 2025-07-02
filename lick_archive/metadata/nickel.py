@@ -135,16 +135,22 @@ class NickelReader(AbstractReader):
             instr = safe_header(hdul[0].header,'INSTRUME')
 
         # Look for nickel direct or nickel spectrograph
-        if instr is not None and "nickel" in instr.lower():
-            if "direct" in instr.lower():
-                m.instrument = Instrument.NICKEL_DIR
-            elif "spectrograph" in instr.lower():
-                m.instrument = Instrument.NICKEL_SPEC
+        if instr is not None:
+            if "nickel" in instr.lower():
+                if "direct" in instr.lower():
+                    m.instrument = Instrument.NICKEL_DIR
+                elif "spectrograph" in instr.lower():
+                    m.instrument = Instrument.NICKEL_SPEC
+                else:
+                    logger.warning(f"Unrecognized instrument for Nickel telescope. Found: '{instr}'.")    
+            elif "villages" in instr.lower():
+                m.instrument = Instrument.VILLAGES
             else:
-                raise ValueError(f"Unrecognized instrument for Nickel telescope. Found: '{instr}'.")
+                logger.warning(f"Unrecognized instrument for Nickel telescope. Found: '{instr}'.")
 
         if m.instrument is None:
-            raise ValueError(f"Unknown instrument for Nickel telescope.")
+            logger.warning(f"Unknown instrument for Nickel telescope.")
+            m.instrument = Instrument.UNKNOWN
 
         # Older files use "DATE-OBS", newer ones 'DATE' or 'DATE-BEG'
         obs_date = safe_header(header, 'DATE-OBS')
@@ -153,15 +159,19 @@ class NickelReader(AbstractReader):
             if obs_date is None:
                 obs_date = safe_header(header,'DATE-BEG')
 
-        if obs_date is None:
+        if obs_date is not None:
+            try:
+                # Parse the observation date as an iso date, adding +00:00 to make it UTC
+                m.obs_date = parse(obs_date + "+00:00")
+            except Exception as e:
+                logger.warning(f"Failed to parse observation date {obs_date + '00:00'}")
+
+        if m.obs_date is None:
             logger.debug(f"Used file path for date for file {file_path}.")
             filename_date, instr = parse_file_name(file_path)
             # Use noon Lick time (aka UTC-8)
             m.obs_date = parse(f"{filename_date}T12:00:00-08:00")
             ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE               
-        else:
-            # Parse the observation date as an iso date, adding +00:00 to make it UTC
-            m.obs_date = parse(obs_date + "+00:00")
 
         m.exptime           = safe_header(header, 'EXPTIME')
 
@@ -183,13 +193,19 @@ class NickelReader(AbstractReader):
         # but I worry the mapping of FILTORD to filters may change in the future.
         # So I strip any extra spaces, single quotes, and convert to upper case
         filter_name = safe_strip(safe_header(header, 'FILTNAM'))
-        filter_name.strip("'")
-        m.filter1 = filter_name.upper()
+        if filter_name is not None:
+            filter_name.strip("'")
+            m.filter1 = filter_name.upper()
 
         m.filter2 = None
         m.sci_filter = None
         m.program = safe_strip(safe_header(header,'PROGRAM'))
-        m.observer = safe_strip(safe_header(header,'OBSERVER'))
+
+        # Some observer strings have newlines in them
+        observer = safe_strip(safe_header(header,'OBSERVER'))
+        if observer is not None and not observer.isprintable():
+            observer = [c if c.isprintable() else " " for c in observer]
+        m.observer = observer
 
 
         m.filename = str(file_path)

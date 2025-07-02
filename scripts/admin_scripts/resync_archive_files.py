@@ -47,6 +47,7 @@ def get_parser():
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest, or "all" for everything. Examples: "2010-01-04", "2010-01-01:2011-12-31".')
     parser.add_argument("--dry_run", default = False, action="store_true", help="Run a dry run that does not do any updates but instead only logs what would have been updated.")
     parser.add_argument("--files", type=Path, nargs="+", help="Files to resync.")
+    parser.add_argument("--failure_file", type=Path, help="A failure file from a previous run of resync_archive_files.py")
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
     parser.add_argument("--force", default=False, action="store_true", help= "Force updates to always update existing files even if there's no change in the file size or mtime.")
     parser.add_argument("--archive_root", type=Path, help = 'Top level directory of the archived Lick data. If not given the value in the archive config file is used.')  
@@ -65,7 +66,9 @@ def main(args):
         logfile=get_log_path("resync_archive_files", args.log_path)
         setup_django_logging(logfile,args.log_level,stdout_level="INFO")
 
-        error_file = get_unique_file (Path("."), "resync_failures", "txt")
+
+        error_filename = "resync_failures" if args.failure_file is None else "retry_failures"
+        error_file = get_unique_file (Path("."), error_filename, "txt")
         error_list=ErrorList(error_file)
 
         # Setup database connection
@@ -91,6 +94,29 @@ def main(args):
 
                 logger.info(f"Resyncing : {len(args.files)} files")                
                 resync_files(args, db_batch, error_list, args.files)
+            elif args.failure_file is not None:
+                # Retrying previous failures
+                files_to_retry  = []
+                with open(args.failure_file, "r") as failures:
+                    for line in failures:
+                        if '|' in line:
+                            parts = line.split('|')
+                            file = Path(parts[0])
+                            sync_type = SyncType(parts[1])
+                            if not file.is_file():
+                                error_list.add_file(file, sync_type, "File does not exist or cannot be accessed.")
+                                continue
+
+                            files_to_retry.append(file)
+                        else:
+                            continue
+
+                if len(files_to_retry) == 0:
+                    logger.info("No files to retry")
+                    return 0
+                else:
+                    logger.info(f"Retrying {len(files_to_retry)} files")
+                resync_files(args, db_batch, error_list, files_to_retry)
             else:
                 logger.error("Must specify one of --date_range or --files.")
                 return 1

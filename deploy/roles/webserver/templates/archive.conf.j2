@@ -3,7 +3,7 @@
 <VirtualHost localhost:8080>
     DocumentRoot /var/www/archive_static
     ProxyPass "/archive/admin/" "http://localhost:8000/{{ archive_url_path_prefix }}/admin/"
-    AssignUserId www-data stuff
+    AssignUserId {{ webserver_user }} {{ webserver_group }}
     ProxyPassReverse "/{{ archive_url_path_prefix }}/admin/" "http://localhost:8000/{{ archive_url_path_prefix }}/admin/"
     ErrorLog ${APACHE_LOG_DIR}/static_error.log
     CustomLog ${APACHE_LOG_DIR}/static_access.log combined

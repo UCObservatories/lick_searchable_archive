@@ -115,16 +115,6 @@
     <fieldset id="instrument" class="search_form_instr">
         <legend class="header2">Instruments</legend>
         <ul id="instrument_list" class="search_instr_check">
-            <li>
-                <label for="instrument_0" ><input type="checkbox" name="instruments" value="KAST" class="search_instr_check" id="instrument_0" checked />Kast</label>
-                <ul id= "instrument_0_list" class="search_instr_list">
-                    <li><label for="instrument_1" ><input type="checkbox" name="instruments" value="KAST_BLUE" class="search_instr_check" id="instrument_1" checked />Kast Blue</label></li>
-                    <li><label for="instrument_2" ><input type="checkbox" name="instruments" value="KAST_RED" class="search_instr_check" id="instrument_2" checked />Kast Red</label></li>
-                </ul>
-            </li>
-            <li>
-                <label for="instrument_3" ><input type="checkbox" name="instruments" value="SHARCS" class="search_instr_check" id="instrument_3" checked>ShaneAO/ShARCS</label>
-            </li>
         </ul>
         <button id="instrument_all" type="button">Select All</button>
         <button id="instrument_none" type="button">Deselect All</button>
@@ -199,6 +189,7 @@
                         <input id="id_instrument_result"  class="search_option_result" type="checkbox" value="instrument" checked><label for="id_instrument_result" >Instrument</label>
                         <input id="id_obs_date_result"    class="search_option_result" type="checkbox" value="obs_date"   checked><label for="id_obs_date_result"   >Observation Date</label>
                         <input id="id_exptime_result"     class="search_option_result" type="checkbox" value="exptime"    checked><label for="id_exptime_result"    >Exposure Time</label>
+                        <input id="id_filter1_result"     class="search_option_result" type="checkbox" value="filter1"           ><label for="id_filter1_result"    >Filter 1</label>
                         <input id="id_ra_result"          class="search_option_result" type="checkbox" value="ra"         checked><label for="id_ra_result"         >Right Ascension</label>
                         <input id="id_dec_result"         class="search_option_result" type="checkbox" value="dec"        checked><label for="id_dec_result"        >Declination</label>
                         <input id="id_object_result"      class="search_option_result" type="checkbox" value="object"     checked><label for="id_object_result"     >Object</label>
@@ -217,7 +208,6 @@
                             Shane AO/ShARCS Specific
                         </label>
                         <input id="id_apername_result"      class="search_option_result" type="checkbox" value="apername"     ><label for="id_apername_result"     >Aperture Position</label>
-                        <input id="id_filter1_result"       class="search_option_result" type="checkbox" value="filter1"      ><label for="id_filter1_result"      >Filter 1</label>
                         <input id="id_filter2_result"       class="search_option_result" type="checkbox" value="filter2"      ><label for="id_filter2_result"      >Filter 2</label>
                         <input id="id_sci_filter_result"    class="search_option_result" type="checkbox" value="sci_filter"   ><label for="id_sci_filter_result"   >Science Filter</label>
                         <input id="id_coadds_done_result"   class="search_option_result" type="checkbox" value="coadds_done"  ><label for="id_coadds_done_result"  >Number of Coadds</label>

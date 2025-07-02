@@ -54,7 +54,7 @@
     mode: 0664
   become: yes
   with_fileglob:
-    - "{{ archive_source_dir }}/frontend/build/scripts/*"
+    - "{{ archive_source_dir }}/frontend/build/scripts/*.js"
   notify: "restart web server"
 - name: "Create frontend HTML from build"
   ansible.builtin.copy:

@@ -65,43 +65,85 @@ connectControls("click", "id_count_1", ["search_option_fields"], (controller, co
 // Connect the second observation date control so that it is hidden when the operator isn't "in"
 connectControls("change", "search_operator_obs_date", ["search_value_obs_date_2"], (controller, controlled) => controlled.hidden=(controller.value!='in'))
 
-// Connect the Select ALl/Deselect All to the instrument checkboxes for the Instruments section of the query form
-connectControls("click", "instrument_none", "input[id^='instrument_']", (controller, controlled) => controlled.checked=false)
-// Weird side effect of the way I did this, connectControls will initialize the controller on DOMContentLoaded, so the "true"
-// option must be last to get the checkboxes to default to checked.
-connectControls("click", "instrument_all",  "input[id^='instrument_']", (controller, controlled) => controlled.checked=true)
-
-
 
 // Deal with the instrument checkbox heirarchy e.g "Kast Blue" and "Kast Red being"
 // grouped under "Kast"
-document.addEventListener("DOMContentLoaded", setupInstruments)
+document.addEventListener("DOMContentLoaded", buildInstruments)
 
+function buildInstruments(event) {
 
-function setupInstruments(event) {
-    for (let i=0; i< config.instrumentOrder.length; i++) {
-        const instrKey = config.instrumentOrder[i]
-        if (config.instruments[instrKey].category) {
-            // Listen for the category check box being clicked, and select/desect the child boxes accordingly
-            const categoryCheck = document.getElementById(`instrument_${i}`)
-            categoryCheck.addEventListener("click", selectInstrumentCategory)
-        }
-        else if (config.instruments[instrKey].parent != "") {
-            // Listen to the child checkboxes being clicked and select/deslect the category checkbox depending
-            // on whether all the children are checked
-            const childCheck = document.getElementById(`instrument_${i}`)
-            childCheck.addEventListener("click", selectInstrumentChild)
-        }
-        /* Non child/non-parent checkboxes don't need a listener */
+    const instrumentList = document.getElementById("instrument_list")
+    for (const instrKey of config.instrumentOrder) {
+        // Add each top level instrument. Child instruments are added recursively
+        addInstrument(instrumentList, instrKey)
     }
+
+    // Connect the Select ALl/Deselect All to the instrument checkboxes for the Instruments section of the query form
+    connectControls("click", "instrument_none", "input[id^='instrument_']", (controller, controlled) => controlled.checked=false)
+
+    // Weird side effect of the way I did this, connectControls will initialize the controller on DOMContentLoaded, so the "true"
+    // option must be last to get the checkboxes to default to checked.
+    connectControls("click", "instrument_all",  "input[id^='instrument_']", (controller, controlled) => controlled.checked=true)
+
+
+
+}
+
+function addInstrument(parent, instrKey) {
+
+    let instrConfig = config.instruments[instrKey]
+    let listItem = document.createElement("li")
+    let instrNode = listItem.appendChild(createInstrumentNode("instruments", instrKey))
+
+    if (instrConfig.category) {
+        // Listen for the category check box being clicked, and select/desect the child boxes accordingly
+        instrNode.firstChild.addEventListener("click", selectInstrumentCategory)
+
+        // Create a list for child items
+        let childList = document.createElement("ul")
+        childList.id = `instr_${instrKey.toLowerCase()}_list`
+        childList.className = "search_instr_list"
+        listItem.append(childList)
+
+        // Add children
+        for (const childKey of instrConfig.children) {
+            addInstrument(childList, childKey)          
+        }
+    }
+    if (instrConfig.parent != "") {
+        // Listen to the child checkboxes being clicked and select/deslect the category checkbox depending
+        // on whether all the children are checked
+        instrNode.firstChild.addEventListener("click", selectInstrumentChild)
+    }
+    parent.append(listItem)
+
+}
+
+function createInstrumentNode(name, instrKey){
+    
+    // Determine the id for this control
+    let checkBoxId = `instrument_${instrKey.toLowerCase()}`
+
+    // Start with a label
+    const instrConfig = config.instruments[instrKey]
+    let label = document.createElement("label")
+    label.htmlFor = checkBoxId
+    let checkbox = label.appendChild(document.createElement("input"))
+    checkbox.id = checkBoxId
+    checkbox.type="checkbox"
+    checkbox.name = name
+    checkbox.value = instrKey
+    checkbox.className = "search_instr_check"
+    checkbox.checked = true
+    label.append(instrConfig.human_name)
+    return label
 }
 
 /* Called when selecting a "parent" instrument check boxes, it will check/uncheck all its children */
 function selectInstrumentCategory(event) {
     
     for (const childKey of config.instruments[event.target.value].children) {
-        const childIndex = config.instrumentOrder.indexOf(childKey)
-        const childCheck = document.getElementById(`instrument_${childIndex}`)
+        const childCheck = document.getElementById(`instrument_${childKey.toLowerCase()}`)
         childCheck.checked = event.target.checked
     }
 }
@@ -109,17 +151,16 @@ function selectInstrumentCategory(event) {
 /* Called when selecting a instrument that's a "child" of another instrument checkbox. It will check/uncheck its parent
 based on the state of the sibling checkboxes */
 function selectInstrumentChild(event) {
-    const siblings = config.instruments[config.instruments[event.target.value].parent].children
+    const parentKey = config.instruments[event.target.value].parent
+    const siblings = config.instruments[parentKey].children
     let checkedSiblings = 0
     for (const siblingKey of siblings) {
-        const siblingIndex = config.instrumentOrder.indexOf(siblingKey)
-        const siblingCheck = document.getElementById(`instrument_${siblingIndex}`)
+        const siblingCheck = document.getElementById(`instrument_${siblingKey.toLowerCase()}`)
         if (siblingCheck.checked) {
             checkedSiblings++
         }
     }
-    const parentIndex = config.instrumentOrder.indexOf(config.instruments[event.target.value].parent)
-    const parentCheck = document.getElementById(`instrument_${parentIndex}`)
+    const parentCheck = document.getElementById(`instrument_${parentKey.toLowerCase()}`)
     if (checkedSiblings == siblings.length) {
         parentCheck.checked = true
     }
