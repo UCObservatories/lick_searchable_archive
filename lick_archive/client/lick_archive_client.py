@@ -1,15 +1,142 @@
+"""
+This is an example Python client wrapping the Lick Archive's API.
+
+Requirements:
+-------------
+Reqires the tenacity and requests packages from PyPi.
+
+astropy is also required to query by coordinates.
+
+Examples:
+---------
+Query by date:
+
+    >>> import datetime
+    >>> from lick_archive_client import LickArchiveClient
+
+    >>> client = LickArchiveClient("https://archive.ucolick.org/archive")
+
+    >>> client.query("obs_date", datetime.date(2019, 5, 24), page=1, page_size=5)
+    (80,
+    [{'filename': '2019-05/23/shane/r7.fits', 'id': 108742},
+    {'filename': '2019-05/23/shane/b37.fits', 'id': 108743},
+    {'filename': '2019-05/23/shane/b8.fits', 'id': 108744},
+    {'filename': '2019-05/23/shane/r34.fits', 'id': 108745},
+    {'filename': '2019-05/23/shane/r19.fits', 'id': 108746}],
+    None,
+    'https://archive.ucolick.org/archive/data/?obs_date=eq%2C2019-05-24&page=2&page_size=5&results=filename')
+
+Note that the dates above appear to be from 2019-05-23. That's because the query parameters are assumed to be UTC.
+The observation dates in the archive are stored from Noon to Noon PST to represent an observing night.
+
+Also the above query has 80 results, only the first 5 were retrieved because of the passed in page_size. To
+retrieve additional pages, increment the "page" argument to the query method.  The items in the results returned are:
+
+    Number of Results (80 in the above example)
+    A list of JSON objects representing each result. The integer 'id' of each file is always returned, in addition to requested resutls.
+    A link to the previous page of results (None above as this was the first page)
+    A link to the next page of results.
+
+
+Query by date time range (including timezone):
+
+    The below uses a full date range to query for files on the night of May 23-24 2019. It also requests the "object" field.
+
+    >>> PST = datetime.timezone(datetime.timedelta(hours=-8))
+    >>> client.query("obs_date", (datetime.datetime(2019, 5, 23, 12, 0, 0, tzinfo=PST),datetime.datetime(2019, 5, 24, 12, 0, 0, tzinfo=PST)), results=["filename", "object"], page=1, page_size=5)
+    (68,
+    [{'filename': '2019-05/23/shane/r7.fits', 'object': 'bias', 'id': 108742},
+    {'filename': '2019-05/23/shane/b37.fits', 'object': 'HeHgCdArNe','id': 108743},
+    {'filename': '2019-05/23/shane/b8.fits', 'object': 'bias', 'id': 108744},
+    {'filename': '2019-05/23/shane/r34.fits', 'object': 'BD+28 4211', 'id': 108745},
+    {'filename': '2019-05/23/shane/r19.fits', 'object': 'flat', 'id': 108746}],
+    None,
+    'https://archive.ucolick.org/archive/data/?obs_date=in%2C2019-05-23T12%3A00%3A00-08%3A00%2C2019-05-24T12%3A00%3A00-08%3A00&page=2&page_size=5&results=filename%2Cobject')
+
+Query by filename:
+    The below queries by the prefix of the filename:
+
+    >>> client.query("filename", "2019-05/23/shane", prefix=True, results=["filename","obs_date"],page=1,page_size=5)
+    (68,
+    [{'filename': '2019-05/23/shane/r7.fits',
+    'obs_date': '2019-05-23T18:20:57.980000-07:00',
+    'id': 108742},
+    {'filename': '2019-05/23/shane/b37.fits',
+    'obs_date': '2019-05-24T05:14:37.630000-07:00',
+    'id': 108743},
+    {'filename': '2019-05/23/shane/b8.fits',
+    'obs_date': '2019-05-23T18:20:47.630000-07:00',
+    'id': 108744},
+    {'filename': '2019-05/23/shane/r34.fits',
+    'obs_date': '2019-05-24T05:01:05.900000-07:00',
+    'id': 108745},
+    {'filename': '2019-05/23/shane/r19.fits',
+    'obs_date': '2019-05-23T18:41:45.050000-07:00',
+    'id': 108746}],
+    None,
+    'https://archive.ucolick.org/archive/data/?filename=sw%2C2019-05%2F23%2Fshane&page=2&page_size=5&results=filename%2Cobs_date')
+
+Query by Object:
+
+    The below queries by object, using a case insensitive search for any object values that contain the search value.
+
+    >>> client.query("object", "Feige110", match_case=False, contains=True, results=["filename", "object"], page=1, page_size=5)
+    (901,
+    [{'filename': '2022-07/20/shane/r102.fits', 'object': 'feige110', 'id': 289},
+    {'filename': '2022-07/20/shane/b33.fits', 'object': 'feige110', 'id': 293},
+    {'filename': '2022-07/05/shane/b23.fits', 'object': 'feige110', 'id': 876},
+    {'filename': '2022-07/05/shane/r84.fits', 'object': 'feige110', 'id': 968},
+    {'filename': '2022-07/07/shane/b1079.fits', 'object': 'Feige110', 'id': 1065}],
+    None,
+    'https://archive.ucolick.org/archive/data/?object=cni%2CFeige110&page=2&page_size=5&results=filename%2Cobject')
+
+Query by Coordinate:
+
+    The below queries by coordinate, using astropy Angles to represent the coordinate.  It also filters on an instrument (the only filter currently allowed).
+    
+    from astropy.coordinates import Angle
+
+    >>> coord = {"ra":  Angle("23h19m58.4s"),
+    ...          "dec": Angle("-5d09m56.171s"),
+    ...          "radius": Angle("60s")}
+
+    >>> client.query("coord", coord, results=["filename","object","obs_date"], filters={"instrument": "KAST_BLUE,KAST_RED"},page=1, page_size=5)
+    (881,
+    [{'filename': '2022-07/20/shane/b33.fits',
+    'object': 'feige110',
+    'obs_date': '2022-07-21T05:00:07.080000-07:00',
+    'id': 293},
+    {'filename': '2022-07/05/shane/b23.fits',
+    'object': 'feige110',
+    'obs_date': '2022-07-06T04:57:06.670000-07:00',
+    'id': 876},
+    {'filename': '2022-07/07/shane/b1079.fits',
+    'object': 'Feige110',
+    'obs_date': '2022-07-08T04:50:24.300000-07:00',
+    'id': 1065},
+    {'filename': '2022-06/29/shane/b27.fits',
+    'object': 'feige110',
+    'obs_date': '2022-06-30T04:38:47.360000-07:00',
+    'id': 7253},
+    {'filename': '2022-06/02/shane/b28.fits',
+    'object': 'feige110',
+    'obs_date': '2022-06-03T04:45:37.050000-07:00',
+    'id': 7503}],
+    None,
+    'https://archive.ucolick.org/archive/data/?coord=in%2C349.993%2C-5.1656%2C60&filters=instrument%2CKAST_BLUE%2CKAST_RED&page=2&page_size=5&results=filename%2Cobject%2Cobs_date')
+
+
+"""
 import logging
 from datetime import datetime, date
 import os
 import requests
+from collections.abc import Mapping
 
 from tenacity import Retrying, stop_after_delay, wait_exponential
 
 logger = logging.getLogger(__name__)
 
-from astropy.coordinates import Angle
-
-from lick_archive.db import archive_schema
 
 class LickArchiveClient:
     """Client for the Lick Searchable Archive's REST API
@@ -21,12 +148,10 @@ class LickArchiveClient:
     retry_max_time (int):              The maximum time to spend retrying a call.
     request_timeout (int):             The maximum time to wait for an API call to return before
                                        timing out and assuming it failed.
-    request (django.http.HTTPRequest,Optional): Django request that initiated this call. Used to find login information when talking
-                                       to the archive.
-    ssl_verify (str, Optional):         Path to a public key or CA bundle for SSL vberification.
+    ssl_verify (str, Optional):        Path to a public key or CA bundle for SSL certificate vberification.
     
     """
-    def __init__(self, archive_url, retry_max_delay, retry_max_time, request_timeout, request=None, ssl_verify=None):
+    def __init__(self, archive_url, retry_max_delay=10, retry_max_time=60, request_timeout=30, ssl_verify=True):
     
         # The ingest URLs should have a / on it so that other path components can be appended
         if archive_url[-1] == '/':
@@ -41,27 +166,6 @@ class LickArchiveClient:
         self._csrf_middleware_token = None
         self.logged_in_user = None
         self._session = requests.Session()
-
-        if request is not None:
-            # Transfer any persisted login information in a remote frontend scenario
-            if hasattr(request, "session") and "login_session" in request.session:
-                login_session = request.session["login_session"]
-
-                if login_session is not None:
-                    try:
-                        self._csrf_middleware_token = login_session['csrfmiddlewaretoken']
-                        self.logged_in_user = login_session['username']
-                        for cookie_name,cookie_value in login_session['cookies'].items():
-                            self._session.cookies[cookie_name] = cookie_value
-                    except Exception as e:
-                        self._csrf_middleware_token = None
-                        self.logged_in_user = None
-                        self._session = requests.Session()
-                        logger.error(f"Failed to read login information from session, using a new session.",exc_info=True)                    
-            # In a local frontend scenarion, use the cookies in our request
-            else:
-                for cookie_name, cookie_value in request.COOKIES.items():
-                    self._session.cookies[cookie_name] = cookie_value
     
     def login(self, username,password):
         """
@@ -76,86 +180,11 @@ class LickArchiveClient:
 
         """
 
-        logger.debug(f"Logging in as {username}")
-        try:
-
-            # Get a new csrf token and cookie
-            if not self.get_login_status():
-                return False
-
-            # Check if we're already logged in
-            if self.logged_in_user is not None:
-                if self.logged_in_user == username:
-                    logger.debug(f"Already logged in.")
-                    return True
-                else:
-                    previous_username = self.logged_in_user
-                    logger.debug(f"Logging out old user {previous_username} before submitting a new login")
-                    if not self.logout():
-                        logger.error(f"Could not log out previous user {previous_username}, aborting login.")
-                        return False
-            
-            logger.debug(f"Authenticating {username} with archive API")
-
-            post_data = {"username": username, "password":password, "csrfmiddlewaretoken": self._csrf_middleware_token}
-            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-            result = retryer(self._session.post, self.archive_url + "api/login", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
-
-            if result.status_code == 200:
-                response = result.json()
-                # Success, verify the response is true and matches our user
-                if response["logged_in"] is True and response["user"] == username:
-                    # Success
-                    self.logged_in_user = response["user"]
-                    logger.debug(f"Archive API Authentication succeeded")
-                else:
-                    self.logged_in_user = None
-                    logger.debug(f"Archive API Authentication failed")                    
-                # Always save the csrf token for the next call
-                self._csrf_middleware_token = response["csrfmiddlewaretoken"]
-                return response["logged_in"] 
-            else:
-                logger.error(f"Failed to login {username}, Archive API returned status code: {result.status_code}")
-                return False
-        except Exception as e:
-            logger.error(f"Failed to login {username}, received exception.", exc_info=True)
-            return False
-
-        return False
+        raise NotImplementedError()
 
 
     def logout(self):
-        try:
-            # Update login info/csrf tokens if needed
-            if self._csrf_middleware_token is None or self.logged_in_user is None:
-                logger.debug("No login information, asking backend for current log status")
-                if not self.get_login_status(self):
-                    # Failed to get login status
-                    return False
-
-            if self.logged_in_user is None:
-                logger.debug("Already logged out")
-                return True
-
-            # Logout using the csrf token
-            logger.debug("Logging out.")
-            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-            post_data = {"csrfmiddlewaretoken": self._csrf_middleware_token}
-            result = retryer(self._session.post, self.archive_url + "api/logout", data=post_data, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
-            if result.status_code >= 200 and result.status_code < 300:
-                logger.debug("Successfully logged out")
-                return True
-            else:
-                logger.error(f"Failed to logout, status code {result.status_code}")
-                return False
-        except Exception as e:
-            logger.error("Caught exception logging out.", exc_info=True)
-            return False
-        finally:
-            # If we succeeded we're logging out, so clear the currently logged in user
-            # If we failed the login state is unknown, so we treat it as logged out
-            self.logged_in_user = None
-        return False
+        raise NotImplementedError()
 
     def get_login_status(self):
         """Determine the login status of the current session. If successful the 
@@ -165,53 +194,19 @@ class LickArchiveClient:
         Return:
             bool: True if successfull getting the login status. False if there was a failure
         """
-
-        logger.debug(f"Getting CSRF token and login status")
-        try:
-            retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-            result = retryer(self._session.get, self.archive_url + "api/login", verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
-
-            if result.status_code == 200:
-                response = result.json()
-                if response["logged_in"]:
-                    self.logged_in_user = response["user"]
-                    logger.debug(f"Archive API returned that this session is logged in as {self.logged_in_user}")
-                else:
-                    self.logged_in_user = None
-                    logger.debug(f"Archive API returned that this session is not logged in.")
-
-                self._csrf_middleware_token = response["csrfmiddlewaretoken"]
-                return True
-            else:
-                logger.error(f"Failed to get login status from backend, status: {result.status_code}")
-                self._csrf_middleware_token = None
-                self.logged_in_user = None
-    
-        except Exception as e:
-            logger.error(f"Exception trying to get login status from backend.",exc_info=True)
-            self._csrf_middleware_token = None
-            self.logged_in_user = None
-
-        return False
-
-    def persist(self, session):
-        persist_data = {"username": self.logged_in_user,
-                        "csrfmiddlewaretoken": self._csrf_middleware_token,
-                        "cookies": {key: value for key, value in self._session.cookies.items()}}
-        
-        session["login_session"] = persist_data
+        raise NotImplementedError()
 
     def query(self, field, value, filters={}, contains=False, match_case=None, prefix=False, count=False, results=["filename"], sort=None, page=1, page_size=50):
         """
         Find the files in the archive that match a query.
 
         Args:
-            field (str): The field to query on. "filename", "object", "coord", "date", and "datetime" are the only accepted fields currently.
+            field (str): The field to query on. "filename", "object", "coord", and "obs_date" are the only accepted fields currently.
             value (Any): The value being queried on. This depends on the field being queried:
-                         "filename", "object": A string 
-                         "coord": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values.
-                         "date": A datetime.date object or a sequence of two datetime.date objects. One date is for an exact match and two for the start and end of a date range.
-                         "datetime": A datetime.datetime object or a sequence of two datetime.datetime objects. One date is for an exact match and two for the start and end of a date range.
+                         "filename", The path and name to a file. For Example: "2019-05/23/shane/b23.fits".
+                         "object": A string with the name of the object being observed, as set in the FITS "OBJECT" header keyword.
+                         "coord": A dict with keys "ra", "dec", and "radius" with astropy.coordinates.Angle objects as values. A sequence of these three values is also accepted.
+                         "obs_date": A datetime.date, a datetime.datetime, or a sequence of two date/datetime objects. One date is for an exact match and two for the start and end of a date range.
             filters (dict): Additional filters to apply to the query. The key is the name of the field to filter on, the value is one or more values to query for.
             contains (bool): Whether a string query should query for a substring or an exact match. Defaults to False. Has no effect for date queries.
             match_case (bool): Whether a string query should be case sensitive. Only applicable to object searches.
@@ -248,13 +243,28 @@ class LickArchiveClient:
 
         elif field=="coord":            
             # ra, dec, and radius, all are converted to decimal degrees
-            if isinstance(value, list) or isinstance(value, tuple):
+            if isinstance(value, Mapping):
+                if "ra" not in value:
+                    raise ValueError('Invalid coord value, no "ra" key.')
+                if "dec" not in value:
+                    raise ValueError('Invalid coord value, no "dec" key.')
+                if "radius" not in value:
+                    raise ValueError('Invalid coord value, no "radius" key.')
+
+                ra=value["ra"]
+                dec=value["dec"]
+                radius=value["radius"]
+
+            elif isinstance(value, list) or isinstance(value, tuple):
                 if len(value) !=3:
                     raise ValueError("Invalid coord value. coord should be a list of ra,dec,radius")
                 
-                value = ",".join([str(x) for x in value])
+                ra,dec,radius = value
+
             else:
-                raise ValueError("Invalid coord value, coord should be list of ra,dec,radius")
+                raise ValueError("Invalid coord value, coord should be list or dict of ra,dec,radius Astropy Angle objects")
+            value = f'{ra.to_string(unit="deg",decimal=True)},{dec.to_string(unit="deg",decimal=True)},{radius.to_string(unit="arcsec",decimal=True)}'
+            operator = "in"
         else:
             value = str(value)
 

@@ -166,6 +166,17 @@ Below is an example coordinate search with an instrument filter::
      "results":[{"id":2959,"filename":"2019-05/24/shane/b27.fits","object":"feige110","obs_date":"2019-05-25T11:49:37.620000Z"},
                 {"id":2997,"filename":"2019-05/24/shane/r102.fits","object":"feige110","obs_date":"2019-05-25T11:49:40.060000Z"}]}
 
+The four primary fields used for querying can also be combined in a single query, resulting in ANDing the result of both. Below is an example of a combined object and date query::
+
+    $ curl 'https://archive.ucolick.org/archive/data/?obs_date=in,2019-05-23T12:00:00-08,2019-05-24T12:00:00-08&object=cni,BD%2B28&results=filename,object&page_size=5' 
+    {"count":4,
+     "next":null,
+     "previous":null,
+     "results":[{"filename":"2019-05/23/shane/r34.fits","object":"BD+28 4211","id":108745},
+                 {"filename":"2019-05/23/shane/b33.fits","object":"BD+28 4211","id":108747},
+                 {"filename":"2019-05/23/shane/r35.fits","object":"BD+28 4211","id":108772},
+                 {"filename":"2019-05/23/shane/r33.fits","object":"BD+28 4211","id":108791}]}
+
 
 Download Single
 ---------------
