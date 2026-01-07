@@ -377,8 +377,8 @@ def test_nickel_instrument():
     path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
 
     reader = NickelReader()
-    with pytest.raises(ValueError, match="Unknown instrument"):
-        row = reader.read_row(path, hdul)
+    row = reader.read_row(path, hdul)
+    assert row.instrument == Instrument.UNKNOWN
 
     # Test bad version
     # 2007-04_24_nickel_spec289-bad-version-hdu0.txt
@@ -387,8 +387,8 @@ def test_nickel_instrument():
     path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
 
     reader = NickelReader()
-    with pytest.raises(ValueError, match="Unknown instrument"):
-        row = reader.read_row(path, hdul)
+    row = reader.read_row(path, hdul)
+    assert row.instrument == Instrument.UNKNOWN
 
     # Test with no version/ bad instrume
     # 2007-04_24_nickel_spec289-bad-version-bad-instr-hdu0.txt
@@ -397,11 +397,20 @@ def test_nickel_instrument():
     path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
 
     reader = NickelReader()
-    with pytest.raises(ValueError, match="Unrecognized instrument"):
-        row = reader.read_row(path, hdul)
+    row = reader.read_row(path, hdul)
+    assert row.instrument == Instrument.UNKNOWN
 
 
-    # Test for good instrument values done in other tests
+    # Test for "villages" data
+    file = '2008-04_16_nickel_d1511-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
+
+    reader = NickelReader()
+    row = reader.read_row(path, hdul)
+    assert row.instrument == Instrument.VILLAGES
+
+    # Test for other good instrument values done in other tests
 
 def test_nickel_date():
     test_data_dir = Path(__file__).parent / 'test_data'
@@ -469,6 +478,20 @@ def test_nickel_date():
     assert row.filter1 == 'V'
     assert row.filter2 is None
     assert row.sci_filter is None
+
+    # Test invalid date
+    file = '2018-06_24_nickel_d38034-bad-date-hdu0.txt'
+    hdul = get_hdul_from_text([test_data_dir / file])
+    path = Path(file.replace("_", os.sep).replace(".txt", ".fits"))
+
+    reader = NickelReader()
+    row = reader.read_row(path, hdul)
+    # Note the conversion from Noon PST (UTC-8)
+    assert row.obs_date == datetime(2018, 6, 24, 20, 0, 0, tzinfo=timezone.utc)
+    assert row.ingest_flags == "{:032b}".format(IngestFlags.USE_DIR_DATE)
+
+
+
 
 def test_nickel_coord():
     test_data_dir = Path(__file__).parent / 'test_data'

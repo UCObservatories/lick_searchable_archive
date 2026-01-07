@@ -45,6 +45,7 @@ class FrameType(enum.Enum):
     arc     = "arc"
     calib   = "calibration"
     focus   = "focus"
+    pinhole = "pinhole"
     unknown = "unknown"
 
 class IngestFlags(enum.IntFlag):
@@ -98,6 +99,7 @@ class Category(OrderedEnum):
     SHANE_KAST = "Shane Kast Specific"
     SHARCS     = "Shane AO/ShARCS Specific"
     NICKEL     = "Nickel Specific"
+    APF        = "APF Specific"
 
 # Allow for some type concepts that python's type system doesn't have but is useful for databases
 class LargeInt(int):
@@ -149,6 +151,7 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['sci_filter',         'Science Filter',           str,         Category.SHARCS,      'External (warm) science filter wheel position'],
                                    ['coadds_done',        'Number of Coadds',         int,         Category.SHARCS,      'Number of coadds.'],
                                    ['true_int_time',      'True Integration Time',    float,       Category.SHARCS,      'True integration time in seconds per coadd'],
+                                   ['decker',             'Decker Name',              str,         Category.APF,         'Slit/Decker position'],
                         ])
 
 # Dynamic fields created by the API but not stored in the database

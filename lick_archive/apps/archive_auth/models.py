@@ -58,7 +58,7 @@ class DBOverrideAccessRule(models.Model):
 
     class Meta:
         # Make sure either type or access is set
-        constraints = [models.CheckConstraint(check=models.Q(type__isnull = False) | models.Q(access__isnull = False), 
+        constraints = [models.CheckConstraint(condition=models.Q(type__isnull = False) | models.Q(access__isnull = False), 
                                               name="require_access_or_type",
                                               violation_error_message="Either 'Observation Type' or 'Access' must be set.")]
         

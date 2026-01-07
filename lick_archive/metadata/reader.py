@@ -14,6 +14,7 @@ from astropy.io import fits
 import lick_archive.metadata.shane_kast
 import lick_archive.metadata.shane_ao_sharcs
 import lick_archive.metadata.nickel
+import lick_archive.metadata.apf
 
 from lick_archive.metadata import metadata_utils
 
