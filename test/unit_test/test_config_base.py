@@ -39,6 +39,9 @@ class ConfigClassTwo(ConfigNamespace):
     test_enum : EnumTest
     test_list : list[int]
     test_set : set
+    test_dict_0 : dict
+    test_dict_1 : dict[int]
+    test_dict_2 : dict[str,int]
     test_tuple : tuple[str,bool]
     test_union_1 : typing.Union[bool,int]
     test_union_2 : typing.Union[bool,int]
@@ -94,6 +97,9 @@ def test_valid_configs():
     assert valid_two.test_list == [1,2,3]
     assert valid_two.test_set == {"2","blue","True"}
     assert valid_two.test_tuple == ("one",True)
+    assert valid_two.test_dict_0 == {"Alpha":"One","Bravo":"Two","Charlie":None}
+    assert valid_two.test_dict_1 == {1:"Alpha",2:"Bravo",3:"Charlie"}
+    assert valid_two.test_dict_2 == {"Alpha":1,"Bravo":2,"Charlie":3}
     assert valid_two.test_union_1 is True
     assert valid_two.test_union_2 == 3
     assert valid_two.test_or_1 is True
@@ -171,6 +177,15 @@ def test_invalid():
 
     with pytest.raises(ValueError, match=r"Invalid boolean value 'blue'\s+invalid literal for int\(\) with base 10: 'blue'"):
         invalid_config = ConfigClassTwo.from_config_section(config_parser, config_parser['test invalid or'])
+
+    with pytest.raises(ValueError, match="invalid literal for int"):
+        invalid_config = ConfigClassTwo.from_config_section(config_parser, config_parser['test invalid typed dict key'])
+
+    with pytest.raises(ValueError, match="invalid literal for int"):
+        invalid_config = ConfigClassTwo.from_config_section(config_parser, config_parser['test invalid typed dict value'])
+
+    with pytest.raises(ValueError, match="Invalid entry in dictionary: test_dict_0"):
+        invalid_config = ConfigClassTwo.from_config_section(config_parser, config_parser['test invalid dict too many values'])
 
 def test_empty():
     config_parser = ConfigFile.get_config_parser()

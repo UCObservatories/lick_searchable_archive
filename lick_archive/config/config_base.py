@@ -147,7 +147,36 @@ class ConfigBase(abc.ABC):
                         continue
                     # Create the sequence objects with its individual elements
                     return possible_type(typed_values)
+                elif not is_missing and issubclass(possible_type, Mapping) :
+                    # Deal with dictionary and similar types. We expect a list like "a:b,c:d"
+                    items = [s.strip() for s in config_section[attribute_name].split(",")]
+                    split_items = [s.split(':') for s in items]
+                    
+                    if len(type_args) == 0:
+                        key_type = str
+                        value_type = str
+                    elif len(type_args) == 1:
+                        key_type = type_args[0]
+                        value_type = str
+                    else:
+                        key_type = type_args[0]
+                        value_type = type_args[1]
+
+                    typed_values=[]
+                    for pair in split_items:
+                        if len(pair) == 1:
+                            key_value = cls._parse_value(type_object=key_type, value=pair[0].strip())
+                            value = None
+                        elif len(pair) == 2:
+                            key_value = cls._parse_value(type_object=key_type, value=pair[0].strip())
+                            value = cls._parse_value(type_object=value_type, value=pair[1].strip())
+                        else:
+                            raise ValueError(f"Invalid entry in dictionary: {attribute_name}")
+    
+                        typed_values.append((key_value, value))
+                    return possible_type(typed_values)
                 else:
+
                     # A non-sequence type, directly parse it
                     return cls._parse_value(type_object=possible_type, value=config_section[attribute_name])
             except Exception as e:
