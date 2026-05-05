@@ -34,9 +34,9 @@ class QueryView(QueryAPIView, ListAPIView):
     pagination_class = QueryAPIPagination
     filter_backends = [QueryAPIFilterBackend]
     serializer_class = SQLAlchemyORMSerializer
-    required_attributes = list(api_capabilities['required']['db_name'])
-    allowed_sort_attributes = list(api_capabilities['sort']['db_name'])
-    allowed_result_attributes = list(api_capabilities['result']['db_name'])
+    required_attributes = api_capabilities['query']
+    allowed_sort_attributes = api_capabilities['sort']
+    allowed_result_attributes = api_capabilities['result']
 
 
     def __init__(self):

@@ -11,7 +11,10 @@
                       "APF":         {"human_name": "APF", "category": false, "parent":""}
     },
     "backendURLBase":   "archive/",
-    "resultFieldOrder": ["filename", "header", "instrument", "frame_type", "obs_date", "object", "exptime", "ra", "dec"],
+    "resultFieldOrder": ["filename", "header", "telescope", "instrument", "frame_type", "obs_date", "object", "filter1", "exptime", "ra", "dec", "airmass", "program", "coversheet", "observer", "file_size", "mtime", "public_date"],
+    "sortFieldOrder":   ["filename", "telescope", "instrument", "frame_type", "obs_date", "object", "exptime", "filter1", "ra", "dec",  "airmass", "program", "coversheet", "observer", "file_size", "mtime", "public_date"],
+    "defaultResults":   ["filename", "header", "instrument", "frame_type", "obs_date", "object", "exptime", "ra", "dec"],
+    "defaultSort":      "filename",
     "searchFields":     ["object", "obs_date", "filename", "coord"],
     "searchArgs":       {"object": 1, "obs_date": 2, "filename": 1, "coord": 3},
     "defaults":         {"page_size": 500} ,

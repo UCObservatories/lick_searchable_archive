@@ -151,7 +151,7 @@ class TelescopeNames(ConfigDict):
 class FixedOwners(ConfigDict):
     config_section_name = "Fixed Owners"
     default_key_name = "default"
-    value_type = str
+    value_type = str | None
 
 class PublicSuffixes(ConfigDict):
     config_section_name = "Public Suffixes"

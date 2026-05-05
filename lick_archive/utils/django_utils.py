@@ -30,10 +30,16 @@ def setup_django_logging(log_file : Path | str, log_level : int | str, stdout_le
     # Override logging setup to use a new path or logging level
     log_settings = settings.LOGGING
     if log_file is not None:
-        log_settings['handlers']['django_log']['filename'] = str(log_file)
-
-    if log_level is not None:
-        log_settings['handlers']['django_log']['level'] = log_level
+        django_log_handler = {'class': "logging.handlers.WatchedFileHandler",
+                              'filename': str(log_file),
+                              'formatter': 'archive_log_formatter',
+                             }
+        if log_level is not None:
+            django_log_handler['level'] = log_level
+        else:
+            django_log_handler['level'] = logging.INFO
+        log_settings['handlers']['django_log'] = django_log_handler
+        log_settings['loggers']['']['handlers'].append('django_log')
     if stdout_level is not None:
         log_settings['handlers']['stdout'] = {"class": "logging.StreamHandler"}
         log_settings['handlers']['stdout']['level'] = stdout_level
@@ -127,4 +133,3 @@ def log_request_debug(request):
                     logger.debug(f"{key} = {request.validated_query[key]}")
             else:
                 logger.debug(f"validated_query: {request.validated_query}")
-

@@ -128,7 +128,7 @@ def test_valid_configs():
     assert valid_lookup['test_one'] == [1, 2, 3]
     # Default value for empty keys in the config value
     assert valid_lookup['test_two'] == [0, 0, 0]
-    assert valid_lookup['test_three'] == [0, 0, 0]
+    assert valid_lookup['test_three'] == []
     # Default of a missing key in the config values
     assert valid_lookup['does not exist'] == [0, 0, 0]
     assert len(valid_lookup) == 3

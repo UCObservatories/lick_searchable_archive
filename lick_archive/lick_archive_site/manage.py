@@ -1,12 +1,27 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
-import os
 import sys
+from pathlib import Path
+import logging
+import os
+
+#To customize logging for lick archive
+from lick_archive.utils import django_utils
 
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'lick_archive.lick_archive_site.settings')
+    # Setup django so the core management code doesn't do it for us
+    django_utils.setup_django()
+
+    # Setup logging. We set the umask so that users in the correct group
+    # can run manage and write to the log
+    os.umask(0o0002)
+
+    from django.conf import settings
+    logfile = Path(settings.ARCHIVE_LOG_DIR, "manage.log")
+    django_utils.setup_django_logging(logfile, logging.DEBUG, logging.INFO)            
+
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
