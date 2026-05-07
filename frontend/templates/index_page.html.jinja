@@ -1,10 +1,10 @@
 {% extends "archive_base_template.jinja" %}
 {# Macros for building HTML elements for sort and result fields #}
 {% macro sort_option(db_name, human_name) -%}
-    <option value="{{ db_name }}" {%if db_name == defaultSort %}selected{% endif %}>{{ human_name|e }}</option>
+    <option value="{{ db_name }}" {%if db_name == defaultSort %}selected=""{% endif %}>{{ human_name|e }}</option>
 {% endmacro %}
 {% macro result_input(db_name, human_name, level) -%}
-    {{ ""|indent((level-1)*4) }}<input id="id_{{ db_name }}_result"   class="search_option_result" type="checkbox" value="{{ db_name }}" {% if db_name in defaultResults %}checked{% endif %}><label for="id_{{db_name }}_result"  >{{ human_name }}</label>
+   <input id="id_{{ db_name }}_result"   class="search_option_result" type="checkbox" value="{{ db_name }}" {% if db_name in defaultResults %}checked=""{% endif %}/><label for="id_{{db_name }}_result">{{ human_name }}</label>
 {% endmacro %}
 {% block body %}
 <!-- Form for submitting a query to the archive -->
@@ -69,7 +69,7 @@
                 <fieldset class="search_terms_grid" id="id_filename_fields">
                     <label for="search_operator_filename" class="search_terms_operator_label">
                         <select class="search_terms_operator" id="search_operator_filename">
-                            <option value="eq" selected>=</option>
+                            <option value="eq" selected="">=</option>
                             <option value="sw">starts with</option>
                         </select>
                     </label>
@@ -132,7 +132,7 @@
         <ul role="list" class="search_option_list">
             <li class="search_option_item">
                 <!--Radio box for determining if results are to be retunred, as opposed to just a count -->
-                <input type="radio" name="count" value="no" class="search_options_radio" id="id_count_1" required checked><label for="id_count_1">Return information about matching files.</label>
+                <input type="radio" name="count" value="no" class="search_options_radio" id="id_count_1" required="" checked=""/><label for="id_count_1">Return information about matching files.</label>
                 <!--The controls if results are controlled -->
                 <fieldset id="search_option_fields" class="search_option_fields">
                     <label for="id_page_size">Results / page</label>
@@ -192,7 +192,7 @@
             </li>
             <!--Radio box to only return a count of matching results -->
             <li class="search_option_item">
-                <input type="radio" name="count" value="yes" class="search_options_radio" id="id_count_0" required=""><label for="id_count_0">Return only a count of matching files.</label>
+                <input type="radio" name="count" value="yes" class="search_options_radio" id="id_count_0" required=""/><label for="id_count_0">Return only a count of matching files.</label>
             </li>
         </ul>
     </fieldset>
@@ -208,26 +208,26 @@
     <!--Hidden form controls filled out by javascript to download tarballs from the archive-->
     <input name="download_files" type="hidden"/>
     <input name="csrfmiddlewaretoken" type="hidden"/>
-    <button id="submit_download" type="submit" hidden></button>
+    <button id="submit_download" type="submit" hidden=""></button>
     <!-- Page/Download controls before the results table-->
     <div id ="search_results_header_controls" class="search_results_controls">
         <span class="search_results_head_download_controls">
-            <button id="download_selected_head" type="button" value="selected" class="results_download" hidden>Download Selected</button>
-            <button id="download_all_head" type="button" value="all" class="results_download" hidden>Download All</button>
+            <button id="download_selected_head" type="button" value="selected" class="results_download" hidden="">Download Selected</button>
+            <button id="download_all_head" type="button" value="all" class="results_download" hidden="">Download All</button>
         </span>
-        <span id="search_results_page_controls_head" class="search_results_head_page_controls" hidden></span>
+        <span id="search_results_page_controls_head" class="search_results_head_page_controls" hidden=""></span>
     </div>
     <!--Results table filled out by javascript-->
-    <table id="search_results_table" class="search_results_table" hidden>
+    <table id="search_results_table" class="search_results_table" hidden="">
     </table>
-    <span id="search_results_count_footer" hidden>Number of results: 0</span>
+    <span id="search_results_count_footer" hidden="">Number of results: 0</span>
     <!-- Page/Download controls after the results table-->
     <div id ="search_results_footer_controls" class="search_results_controls">
         <span class="search_results_foot_download_controls">
-            <button id="download_selected_foot" type="button" value="selected" class="results_download" hidden>Download Selected</button>
-            <button id="download_all_foot" type="button" value="all" class="results_download" hidden>Download All</button>
+            <button id="download_selected_foot" type="button" value="selected" class="results_download" hidden="">Download Selected</button>
+            <button id="download_all_foot" type="button" value="all" class="results_download" hidden="">Download All</button>
         </span>
-        <span id="search_results_page_controls_foot" class="search_results_foot_page_controls" hidden></span>
+        <span id="search_results_page_controls_foot" class="search_results_foot_page_controls" hidden=""></span>
     </div>
 </form>
 <!--Section for error messages -->
