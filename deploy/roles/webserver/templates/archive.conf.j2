@@ -15,6 +15,7 @@
     ServerName {{ frontend_host }}
     SSLEngine On
     SSLCertificateFile {{ ssl_cert }}
+    SSLCertificateChainFile {{ ssl_cert_chain }}
     SSLCertificateKeyFile {{ ssl_private_key }}
     AssignUserId {{ webserver_user }} {{ webserver_group }}
     DocumentRoot /var/www/archive
