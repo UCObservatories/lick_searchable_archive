@@ -12,5 +12,6 @@ archive_service_uid: 1010
 archive_service_gid: 1039
 webserver_user: www-data
 webserver_group: mhdata
-ssl_cert: /etc/ssl/certs/quarry_ucolick_org_reversed.cer
+ssl_cert: /etc/ssl/certs/quarry_ucolick_org_cert.cer
+ssl_cert_chain: /etc/ssl/certs/quarry_ucolick_org_interm.cer
 ssl_private_key: /etc/ssl/private/quarry_ucolick_org.key
