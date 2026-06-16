@@ -735,9 +735,12 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         # A new file is done writing, is it in one of our lowest level paths?
         new_file = Path(event.src_path)
         notify = False
-        with self._lock:
-            if new_file.parent in self._path_info_map:
-                notify = self._path_info_map[new_file.parent].is_ingest_dir
+        # Don't notify for hidden files.
+        if not new_file.name.startswith("."):
+            # Only notify files in ingest directories
+            with self._lock:
+                if new_file.parent in self._path_info_map:
+                    notify = self._path_info_map[new_file.parent].is_ingest_dir
 
         if notify:
             try:
@@ -808,7 +811,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         """
         Resync the contents of a given path with what's in the archive database. This
         is done by querying the archive software for how many files it has for the path.
-        If this doesn't match how many files are actually in the path, all the files are
+        If this doesn't match how many files are actually in the path, all the non-hidden files are
         sent to the lick archive ingest service.
 
         Args:
@@ -827,7 +830,7 @@ class IngestWatcher(watchdog.events.FileSystemEventHandler):
         actual_count = 0
         files_to_sync = []
         for child in path.iterdir():
-            if child.is_file():
+            if child.is_file() and not child.name.startswith("."):
                 files_to_sync.append(child)
                 actual_count += 1
         self.logger.info(f"Resync found {archive_count} files, {actual_count} are in the directory.")
