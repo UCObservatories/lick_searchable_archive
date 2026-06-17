@@ -164,10 +164,6 @@ AUTH_PASSWORD_VALIDATORS = [
 AUTH_USER_MODEL = "archive_auth.ArchiveUser"
 AUTHENTICATION_BACKENDS = ["archive_auth.backends.NonUpgradingBackend"]
 
-{% else %}
-# Use backend API to authenticate users
-AUTHENTICATION_BACKENDS = ["frontend.remote_auth.RemoteAPIAuthBackend"]
-#AUTH_USER_MODEL = "frontend.RemoteAPIUser"
 {% endif %}
 
 #if not lick_archive_in_manage:
@@ -266,6 +262,7 @@ CELERY_BROKER_URL = '{{ redis_url }}'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
     # Allow throttling of download API calls to keep users from overwhelming the system.
     'DEFAULT_THROTTLE_CLASSES': [
