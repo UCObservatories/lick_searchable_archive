@@ -7,8 +7,7 @@
                       "NICKEL_DIR":  {"human_name": "Nickel Direct",  "category": false, "parent": "NICKEL"},
                       "NICKEL_SPEC": {"human_name": "Nickel Spectrograph",  "category": false, "parent": "NICKEL"},
                       "VILLAGES":    {"human_name": "Nickel Villages",  "category": false, "parent": "NICKEL"},
-                      "UNKNOWN":     {"human_name": "Nickel Other/Unknown",  "category": false, "parent": "NICKEL"},
-                      "APF":         {"human_name": "APF", "category": false, "parent":""}
+                      "UNKNOWN":     {"human_name": "Nickel Other/Unknown",  "category": false, "parent": "NICKEL"}
     },
     "backendURLBase":   "archive/",
     "resultFieldOrder": ["filename", "header", "telescope", "instrument", "frame_type", "obs_date", "object", "filter1", "exptime", "ra", "dec", "airmass", "program", "coversheet", "observer", "file_size", "mtime", "public_date"],
@@ -18,6 +17,6 @@
     "searchFields":     ["object", "obs_date", "filename", "coord"],
     "searchArgs":       {"object": 1, "obs_date": 2, "filename": 1, "coord": 3},
     "defaults":         {"page_size": 500} ,
-    "instrumentOrder":  ["KAST", "SHARCS", "NICKEL","APF"],
+    "validInstruments": ["KAST", "SHARCS", "NICKEL"],
     "defaultTheme":     "light"
 }

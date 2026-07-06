@@ -10,8 +10,10 @@ def get_parser():
     """
     Parse build_metadata_config command line arguments with argparse.
     """
-    parser = argparse.ArgumentParser(description="Build the metadata_config.js file used when building the frontend Javascript to allow the frontend to understand the archive's metadata.")
-    parser.add_argument("output", type=Path, help='Where to output the metadata_config.js file.')
+    parser = argparse.ArgumentParser(description="Build the metadata data dictionary file json used when building the frontend Javascript to allow the frontend to understand the archive's metadata.")
+
+    parser.add_argument("config", type=Path, help="Path to the frontend config.json file.")
+    parser.add_argument("output", type=Path, help='Where to output the metadata data dictionary json file.')
 
     return parser
 
@@ -27,10 +29,13 @@ def build_field_dict(field):
 
 def main(args):
 
-    categories = [cat.value for cat in Category]
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    categories = [cat.value for cat in Category if cat.name in config['validInstruments'] or cat == Category.COMMON]
     all_fields = {field['db_name']: build_field_dict(field) for field in data_dictionary}
     # filter out fields that aren't visible, i.e. aren't queryable, resultable, or sortable
-    archive_fields = {field[0]: field[1] for field in all_fields.items() if field[1]['query_valid'] or field[1]['result_valid'] or field[1]['sort_valid']}
+    archive_fields = {field[0]: field[1] for field in all_fields.items() if field[1]['category'] in categories and (field[1]['query_valid'] or field[1]['result_valid'] or field[1]['sort_valid'])}
 
     data_dictionary_wrapper = {"archiveCategories": categories,
                                "archiveFields":     archive_fields,

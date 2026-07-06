@@ -18,7 +18,7 @@ docs_js: docs.js  login_controls.js lick_archive_client.js error_section.js
 
 data_dictionary:
 	mkdir -p ../build/scripts/
-	export PYTHONPATH=$(ROOTPATH);python $(ROOTPATH)/scripts/build_data_dictionary_json.py $(DEST_DIR)/scripts/data_dictionary.json
+	export PYTHONPATH=$(ROOTPATH);python $(ROOTPATH)/scripts/build_data_dictionary_json.py config.json $(DEST_DIR)/scripts/data_dictionary.json
 
 $(CSS):
 	node ../build_scripts/build_css.mjs $(@).css $(DEST_DIR)/style/$(@).css

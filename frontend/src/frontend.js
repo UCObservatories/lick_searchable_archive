@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", buildInstruments)
 function buildInstruments(event) {
 
     const instrumentList = document.getElementById("instrument_list")
-    for (const instrKey of config.instrumentOrder) {
+    for (const instrKey of config.validInstruments) {
         // Add each top level instrument. Child instruments are added recursively
         addInstrument(instrumentList, instrKey)
     }

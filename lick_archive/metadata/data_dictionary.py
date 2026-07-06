@@ -96,7 +96,7 @@ class Instrument(enum.Enum):
 # Constants to prevent typos in group names
 class Category(OrderedEnum):
     COMMON     = "Common Fields"
-    SHANE_KAST = "Shane Kast Only"
+    KAST       = "Shane Kast Only"
     SHARCS     = "Shane AO/ShARCS Only"
     APF        = "APF Only"
 
@@ -140,11 +140,11 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['mtime',              'File Modification Time',   datetime,    Category.COMMON,      'The date and time the file was last modified.' ], 
                                    ['public_date',        'Date File Becomes Public', date,        Category.COMMON,      'The date the file became/will become accesible to the public.'],
                                    ['header',             'Header',                   LargeStr,    Category.COMMON,      'The full header information from the file in plain text format.'],
-                                   ['slit_name',          'Slit Name',                str,         Category.SHANE_KAST,  'The slit name.'],
-                                   ['beam_splitter_pos',  'Beam Splitter Position',   str,         Category.SHANE_KAST,  'The beam splitter position'],
-                                   ['grism',              'Grism  (Blue only)',       str,         Category.SHANE_KAST,  'The grism used. Only applies to Kast Blue.'],
-                                   ['grating_name',       'Grating Name  (Red only)', str,         Category.SHANE_KAST,  'The grating used. Only applies to Kast Red.'],
-                                   ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.SHANE_KAST,  'The grating tilt used. Only applies to Kast Red.'],
+                                   ['slit_name',          'Slit Name',                str,         Category.KAST,        'The slit name.'],
+                                   ['beam_splitter_pos',  'Beam Splitter Position',   str,         Category.KAST,        'The beam splitter position'],
+                                   ['grism',              'Grism  (Blue only)',       str,         Category.KAST,        'The grism used. Only applies to Kast Blue.'],
+                                   ['grating_name',       'Grating Name  (Red only)', str,         Category.KAST,        'The grating used. Only applies to Kast Red.'],
+                                   ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.KAST,        'The grating tilt used. Only applies to Kast Red.'],
                                    ['apername',           'Aperture Position',        str,         Category.SHARCS,      'Aperture wheel, named position'],
                                    ['filter2',            'Filter 2',                 str,         Category.SHARCS,      'Filter wheel 2, named position'],
                                    ['sci_filter',         'Science Filter',           str,         Category.SHARCS,      'External (warm) science filter wheel position'],
