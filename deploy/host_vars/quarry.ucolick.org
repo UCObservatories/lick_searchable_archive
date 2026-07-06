@@ -1,6 +1,6 @@
-db_data_device: /dev/sdh
+db_data_device: /dev/disk/by-uuid/7ea2d8fa-c98c-4e27-9c1c-0b32d025e604
 postgres_version: 16
-archive_nfs_source: legion:/data/mthamilton
+archive_nfs_source: romulus:/data/mthamilton
 archive_nfs_uid: 1009
 archive_nfs_gid: 1039
 archive_data_root: /data/data
