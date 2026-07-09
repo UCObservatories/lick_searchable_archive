@@ -37,8 +37,6 @@ def ingest_new_files(new_ingests):
     added_files = []
     logger.info(repr(new_ingests))
     remaining_files, good_files, failed_files = process_oafs(new_ingests)
-    import sys
-    logger.info(" ".join(sys.argv))
 
     # Process any override access files first
 

@@ -33,8 +33,6 @@ class IngestNotifications(generics.CreateAPIView):
     
     def create(self, request, *args, **kwargs):
         log_request_debug(request)
-        import sys
-        logger.info(" ".join(sys.argv))
         serializer = self.get_serializer(data=request.data, many=isinstance(request.data, list))
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
