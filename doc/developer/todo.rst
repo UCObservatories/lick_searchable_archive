@@ -5,6 +5,14 @@ See :ref:`architecture_simplification` for additional larger scale cleanup that 
 be performed. 
 
 
+Documentation
+-------------
+
+* Improve architecture diagram (as with mermaid or similar tools)
+* Provide API docs for LickArchiveClient
+* Improve Sphinx theme
+* Publish docs (github.io?)
+
 Deployment Todo
 ---------------
 
@@ -12,8 +20,6 @@ Deployment Todo
 * Document django db stuff with database, include manually resetting everything.
 * Delete code prior to copying, or sync via rsync, to make sure old files are removed.
 * Auto deploy django/metadata dbs if the tables aren't there?
-* Current ``common_sw`` role deploys the entire lick_archive directory, it should 
-  exclude portions installed by other roles.
 * Where do the developer docs get deployed? Do they get deployed? Do we continue to use sphinx?
 
 Code Quality
@@ -22,7 +28,8 @@ Code Quality
 * make sure i'm consistent in os.path vs Path usage.
 * Improve comments!
 * python type annotations!
-* token based authentication for api access?
+* Pick better theme for docs
+* Autocreate API doc version of data dictionary. Maybe include "special" header/download_link fields?
 * Update ingest_watchdog to use new configuration class.
 * Improve script consistency regarding main() and get_parser. 
 * Cleanup script argparse help output
@@ -48,7 +55,6 @@ Additional Features
 
 Testing Todo
 ------------
-* The ``ext_test`` tests don't work without the backend API being entirely exposed.
 * fuzz/other security testing
 
 Administration Todo

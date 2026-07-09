@@ -165,13 +165,25 @@ import logging
 from datetime import datetime, date
 import os
 import requests
+from requests.auth import HTTPBasicAuth
 from collections.abc import Mapping, Sequence
 from typing import Any
 from dataclasses import dataclass
+import enum
 
 from tenacity import Retrying, stop_after_delay, wait_exponential
 
 logger = logging.getLogger(__name__)
+
+
+class QueryOp(enum.Enum):
+    # Case sensitive/insensitivity can be OR'd on
+    EQUAL = "eq"
+    CONTAINS = "cn"
+    STARTS_WITH = "sw"
+    IN = "in"
+
+
 
 @dataclass
 class QueryTerm:
@@ -186,18 +198,16 @@ class QueryTerm:
                                   A sequence of these three values is also accepted.
                          "obs_date": A datetime.date, a datetime.datetime, or a sequence of two date/datetime objects. One date is for an exact match and two for the start and end of a date range.
         
-        contains   (bool): If True, search for values that contain the QueryTerm value.
-        match_case (bool): If True, search for strings that exactly match the case of the QueryTerm value. If False, queries are case insensitive.
-        prefix:    (bool): If True, search for strings that start with the QueryTerm value.
+        match_case (bool):    If True, search for strings that exactly match the case of the QueryTerm value. If False, queries are case insensitive.
+        operator:  (QueryOp): If True, search for strings that start with the QueryTerm value.
 
     The contains, match_case, and prefix values are defaulted for an exact match query.
     """
         
     field : str
     value: Any
-    contains: bool = False
     match_case: bool = True
-    prefix: bool = False
+    operator : QueryOp = QueryOp.EQUAL
 
 class LickArchiveClient:
     """Client for the Lick Searchable Archive's REST API
@@ -214,7 +224,7 @@ class LickArchiveClient:
                                        Defaults to True.
     
     """
-    def __init__(self, archive_url: str, retry_max_delay : int|float =10, retry_max_time: int|float =60, request_timeout : int|float =30, ssl_verify : bool | str =True):
+    def __init__(self, archive_url: str, retry_max_delay : int|float =10, retry_max_time: int|float =60, request_timeout : int|float =30, ssl_verify : bool | str =True, username: str|None= None, password: str|None=None):
     
         # The ingest URLs should have a / on it so that other path components can be appended
         if archive_url[-1] == '/':
@@ -226,38 +236,24 @@ class LickArchiveClient:
         self.retry_max_time = retry_max_time
         self.request_timeout = request_timeout
         self.ssl_verify = ssl_verify
+        self.set_auth_credentials(username, password)
         self._csrf_middleware_token = None
-        self.logged_in_user = None
         self._session = requests.Session()
     
-    def login(self, username : str, password : str) -> bool:
+    def set_auth_credentials(self, username:str|None, password: str|None):
         """
-        login to the archive API as a user.
-
-        Args:
-            username (str): The username to login as
-            password (str): The password to login with
-
-        Return:
-            bool: True if the login was accepted, false otherwise
-
-        """
-
-        raise NotImplementedError()
-
-
-    def logout(self):
-        raise NotImplementedError()
-
-    def get_login_status(self) -> bool:
-        """Determine the login status of the current session. If successful the 
-        logged_in_user attribute is set to the current user name or None if not logged in.
-
+        Set the username/password credentials to use when accessing
         
-        Return:
-            bool: True if successfull getting the login status. False if there was a failure
+        Args:
+            username (str): The username to use. Set to NONE to clear credentials from the LickArchiveClient object.
+            password (str): The username to use. Set to NONE to clear credentials from the LickArchiveClient object.
+
         """
-        raise NotImplementedError()
+        if username is not None and password is not None:
+            self.auth = HTTPBasicAuth(username, password)
+        else:
+            self.auth = None
+
 
     def query(self, query_terms :QueryTerm|list[QueryTerm], filters: Mapping[str,str|Sequence[str]] ={}, count : bool =False, results : list[str] =["filename"], sort : list[str]=[], page : int =1, page_size : int =50) -> tuple[int, list, str|None, str|None]:
         """
@@ -316,12 +312,7 @@ class LickArchiveClient:
             if term.field not in ["filename", "object", "obs_date", "coord"]:
                 raise ValueError(f"Unknown query field '{term.field}'")
 
-            if term.prefix:
-                operator = "sw"
-            elif term.contains:
-                operator = "cn"
-            else:
-                operator = "eq"
+            operator = term.operator.value
 
             # Build query parameters
             if term.field == "obs_date":
@@ -330,7 +321,7 @@ class LickArchiveClient:
                     value = term.value.isoformat()
                 else:
                     value =  ",".join([date_value.isoformat() for date_value in term.value])
-                    operator = "in"
+                    operator = QueryOp.IN.value
 
             elif term.field=="coord":            
                 # ra, dec, and radius, all are converted to decimal degrees
@@ -355,7 +346,7 @@ class LickArchiveClient:
                 else:
                     raise ValueError("Invalid coord value, coord should be list or dict of ra,dec,radius Astropy Angle objects")
                 value = f'{ra.to_string(unit="deg",decimal=True)},{dec.to_string(unit="deg",decimal=True)},{radius.to_string(unit="arcsec",decimal=True)}'
-                operator = "in"
+                operator = QueryOp.IN.value
             else:
                 value = str(term.value)
                 if not term.match_case:
@@ -400,7 +391,7 @@ class LickArchiveClient:
         # The request_timeout is the timeout between bytes sent from the server
         logger.debug(f"Querying archive: url:{self.archive_url} params: {query_params}")
         retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-        result = retryer(self._session.get, self.archive_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(self._session.get, self.archive_url + "data/", params=query_params, verify=self.ssl_verify, timeout=(3.1, self.request_timeout), auth=self.auth)
         result.raise_for_status()
 
         return result.json()
@@ -453,7 +444,7 @@ class LickArchiveClient:
         header_url = self.archive_url + "data" + filename + "/header"
         logger.debug(f"Getting header for {header_url}")
         retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-        result = retryer(self._session.get, header_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout))
+        result = retryer(self._session.get, header_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout), auth=self.auth)
         result.raise_for_status()
         return result.text
 
@@ -474,7 +465,7 @@ class LickArchiveClient:
         download_url = self.archive_url + "data" + filename
         logger.info(f"Downloading {download_url}")
         retryer = Retrying(stop=stop_after_delay(self.retry_max_time), wait=wait_exponential(multiplier=1, min=5, max=self.retry_max_delay))
-        result = retryer(self._session.get, download_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout), stream=True)
+        result = retryer(self._session.get, download_url, verify=self.ssl_verify, timeout=(3.1, self.request_timeout), stream=True, auth=self.auth)
         result.raise_for_status()
         with open(destination, "wb") as dest_file:
             for chunk in result.iter_content(chunk_size=64*1024):

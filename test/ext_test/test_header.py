@@ -5,7 +5,7 @@ import datetime
 
 from astropy.io.fits import Header
 
-from lick_archive.client.lick_archive_client import LickArchiveClient
+from lick_archive.client.lick_archive_client import LickArchiveClient, QueryTerm
 from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, replace_parsed_url_hostname
 
 from requests import HTTPError
@@ -30,14 +30,9 @@ expected_private_metadata = {"TRUITIME":   1.45479,
 
 def test_header_public(archive_host, archive_config, ssl_ca_bundle):
 
-    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
     archive_frontend = replace_parsed_url_hostname(archive_config.host.frontend_url.parsed_url, archive_host)
 
-    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
-
-    # Make sure we are not logged in at first
-    assert client.get_login_status() is True
-    assert client.logged_in_user is None
+    client = LickArchiveClient(archive_frontend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
 
     # Login is done through the backend API, but we want to test the external api, so switch the URL
     client.archive_url = archive_frontend
@@ -54,18 +49,11 @@ def test_header_public(archive_host, archive_config, ssl_ca_bundle):
 
 def test_header_private(archive_host, archive_config, ssl_ca_bundle, test_user_password_env):
 
-    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
     archive_frontend = replace_parsed_url_hostname(archive_config.host.frontend_url.parsed_url, archive_host)
 
 
-    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
+    client = LickArchiveClient(archive_frontend, 1, 30, 5, ssl_verify=ssl_ca_bundle, username=TEST_USER, password=os.environ[test_user_password_env])
 
-    # Login as test user
-    assert client.login(TEST_USER,os.environ[test_user_password_env]) is True
-    assert client.logged_in_user == TEST_USER
-
-    # Login is done through the backend API, but we want to test the external api, so switch the URL
-    client.archive_url = archive_frontend
 
     # Make sure public file's header can still be seen when logged in
     # Get the header for the publically available file
@@ -89,17 +77,9 @@ def test_header_private(archive_host, archive_config, ssl_ca_bundle, test_user_p
         assert key in header, f"{key} not found in query results"
         assert header[key] == expected_private_metadata[key], f"Exepcted results for {key}: '{expected_private_metadata[key]}' != actual results '{header[key]}'"
 
-    # Switch URLs again to log out
-    client.archive_url = archive_backend
 
-    # Now log out, and verify the file can't be seen publically
-    assert client.logout() is True
-    assert client.logged_in_user is None
-    assert client.get_login_status() is True
-    assert client.logged_in_user is None
-
-    # Switch URLs again to log out
-    client.archive_url = archive_frontend
+    # Clear client credentials to verify the private file is not visible publically
+    client.set_auth_credentials(None,None)
 
     # Get the header for the privately available file
     with pytest.raises(HTTPError):

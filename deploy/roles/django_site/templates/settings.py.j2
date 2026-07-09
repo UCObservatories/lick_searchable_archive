@@ -269,8 +269,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        # Limit it to one request / second. Is that too many?
-        'downloads': '1/s'
+        # downloads / second. Is this too many? too few?
+        'downloads': '5/s'
     },
 {# Disable the BrowseableAPI when in ops #}
 {% if archive_config == "ops" %}

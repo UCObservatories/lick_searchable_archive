@@ -4,7 +4,7 @@ from collections import namedtuple
 import datetime
 import copy
 
-from lick_archive.client.lick_archive_client import LickArchiveClient
+from lick_archive.client.lick_archive_client import LickArchiveClient, QueryTerm
 from ext_test_common import PUBLIC_FILE,TEST_USER, PRIVATE_FILE, replace_parsed_url_hostname
 
 expected_metadata = {"telescope":  "Shane",
@@ -31,21 +31,17 @@ expected_private_metadata = {"telescope":  "Shane",
 
 def test_query_public(archive_host, archive_config, ssl_ca_bundle):
 
-    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
+    archive_backend = replace_parsed_url_hostname(archive_config.host.frontend_url.parsed_url, archive_host)
 
     client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
 
-    # Make sure we are not logged in at first
-    assert client.get_login_status() is True
-    assert client.logged_in_user is None
-
     # Query for the known public file
     # first a count query
-    result_count = client.query(field="filename", value=PUBLIC_FILE, count=True)[0]
+    result_count = client.query(QueryTerm(field="filename", value=PUBLIC_FILE), count=True)[0]
     assert result_count == 1
 
     # Then a result query
-    results = client.query(field="filename", value=PUBLIC_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    results = client.query(QueryTerm(field="filename", value=PUBLIC_FILE), results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
@@ -68,17 +64,12 @@ def test_query_public(archive_host, archive_config, ssl_ca_bundle):
 
 def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_password_env):
 
-    archive_backend = replace_parsed_url_hostname(archive_config.host.api_url.parsed_url, archive_host)
+    archive_backend = replace_parsed_url_hostname(archive_config.host.frontend_url.parsed_url, archive_host)
 
-    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle)
-
-    # Login as test user
-    assert client.login(TEST_USER,os.environ[test_user_password_env]) is True
-    assert client.logged_in_user == TEST_USER
-
+    client = LickArchiveClient(archive_backend, 1, 30, 5, ssl_verify=ssl_ca_bundle, username=TEST_USER,password=os.environ[test_user_password_env])
 
     # Query for the known public file
-    results = client.query(field="filename", value=PUBLIC_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    results = client.query(QueryTerm(field="filename", value=PUBLIC_FILE), results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
@@ -99,8 +90,8 @@ def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_pa
         assert key in result, f"{key} not found in query results"
         assert result[key] == expected_results[key], f"Exepcted results for {key}: '{expected_results[key]}' != actual results '{result[key]}'"
 
-
-    results = client.query(field="filename", value=PRIVATE_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    # Query for known private file
+    results = client.query(QueryTerm(field="filename", value=PRIVATE_FILE), results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
@@ -121,16 +112,13 @@ def test_query_private(archive_host, archive_config, ssl_ca_bundle, test_user_pa
         assert key in result, f"{key} not found in query results"
         assert result[key] == expected_results[key], f"Exepcted results for {key}: '{expected_results[key]}' != actual results '{result[key]}'"
 
-    # Now log out, and verify the file can't be seen publically
-    assert client.logout() is True
-    assert client.logged_in_user is None
-    assert client.get_login_status() is True
-    assert client.logged_in_user is None
+    # Now clear credentials, and verify the file can't be seen publically
+    client.set_auth_credentials(None,None)
 
-    results = client.query(field="filename", value=PRIVATE_FILE,count=True)
+    results = client.query(QueryTerm(field="filename", value=PRIVATE_FILE),count=True)
     assert results[0] == 0
 
-    results = client.query(field="filename", value=PRIVATE_FILE, results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
+    results = client.query(QueryTerm(field="filename", value=PRIVATE_FILE), results=["filename", "telescope", "instrument", "obs_date", "exptime", "ra", "dec", "object", "program", "coversheet", "file_size"])
 
     result_count = results[0]
     rows = results[1]
