@@ -45,6 +45,7 @@ class FrameType(enum.Enum):
     arc     = "arc"
     calib   = "calibration"
     focus   = "focus"
+    pinhole = "pinhole"
     unknown = "unknown"
 
 class IngestFlags(enum.IntFlag):
@@ -95,9 +96,9 @@ class Instrument(enum.Enum):
 # Constants to prevent typos in group names
 class Category(OrderedEnum):
     COMMON     = "Common Fields"
-    SHANE_KAST = "Shane Kast Specific"
-    SHARCS     = "Shane AO/ShARCS Specific"
-    NICKEL     = "Nickel Specific"
+    KAST       = "Shane Kast Only"
+    SHARCS     = "Shane AO/ShARCS Only"
+    APF        = "APF Only"
 
 # Allow for some type concepts that python's type system doesn't have but is useful for databases
 class LargeInt(int):
@@ -139,16 +140,17 @@ data_dictionary = Table(names=[     'db_name',            'human_name',         
                                    ['mtime',              'File Modification Time',   datetime,    Category.COMMON,      'The date and time the file was last modified.' ], 
                                    ['public_date',        'Date File Becomes Public', date,        Category.COMMON,      'The date the file became/will become accesible to the public.'],
                                    ['header',             'Header',                   LargeStr,    Category.COMMON,      'The full header information from the file in plain text format.'],
-                                   ['slit_name',          'Slit Name',                str,         Category.SHANE_KAST,  'The slit name.'],
-                                   ['beam_splitter_pos',  'Beam Splitter Position',   str,         Category.SHANE_KAST,  'The beam splitter position'],
-                                   ['grism',              'Grism  (Blue only)',       str,         Category.SHANE_KAST,  'The grism used. Only applies to Kast Blue.'],
-                                   ['grating_name',       'Grating Name  (Red only)', str,         Category.SHANE_KAST,  'The grating used. Only applies to Kast Red.'],
-                                   ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.SHANE_KAST,  'The grating tilt used. Only applies to Kast Red.'],
+                                   ['slit_name',          'Slit Name',                str,         Category.KAST,        'The slit name.'],
+                                   ['beam_splitter_pos',  'Beam Splitter Position',   str,         Category.KAST,        'The beam splitter position'],
+                                   ['grism',              'Grism  (Blue only)',       str,         Category.KAST,        'The grism used. Only applies to Kast Blue.'],
+                                   ['grating_name',       'Grating Name  (Red only)', str,         Category.KAST,        'The grating used. Only applies to Kast Red.'],
+                                   ['grating_tilt',       'Grating Tilt (Red only)',  int,         Category.KAST,        'The grating tilt used. Only applies to Kast Red.'],
                                    ['apername',           'Aperture Position',        str,         Category.SHARCS,      'Aperture wheel, named position'],
                                    ['filter2',            'Filter 2',                 str,         Category.SHARCS,      'Filter wheel 2, named position'],
                                    ['sci_filter',         'Science Filter',           str,         Category.SHARCS,      'External (warm) science filter wheel position'],
                                    ['coadds_done',        'Number of Coadds',         int,         Category.SHARCS,      'Number of coadds.'],
                                    ['true_int_time',      'True Integration Time',    float,       Category.SHARCS,      'True integration time in seconds per coadd'],
+                                   ['decker',             'Decker Name',              str,         Category.APF,         'Slit/Decker position'],
                         ])
 
 # Dynamic fields created by the API but not stored in the database
@@ -158,10 +160,9 @@ dynamic_fields = Table(names=[     'db_name',            'human_name',          
                                   ['download_link',      'Download Link',            str,         Category.COMMON,       'URL for downloading the file.'],
                        ])
 
-
-api_capabilities = {'required': data_dictionary[[True if db_name in ['filename', 'obs_date', 'object', 'coord'] else False for db_name in data_dictionary['db_name']]],
-                    'sort':     data_dictionary[[True if db_name not in ['coord', 'header', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],
-                    'result':   vstack([data_dictionary[[True if db_name not in ['coord', 'ingest_flags'] else False for db_name in data_dictionary['db_name']]],dynamic_fields]),
+api_capabilities = {'query': ['filename', 'obs_date', 'object', 'coord'],
+                    'sort':     [str(field['db_name']) for field in data_dictionary if field['db_name'] not in ['coord', 'header', 'ingest_flags']],
+                    'result':   [str(field['db_name']) for field in vstack([data_dictionary, dynamic_fields]) if field['db_name'] not in ['coord', 'ingest_flags']],
                     }
 
 # The units for fields where applicable.
@@ -173,4 +174,4 @@ field_units = {"obs_date":       "date",
                "mtime":          "date", 
                "true_int_time":  "seconds"}
 
-supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS, Instrument.NICKEL_DIR, Instrument.NICKEL_SPEC]
+supported_instruments = [Instrument.KAST_BLUE, Instrument.KAST_RED, Instrument.SHARCS, Instrument.NICKEL_DIR, Instrument.NICKEL_SPEC, Instrument.APF]

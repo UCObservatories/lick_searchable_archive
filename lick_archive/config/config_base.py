@@ -92,8 +92,12 @@ class ConfigBase(abc.ABC):
 
         # See if the attribute exists
         is_missing =  attribute_name not in config_section or \
-                      config_section[attribute_name] is None or \
-                      len(config_section[attribute_name]) == 0
+                      config_section[attribute_name] is None
+
+        if not is_missing:
+            is_empty = len(config_section[attribute_name].strip()) == 0
+        else:
+            is_empty = True
                                    
 
         validation_errors = []
@@ -131,30 +135,67 @@ class ConfigBase(abc.ABC):
             try:
                 if not is_missing and possible_type is list or possible_type is tuple or possible_type is set:
                     # Sequence types
-                    string_values = [s.strip() for s in config_section[attribute_name].split(",")]
-
-                    if len(type_args) == 0:
-                        # Default to string values if there's no typing
-                        typed_values = string_values
-                    elif len(type_args) == 1:
-                        # One type for every element
-                        typed_values= [cls._parse_value(type_object=type_args[0],value=v) for v in string_values]
-                    elif len(type_args) == len(string_values):
-                        # Each element must match it's corresponding type
-                        typed_values= [cls._parse_value(type_object=t,value=v) for v, t in zip(string_values, type_args)]
+                    if is_empty:
+                        # Empty list
+                        typed_values = []
                     else:
-                        validation_errors.append(f"Length of {possible_type.__name__} {len(string_values)} does not match expected length {len(type_args)}")
-                        continue
+                        string_values = [s.strip() for s in config_section[attribute_name].split(",")]
+
+                        if len(type_args) == 0:
+                            # Default to string values if there's no typing
+                            typed_values = string_values
+                        elif len(type_args) == 1:
+                            # One type for every element
+                            typed_values= [cls._parse_value(type_object=type_args[0],value=v) for v in string_values]
+                        elif len(type_args) == len(string_values):
+                            # Each element must match it's corresponding type
+                            typed_values= [cls._parse_value(type_object=t,value=v) for v, t in zip(string_values, type_args)]
+                        else:
+                            validation_errors.append(f"Length of {possible_type.__name__} {len(string_values)} does not match expected length {len(type_args)}")
+                            continue
                     # Create the sequence objects with its individual elements
                     return possible_type(typed_values)
+                elif not is_missing and issubclass(possible_type, Mapping) :
+                    
+                    if is_empty:
+                        typed_values = []
+                    else:
+                        # Deal with dictionary and similar types. We expect a list like "a:b,c:d"
+                        items = [s.strip() for s in config_section[attribute_name].split(",")]
+                        split_items = [s.split(':') for s in items]
+                        
+                        if len(type_args) == 0:
+                            key_type = str
+                            value_type = str
+                        elif len(type_args) == 1:
+                            key_type = type_args[0]
+                            value_type = str
+                        else:
+                            key_type = type_args[0]
+                            value_type = type_args[1]
+
+                        typed_values=[]
+                        for pair in split_items:
+                            if len(pair) == 1:
+                                key_value = cls._parse_value(type_object=key_type, value=pair[0].strip())
+                                value = None
+                            elif len(pair) == 2:
+                                key_value = cls._parse_value(type_object=key_type, value=pair[0].strip())
+                                value = cls._parse_value(type_object=value_type, value=pair[1].strip())
+                            else:
+                                raise ValueError(f"Invalid entry in dictionary: {attribute_name}")
+        
+                            typed_values.append((key_value, value))
+                    return possible_type(typed_values)
                 else:
+
                     # A non-sequence type, directly parse it
                     return cls._parse_value(type_object=possible_type, value=config_section[attribute_name])
             except Exception as e:
                 validation_errors.append(str(e))
                 continue
 
-        if is_missing:
+        if is_missing or is_empty:
             # The attribute was missing and empty and there was no type
             # that could deal with that. Use the default value if one was provided
             # or raise an errror

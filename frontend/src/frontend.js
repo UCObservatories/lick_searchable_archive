@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", buildInstruments)
 function buildInstruments(event) {
 
     const instrumentList = document.getElementById("instrument_list")
-    for (const instrKey of config.instrumentOrder) {
+    for (const instrKey of config.validInstruments) {
         // Add each top level instrument. Child instruments are added recursively
         addInstrument(instrumentList, instrKey)
     }
@@ -508,18 +508,18 @@ function buildHeaderRow(resultFields, tableElem, prefix) {
         const headerCell = document.createElement("th")
         headerCell.className = prefix + "_header"
         headerCell.scope = "col"
-        headerCell.appendChild(new Text(dataDictionary.resultFields[field].human_name))
-        if (dataDictionary.resultFields[field].units != "") {
+        headerCell.appendChild(new Text(dataDictionary.archiveFields[field].human_name))
+        if (dataDictionary.archiveFields[field].units != "") {
             headerCell.appendChild(document.createElement("br"))
-            if (dataDictionary.resultFields[field].units == "angle") {
+            if (dataDictionary.archiveFields[field].units == "angle") {
                 /* TODO support coordinate formats */
                 headerCell.appendChild(new Text("(Degrees)"))
             }
             /* All dates are displayed as UTC-8 */
-            else if (dataDictionary.resultFields[field].units == "date") {
+            else if (dataDictionary.archiveFields[field].units == "date") {
                 headerCell.appendChild(new Text("(UTC-8)"))
             } else {
-                headerCell.appendChild(new Text(`(${dataDictionary.resultFields[field].units})`))
+                headerCell.appendChild(new Text(`(${dataDictionary.archiveFields[field].units})`))
             }
         }
         headerRowElem.appendChild(headerCell)
@@ -580,7 +580,7 @@ function processSingleResult(result, field) {
             return anchorElem
         default:
             /* Convert dates from the server to UTC-8 per Lick Observatory standard */
-            if (dataDictionary.resultFields[field].units == "date") {
+            if (dataDictionary.archiveFields[field].units == "date") {
                 return new Text(dateStringToISOPST(result[field]))
             }
             else {

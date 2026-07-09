@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import sys
+import json
 
 from jinja2 import Environment, ChoiceLoader, FileSystemLoader, BaseLoader, TemplateNotFound, select_autoescape
 
@@ -13,6 +14,7 @@ def get_parser():
     parser.add_argument("output", type=Path, help='The output HTML file to create.')
     parser.add_argument("--set-variables", "-v", type=str, nargs="*", help='A variable to set for the template, of the format "var=value".')
     parser.add_argument("--template-paths", "-p", type=Path, nargs="*", help='Paths to find template files included or extended by the template being rendered.')
+    parser.add_argument("--set-json-variables", "-j", type=Path, nargs="*", help="Set variables based on a json object. One variable per name.")
     return parser
 
 def main(args):
@@ -39,6 +41,25 @@ def main(args):
     for var in vars.items():
         print(f"Setting variable {var[0]} = '{var[1]}'")
 
+    if args.set_json_variables is not None:
+        for json_file in args.set_json_variables:
+
+            try:
+                with open(json_file) as jf:
+                    json_obj = json.load(jf)
+            except FileNotFoundError:
+                print(f"{json_file} does not exist.", sys.stderr)
+                return 3
+            except Exception as e:
+                print(f"Error reading {json_file}: {e}", sys.stderr)
+                return 3
+
+            if not hasattr(json_obj, "items"):
+                print(f"{json_file} must be formatted with a top level object.", file=sys.stderr)
+                return 3
+            for name, value in json_obj.items():
+                print(f"Using {name} from {json_file}")
+                vars[name] = value
 
     # Build the jinja template loader to use either our simple path loader or jinja2's FileSystemLoader. The
     # difference is that the FileSystemLoader *only* looks in the given paths, and ignores absolute paths.
@@ -48,7 +69,7 @@ def main(args):
     loader = ChoiceLoader([PathLoader(), FileSystemLoader(paths)])
 
     # Build the environment and get the input template
-    env = Environment(loader=loader, autoescape=select_autoescape())
+    env = Environment(loader=loader, autoescape=select_autoescape(), lstrip_blocks=True, trim_blocks=True)
 
     print(f"Rendering template {args.input} to {args.output}")
     template = env.get_template(str(args.input))

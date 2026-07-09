@@ -683,7 +683,6 @@ def test_identify_access_rule4_using_header_times(monkeypatch, tmp_path):
 
         # Test a file with beginning/end date, and multiple ownerhints
         result_access = user_access.identify_access(file_metadata)
-
         assert result_access.visibility == user_access.Visibility.UNKNOWN
         assert result_access.ownerids == []
         assert result_access.coverids == []

@@ -11,6 +11,8 @@ python virtual environment::
     $ newgrp mhdata
     $ source /opt/lick_archive/bin/activate
 
+.. _archive_admin_page:
+
 Archive Admin Page
 ------------------
 

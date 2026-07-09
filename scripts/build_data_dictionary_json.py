@@ -2,7 +2,7 @@
 
 import argparse
 from pathlib import Path
-from lick_archive.metadata import data_dictionary
+from lick_archive.metadata.data_dictionary import data_dictionary, field_units, api_capabilities, Category
 import json
 import sys
 
@@ -10,14 +10,39 @@ def get_parser():
     """
     Parse build_metadata_config command line arguments with argparse.
     """
-    parser = argparse.ArgumentParser(description="Build the metadata_config.js file used when building the frontend Javascript to allow the frontend to understand the archive's metadata.")
-    parser.add_argument("output", type=Path, help='Where to output the metadata_config.js file.')
+    parser = argparse.ArgumentParser(description="Build the metadata data dictionary file json used when building the frontend Javascript to allow the frontend to understand the archive's metadata.")
+
+    parser.add_argument("config", type=Path, help="Path to the frontend config.json file.")
+    parser.add_argument("output", type=Path, help='Where to output the metadata data dictionary json file.')
 
     return parser
 
+def build_field_dict(field):
+    result = dict()
+    result['human_name'] = field['human_name']
+    result['units'] = field_units.get(field['db_name'],'')
+    result['category'] = field['category'].value
+    result['query_valid'] = field['db_name'] in api_capabilities['query']
+    result['result_valid'] = field['db_name'] in api_capabilities['result']
+    result['sort_valid'] = field['db_name'] in api_capabilities['sort']
+    return result
+
 def main(args):
-    result_fields = {result['db_name']: {"human_name": result['human_name'], "units": data_dictionary.field_units.get(result['db_name'],"")} for result in data_dictionary.api_capabilities["result"]}
-    data_dictionary_wrapper = {"resultFields": result_fields}
+
+    with open(args.config, "r") as f:
+        config = json.load(f)
+
+    categories = [cat.value for cat in Category if cat.name in config['validInstruments'] or cat == Category.COMMON]
+    all_fields = {field['db_name']: build_field_dict(field) for field in data_dictionary}
+    # filter out fields that aren't visible, i.e. aren't queryable, resultable, or sortable
+    archive_fields = {field[0]: field[1] for field in all_fields.items() if field[1]['category'] in categories and (field[1]['query_valid'] or field[1]['result_valid'] or field[1]['sort_valid'])}
+
+    data_dictionary_wrapper = {"archiveCategories": categories,
+                               "archiveFields":     archive_fields,
+                               }
+
+
+    # Group into categories
     results_js = json.dumps(data_dictionary_wrapper,indent=4)
     with open(args.output, "w") as f:
         f.write(results_js)

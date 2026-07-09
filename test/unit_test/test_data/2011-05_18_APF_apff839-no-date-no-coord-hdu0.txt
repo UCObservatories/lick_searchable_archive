@@ -1,0 +1,86 @@
+SIMPLE  =                    T / NORMAL FITS IMAGE                              
+BITPIX  =                   16 / DATA PRECISION                                 
+NAXIS   =                    2 / NUMBER OF IMAGE DIMENSIONS                     
+NAXIS1  =                 2112 / NUMBER OF COLUMNS                              
+NAXIS2  =                 4608 / NUMBER OF ROWS                                 
+CRVAL1U =                    0 / COLUMN ORIGIN                                  
+CRVAL2U =                    0 / ROW ORIGIN                                     
+CDELT1U =                    1 / COLUMN CHANGE PER PIXEL                        
+CDELT2U =                    1 / ROW CHANGE PER PIXEL                           
+OBSNUM  =                 5839 / OBSERVATION NUMBER                             
+IDNUM   =                    1 / IMAGE ID                                       
+IMTYPE  =                    4 / IMAGE READOUT GEOMETRY                         
+DSTYPE  =                    4 / DESCRAMBLE GEOMETRY                            
+AMPSROW =                    2 / AMPLIFIERS PER ROW                             
+AMPSCOL =                    1 / AMPLIFIERS PER COLUMN                          
+EXPTIME =             0.000000 / Exp time (not counting shutter error)          
+BSCALE  =             1.000000 / DATA SCALE FACTOR                              
+BZERO   =         32768.000000 / DATA ZERO POINT                                
+COMMENT    Real Value = FITS*BSCALE+BZERO                                       
+PROGRAM = 'NEWCAM'             / New Lick Camera                                
+VERSION = 'apf'                / Data acquisition version                       
+TSEC    =           1305825637 / CLOCK TICK - SECONDS                           
+TUSEC   =               368012 / CLOCK TICK - MICROSECONDS                      
+DATE-OBS= '2011-05-19T17:20:37.36' / UTC DATE AND TIME OF OBSERVATION           
+COMMENT End cards hard-coded in fits_cards                                      
+COMMENT Begin cards from start of exposure                                      
+COMMENT End cards from start of exposure                                        
+COMMENT Begin cards from end of exposure                                        
+DATE-END= '2011-05-19T17:20:36  ' / END OF OBSERVATION                          
+COMMENT End cards from end of exposure                                          
+COMMENT Begin cards from other times                                            
+CAMERAID=                    5 / ci: CAMERA ID NUMBER                           
+GEOMCODE=                    4 / db: READOUT GEOMETRY                           
+ERPBIN  =                   10 / ci: PARALLEL BINNING DURING ERASE              
+ERASE   =                    2 / ci: NUMBER OF ERASES                           
+DSENSOR = '   e2v 2kx4k 42-90' / db: SENSOR DESCRIPTION                         
+PSKIP   =                    0 / ci: CONTROLS POST-IMAGE SKIPPING               
+DNAXIS2 =                 4608 / db: ROWS IN SENSOR                             
+DNAXIS1 =                 2048 / db: COLUMNS IN SENSOR                          
+UCAMADC = '           Old ADC' / db: UCAM ADC BOARDS                            
+CSMP    =                    0 / ci: DCS CAP SELECTION                          
+CSELPRD =                    0 / ci: PREREAD CLOCK SELECTION                    
+SCLEAN  =                    0 / ci: SERIAL CLEANING CLOCK SELECTION            
+UCAMCDB = '           Old CDB' / db: UCAM CDB BOARDS                            
+BINPRD  =                    0 / ci: PREREAD SERIAL BINNING                     
+BINSCLN =                    0 / ci: BINNING FOR SERIAL CLEAN                   
+PPRERD  =                   40 / ci: PRE-IMAGE ROWS                             
+PFREQ   =                    2 / ci: PARALLEL CLOCK PERIOD                      
+PADDC   =                    0 / ci: PARALLEL CLOCK CAPACITOR SELECTION         
+OBSERVER= '           Radovan' / db: OBSERVER NAME                              
+NSTIME  =                   32 / ci: CONTROLS RISING TIME FOR SUBSTRATE         
+VSUBEX  =                    0 / ci: SUBSTRATE VOLTAGE DURING EXPOSURE          
+VSUBER  =                    0 / ci: SUBSTRATE VOLTAGE DURING ERASE             
+NHBESP  =                   32 / ci: BINNING FOR SPECIAL ERASE                  
+MERSP   =                    0 / ci: CONTROLS SPECIAL ERASE MODE                
+TCPR1   =                    4 / ci: PRE-IMAGE SERIAL PIXELS                    
+TSPRD   =                   40 / ci: SAMPLE TIME IN 0.1 MICROSECOND UNITS       
+TSCLEAN =                   40 / ci: SERIAL CLEAN SAMPLE TIME                   
+UCAMSPB = '             2 DSP' / db: UCAM SPB BOARDS                            
+UCAMSOFT= '       4.07 071610' / db: UCAM SOFTWARE VERSION                      
+SFREQ   =                    2 / ci: SERIAL CLOCK PERIOD                        
+SADDC   =                    2 / ci: SERIAL CLOCK CAP SELECTION                 
+REVERASE=                    0 / ci: NUMBER OF REVERSE ERASES                   
+UCAMTIM = '        Old Timing' / db: UCAM TIMING BOARDS                         
+TCPR2   =                    4 / ci: POST-IMAGE SERIAL PIXELS BEFORE OVERSCAN   
+EQUINOX =          2009.199951 / gn: EPOCH FOR POCO POSITION IS CURRENT DATE    
+GAIN    =                    1 / gn: DCS GAIN INDEX                             
+TEMPCON =          -153.899994 / gn: CONTROLLER TEMPERATURE                     
+NCSHIFT =                    0 / gn: NUMBER OF CHARGE SHUFFLES                  
+RCSHIFT =                    0 / gn: NUMBER OF ROWS IN EACH CHARGE SHUFFLE      
+ROVER   =                    0 / gn: NUMBER OF OVERSCAN ROWS                    
+COVER   =                   32 / gn: NUMBER OF OVERSCAN COLUMNS                 
+OBJECT  = '          Baseline' / gn:                                            
+MPP     =                    0 / gn: MPP STATE                                  
+HA      = '         +00:00:00' / gn: HOUR ANGLE                                 
+TEMPDET =          -110.000000 / gn: EXPOSURE START DETECTOR TEMPERATURE        
+TEMPDETE=             0.000000 / gn: EXPOSURE END DETECTOR TEMPERATURE          
+READ-SPD=                   10 / gn: DCS READ SPEED                             
+OBSTYPE = '              DARK' / IMAGE TYPE                                     
+RBIN    =                    1 / ROW BINNING                                    
+CBIN    =                    1 / COLUMN BINNING                                 
+HEATER  =                 1567 / db: HEATER VOLTAGE                             
+CKSUMOK =                    T / CHECKSUMS MATCH                                
+CAMCKSUM=                64097 / CAMERA-COMPUTED CHECKSUM                       
+SFTCKSUM=                64097 / SOFTWARE-COMPUTED CHECKSUM                     
+COMMENT End cards from other times                                              

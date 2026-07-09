@@ -5,6 +5,7 @@ MetadataReader implementation for Shane Kast data.
 from datetime import datetime
 import logging
 from pathlib import Path
+from pickle import INST
 
 from astropy.io.fits import HDUList
 
@@ -17,7 +18,7 @@ from lick_archive.metadata.data_dictionary import FrameType, IngestFlags, Instru
 
 logger = logging.getLogger(__name__)
 
-class NickelReader(AbstractReader):
+class APFReader(AbstractReader):
     """
     Reader implementation for Nickel images.
     """
@@ -39,20 +40,20 @@ class NickelReader(AbstractReader):
         """
 
         # Look for the nickel directory name
-        if "nickel" == file_path.parent.name:
+        if "APF" == file_path.parent.name:
             return True
 
         return False
     
 
 
-    def determine_frame_type(self, exptime : float, obstype : str | None, object : str | None) -> FrameType:
+    def determine_frame_type(self, decker: str | None, obstype : str | None, object : str | None) -> tuple[FrameType, IngestFlags]:
         """
         Determine the frame type based on exposure time, lamps and object name.
         Parts of this logic was adapted from PypeIt
 
         Args:
-        exptime:  Exposure time in seconds.
+        decker:   The DECKRNAM keyword from the file's header.
         obstype:  The OBSTYPE keyword from the file's header.
         object:   The OBJECT keyword from the file's header.
 
@@ -60,45 +61,30 @@ class NickelReader(AbstractReader):
                                           while determining the frame type.
         """
         ingest_flags = IngestFlags.CLEAR
-        frame_type = FrameType.unknown
-
-        # Use the OBSTYPE header card to look for darks
-        if obstype is None:
-            logger.debug("There's no OBSTYPE in the header, but OBJECT may still be used to determine hte frame type.")
-            ingest_flags = ingest_flags | IngestFlags.NO_OBSTYPE
-        elif obstype == "DARK":
-            if exptime == 0:
-                # Treat zero exposure time darks as bias frames
-                frame_type = FrameType.bias
-            else:
-                frame_type = FrameType.dark
-            return (frame_type, ingest_flags)
-        
         if object is None:
-            logger.debug("Cannot determine frame type because there's no OBJECT.")
-            ingest_flags = ingest_flags | IngestFlags.NO_OBJECT_IN_HEADER
-            # Need object to determine the frame type
             frame_type = FrameType.unknown
-        else:
-            object = object.lower()
-            if "bias" in object:
-                if exptime == 0:
-                    frame_type = FrameType.bias
-                else:
-                    frame_type = FrameType.flat
-            # Flat should come before lamp, because some objects are "flat field lamp"
-            elif "flat" in object:
-                frame_type = FrameType.flat
-            elif "lamp" in object or "hg" in object:
-                frame_type = FrameType.arc
-            elif "dark" in object:
-                # Dark in the object name but the OBSTYPE isn't DARK? Treat that as unknown
-                frame_type = FrameType.unknown
-            elif "focus" in object:
-                frame_type = FrameType.focus
+            ingest_flags = IngestFlags.NO_OBJECT_IN_HEADER
+        elif 'bias' in object.lower():
+            frame_type = FrameType.bias
+        elif 'dark' in object.lower():
+            frame_type = FrameType.dark
+        elif 'wideflat' in object.lower() or 'narrowflat' in object.lower() or 'iodine' in object.lower():
+            frame_type = FrameType.flat
+        elif 'ThAr' in object or 'Th Ar' in object:
+            frame_type = FrameType.arc
+        elif 'pinhole' in object.lower():
+            if decker is None or decker == '':
+                # Older data without a DECKRNAM, we'll trust the OBJECT value
+                frame_type = FrameType.pinhole
+            elif decker == 'Pinhole':
+                frame_type = FrameType.pinhole
             else:
-                frame_type = FrameType.science
-
+                frame_type = FrameType.unknown
+                ingest_flags = IngestFlags.UNKNOWN_FORMAT
+        elif obstype == 'DARK':
+            frame_type = FrameType.dark
+        else:
+            frame_type = FrameType.science
         return (frame_type, ingest_flags)
 
     def read_row(self, file_path : Path, hdul : HDUList, ingest_flags : IngestFlags = IngestFlags.CLEAR) -> FileMetadata:
@@ -124,40 +110,16 @@ class NickelReader(AbstractReader):
         header = hdul[0].header
        
         m = FileMetadata()
-        m.telescope = Telescope.NICKEL
+        m.telescope = Telescope.APF
 
         # Try to determine the instrument type, first try "VERSION",
         # then "INSTRUME"
-        m.instrument = None
-        instr = safe_header(hdul[0].header,'VERSION')
+        m.instrument = Instrument.APF
 
-        if instr is None:
-            instr = safe_header(hdul[0].header,'INSTRUME')
-
-        # Look for nickel direct or nickel spectrograph
-        if instr is not None:
-            if "nickel" in instr.lower():
-                if "direct" in instr.lower():
-                    m.instrument = Instrument.NICKEL_DIR
-                elif "spectrograph" in instr.lower():
-                    m.instrument = Instrument.NICKEL_SPEC
-                else:
-                    logger.warning(f"Unrecognized instrument for Nickel telescope. Found: '{instr}'.")    
-            elif "villages" in instr.lower():
-                m.instrument = Instrument.VILLAGES
-            else:
-                logger.warning(f"Unrecognized instrument for Nickel telescope. Found: '{instr}'.")
-
-        if m.instrument is None:
-            logger.warning(f"Unknown instrument for Nickel telescope.")
-            m.instrument = Instrument.UNKNOWN
-
-        # Older files use "DATE-OBS", newer ones 'DATE' or 'DATE-BEG'
-        obs_date = safe_header(header, 'DATE-OBS')
+        # Older files use "DATE-STA" newerones 'DATE-BEG'
+        obs_date = safe_header(header, 'DATE-BEG')
         if obs_date is None:
-            obs_date = safe_header(header, 'DATE')
-            if obs_date is None:
-                obs_date = safe_header(header,'DATE-BEG')
+            obs_date = safe_header(header, 'DATE-STA')
 
         if obs_date is not None:
             try:
@@ -171,7 +133,7 @@ class NickelReader(AbstractReader):
             filename_date, instr = parse_file_name(file_path)
             # Use noon Lick time (aka UTC-8)
             m.obs_date = parse(f"{filename_date}T12:00:00-08:00")
-            ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE               
+            ingest_flags = ingest_flags | IngestFlags.USE_DIR_DATE
 
         m.exptime           = safe_header(header, 'EXPTIME')
 
@@ -179,33 +141,29 @@ class NickelReader(AbstractReader):
         if m.coord is None:
             ingest_flags = ingest_flags | IngestFlags.NO_COORD
 
-        m.object            = safe_strip(safe_header(header, 'OBJECT'))
-        m.slit_name         = None
-        m.airmass           = safe_header(header, 'AIRMASS')
-        m.beam_splitter_pos = None
-        m.grism             = None
-        m.grating_name      = None
-        m.grating_tilt      = None
+        tobject = safe_strip(safe_header(header,'TOBJECT'))
+        object = safe_strip(safe_header(header,'OBJECT'))
 
-        m.apername = None
+        # Use TOBJECT if it's given which it should be for newer data that has a target.
+        # For other data (either old stuff or calibrations) use OBJECT
+        m.object = object if tobject is None or tobject == '' else tobject
 
-        # Filter names are some times slightly different in the header,
-        # but I worry the mapping of FILTORD to filters may change in the future.
-        # So I strip any extra spaces, single quotes, and convert to upper case
-        filter_name = safe_strip(safe_header(header, 'FILTNAM'))
-        if filter_name is not None:
-            filter_name.strip("'")
-            m.filter1 = filter_name.upper()
+        decker = safe_strip(safe_header(header, 'DECKRNAM'))
+        if decker is None:
+            m.decker = "Unknown"
+        else:
+            m.decker = decker
+        
 
-        m.filter2 = None
-        m.sci_filter = None
         m.program = safe_strip(safe_header(header,'PROGRAM'))
+
+        # Some observer strings have newlines in them
         m.observer = safe_strip(safe_header(header,'OBSERVER'))
 
 
         m.filename = str(file_path)
 
-        (m.frame_type, frame_flags) = self.determine_frame_type(m.exptime, safe_strip(safe_header(header, 'OBSTYPE')), m.object)
+        (m.frame_type, frame_flags) = self.determine_frame_type(m.decker, safe_strip(safe_header(header, 'OBSTYPE')), object)
         ingest_flags |= frame_flags
 
         # Save the header for future updates, and 

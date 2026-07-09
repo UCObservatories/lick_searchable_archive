@@ -110,13 +110,13 @@ def get_public_date(file_metadata: FileMetadata, observing_night:date, ownerids:
         # The file is public now
         is_public = True
         if is_default is False:
-            reason = f"File has passed observer {obid}'s proprietary end date of {earliest_date}"
+            reason_str = reason("0", f"File has passed observer {obid}'s proprietary end date of {earliest_date}")
         else:
-            reason = f"File has passed default proprietary end date of {earliest_date}"
+            reason_str = reason("0", f"File has passed default proprietary end date of {earliest_date}")
     else:
-        reason = f"File is not public, earliest public date is {earliest_date} from observer {obid}."
+        reason_str = reason("0", f"File is not public, earliest public date is {earliest_date} from observer {obid}.")
 
-    return earliest_date, reason, is_public
+    return earliest_date, reason_str, is_public
 
 def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMetadata:
     

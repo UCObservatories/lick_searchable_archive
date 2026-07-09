@@ -36,9 +36,9 @@ def ingest_new_files(new_ingests):
     logger.info(f"Starting ingest of {len(new_ingests)} files.")
     added_files = []
     logger.info(repr(new_ingests))
+    remaining_files, good_files, failed_files = process_oafs(new_ingests)
 
     # Process any override access files first
-    remaining_files, good_files, failed_files = process_oafs(new_ingests)
 
     with BatchedDBOperation(_db_engine,lick_archive_config.ingest.insert_batch_size) as insert_batch:
         with closing(open_db_session(_db_engine)) as session:

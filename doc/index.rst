@@ -17,6 +17,7 @@ Welcome to Lick Observatory Searchable Archive's documentation!
    developer/database
    developer/ucsc_specific_config
    developer/todo
+   developer/external_test
 
 .. toctree::
    :maxdepth: 1
@@ -24,6 +25,7 @@ Welcome to Lick Observatory Searchable Archive's documentation!
 
    developer/architecture
    developer/code
+   developer/manual_test
    api/api.rst
    api/schema.rst
 

@@ -17,7 +17,6 @@ def MockDatabase(base_class, rows=None):
     # This functions wraps a MockDatabaseClass so that the below imports
     # aren't made until after the archive configuration is set
     from lick_archive.db.archive_schema import FileMetadata,UserDataAccess
-    from lick_archive.metadata.data_dictionary import api_capabilities
     class MockDatabaseClass(contextlib.AbstractContextManager):
 
         def __init__(self, base_class, rows=None):
@@ -73,7 +72,7 @@ def create_mock_view(engine, request=None):
         serializer_class = SQLAlchemyORMSerializer
         allowed_sort_attributes = ["id", "filename", "object", "obs_date"]
         allowed_result_attributes = ["filename", "obs_date", "object", "frame_type", "header", "download_link"]
-        required_attributes = list(api_capabilities['required']['db_name'])
+        required_attributes = api_capabilities['query']
         serializer_class = SQLAlchemyORMSerializer
 
         def __init__(self, engine, request=None):

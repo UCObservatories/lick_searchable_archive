@@ -51,8 +51,8 @@ def _map_type(python_type):
 
 
 main_columns = [Column(dd_row['db_name'], _map_type(dd_row['type']), 
-                       primary_key=True if dd_row['db_name'] in _primary_key else None,
-                       unique=True if dd_row['db_name'] in _unique else None,
+                       primary_key=True if dd_row['db_name'] in _primary_key else False,
+                       unique=True if dd_row['db_name'] in _unique else False,
                        nullable=False if dd_row['db_name'] in _required else True,
                        server_default=_defaults.get(dd_row['db_name'],None),
                        ) 

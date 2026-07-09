@@ -163,6 +163,9 @@ def main():
                 file_count = 0
                 for file in directory.iterdir():
                     if file.is_file():
+                        # Skip hidden files
+                        if file.name.startswith("."):
+                            continue
                         if not OverrideAccessFile.check_filename(file) and file.name.endswith(".access"):
                             # Some weird editor backup override.access files exist, skip those
                             continue
