@@ -3,6 +3,7 @@ logger = logging.getLogger(__name__)
 
 from datetime import date, datetime, timezone,timedelta
 import subprocess
+import os
 
 from lick_archive.metadata.data_dictionary import Telescope
 from lick_archive.utils.timed_cache import timed_cache
@@ -27,18 +28,20 @@ def get_keyword_ownerhints(telescope : Telescope, observing_night:date) -> list[
 
     # Build the arguments needed to call gshow
     gshow = str(lick_archive_config.authorization.gshow_path)
-
     schedule_service = lick_archive_config.authorization.schedule_services[telescope.value]
-
     gshow_cmd = [gshow, "-s", schedule_service, "OWNRHINT", 
                  "-date",      observing_night.strftime("%Y-%m-%d 12:00:00"), 
                  "-window",    "24hr", "-resolution", "0", "-timeformat", "%s",
-                "-format",     "%.0s%s%.0s", "-noredi", "-dbuser",     "user"]
+                 "-format",     "%.0s%s%.0s", "-noredi"]
 
+    # Make sure no "TZ" environment confuses gshow
+    gshow_env = os.environ.copy()
+    if "TZ" in gshow_env:
+        del gshow_env["TZ"]
     
     # Call gshow with a 10s timeout
     logger.info(f"Calling {' '.join(gshow_cmd)}")
-    result = subprocess.run(gshow_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=10)
+    result = subprocess.run(gshow_cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=10,env=gshow_env)
     if result.returncode != 0:
         raise RuntimeError(f"Failed to run 'gshow', error code: {result.returncode}")
     

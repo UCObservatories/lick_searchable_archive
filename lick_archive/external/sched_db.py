@@ -45,8 +45,12 @@ class ScheduleDB:
             ScheduleDB._initialized = True
 
             # Get connection information for the schedule database, and create a SQLAlchemy engine for it
-            user_information = lick_archive_config.authorization.read_user_information()
-            self.url = f"postgresql://{user_information}@{lick_archive_config.authorization.sched_db_host}/{lick_archive_config.authorization.sched_db_name}"
+            #user_information = lick_archive_config.authorization.read_user_information()
+            dbhost = lick_archive_config.authorization.sched_db_host
+            dbname = lick_archive_config.authorization.sched_db_name
+            dbuser = lick_archive_config.authorization.sched_db_user
+
+            self.url = f"postgresql://{dbuser}@{dbhost}/{dbname}"
             self._sched_db_engine = db_utils.create_db_engine(url=self.url)
 
             # Use SQLAlchemy's reflection to get the database tables without having to 

@@ -176,8 +176,8 @@ class AuthConfig(ConfigNamespace):
     sched_db_name : str
     """The schedule database name"""
 
-    sched_db_user_info : Path
-    """Path to a text file containing the schedule database's user information, formatted as 'user:password'"""
+    sched_db_user : str
+    """The schedule database username/role"""
 
     gshow_path : Path
     """Path to the gshow executable"""
