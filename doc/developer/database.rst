@@ -8,9 +8,9 @@ Tables
 ======
 TBD maybe automagically generate some of this documentation from the SQLAlchemy code so it stays up to date?
 
-``main``
---------
-Currently most of the data in the archive is stored in the ``main`` table. It has columns for
+``file_metadata``
+-----------------
+Currently most of the data in the archive is stored in the ``file_metadata`` table. It has columns for
 each item in the Lick Searchable Archive Metadata Schema (TBD link). This design was chosen for query performance,
 as it eliminates joins. However if it becomes too cumbersome it may be split in the future. The
 additional columns not in the Metadata Schema are:
@@ -26,6 +26,12 @@ additional columns not in the Metadata Schema are:
 
 ``coord``
     A pgsphere Spoint with the ra/dec. This is indexed allowing for fast searches wiht sky coordinates.
+
+``user_data_access``
+--------------------
+For proprietary data, the many-to-many relationshiip between files and observers that can 
+access those files is maintained in ``user_data_access``.
+TBD maybe autogenerate or something?
 
 Indexes
 ^^^^^^^
@@ -110,7 +116,7 @@ Notice this **must be done as the postgres user**.
 
 Upgrading database to a new schema
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+TBD update this.
 1. Login as the postgres user, and backup the database::
 
        $ sudo su - postgres
@@ -129,13 +135,13 @@ Upgrading database to a new schema
     psql (14.9 (Ubuntu 14.9-0ubuntu0.22.04.1))
     Type "help" for help.
 
-    archive=> drop table main;
+    archive=> drop table file_metadata;
     DROP TABLE
     archive=> exit
 
 4. Setup the new database schema as in :ref:`db_setup`.
 
-5. As the postgres user, restore the database ``main`` table backup::
+5. As the postgres user, restore the database ``file_metadata`` table backup::
 
     $ cd /pg_data/saved_backups
     $ gunzip -c archive_db_YYYYMMDD_description.dump.gz | psql -U archive -f - -v ON_ERROR_STOP=1

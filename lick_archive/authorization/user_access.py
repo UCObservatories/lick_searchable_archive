@@ -3,10 +3,9 @@ import logging
 logger = logging.getLogger(__name__)
 import dataclasses
 from enum import Enum
-from collections.abc import Mapping
+from collections.abc import Mapping, Collection
 from pathlib import Path
 from datetime import date, datetime, timezone, timedelta
-from typing import Sequence
 import re
 
 from lick_archive.db.archive_schema import FileMetadata, UserDataAccess
@@ -151,9 +150,9 @@ def set_access_metadata(file_metadata : FileMetadata, access : Access) -> FileMe
         file_metadata.public_date = MAX_PUBLIC_DATE
         access.visibility = Visibility.UNKNOWN
 
-    # Make sure unknown files have the UNKNOWN user as their owner
-    if access.visibility == Visibility.UNKNOWN and ScheduleDB.UNKNOWN_USER not in access.ownerids:
-        access.ownerids.append(ScheduleDB.UNKNOWN_USER)
+    # Make sure unknown files have the UNKNOWN user as their only owner
+    if access.visibility == Visibility.UNKNOWN:
+        access.ownerids = [ScheduleDB.UNKNOWN_USER]
 
 
     reason_string = "\n".join(access.reason)
@@ -252,11 +251,12 @@ def identify_access(file_metadata : FileMetadata) -> Access:
         # The fixed owner determined ownership
         return access
 
+    # Rules 3 and 4 combined ownerids in access
+
     # Rule 3: Calibration/focus frame type shoud be viewable to all observers on that night
     if file_metadata.frame_type not in [FrameType.science, FrameType.unknown]:
         access.reason.append(reason("3", f"All observers from the night can access frame type: {file_metadata.frame_type.value}"))
         apply_ownerhints(access, "3", ["all-observers"])
-        return access
 
     # Rule 4: Look for ownerhints from the schedule keyword history
 
@@ -272,14 +272,23 @@ def identify_access(file_metadata : FileMetadata) -> Access:
     # Get beg/end_times from the file's header information
     beg_time, end_time = get_file_begin_end_times(file_metadata)
 
-    # 4a: First look for ownerhints between the beginning/end time of the file
-    ownerhints = []
+    # 4a: First look for ownerhints active between the beginning/end time of the file
+    # This includes the ownerhint immediately before the beginning time, and any that occurr
+    # between the beginning and end times.
+    ownerhints = set()
     ownerhint_search_rule = "4a"
     if beg_time is not None and end_time is not None:
-        ownerhints = [so[1] for so in schedule_ownerhints if beg_time <= so[0] and end_time >= so[0]]
+        for so in reversed(schedule_ownerhints):
+            if so[0] <= beg_time:
+                # Most recent ownerhint before the beginning time, use it
+                ownerhints.add(so[1])
+                break
+            elif so[0] > beg_time and so[0] <= end_time:
+                # Ownerhint during the exposure
+                ownerhints.add(so[1])
 
-    # 4b: If there is no beg/end times, or nothing was found in the beginning/end times, find the latest entry before the file's mtime
-    if len(ownerhints) == 0:       
+    # 4b: If there is no beg/end times, use the file's mtime
+    else:
         ownerhint_search_rule = "4b"
         if file_metadata.mtime is None:
             access.visibility = Visibility.UNKNOWN
@@ -288,14 +297,16 @@ def identify_access(file_metadata : FileMetadata) -> Access:
 
         ownerhints = [so[1] for so in schedule_ownerhints if so[0] < file_metadata.mtime]
         if len(ownerhints) > 1:
-            ownerhints = [ownerhints[-1]]
+            ownerhints = set([ownerhints[-1]])
 
-    if len(ownerhints) == 1:
+    if len(ownerhints) == 1 or "all-observers" in ownerhints:
         apply_ownerhints(access, ownerhint_search_rule, ownerhints)
         
         if access.visibility == Visibility.DEFAULT:
             access.visibility = Visibility.UNKNOWN
-            access.reason.append(reason("4y", f"No owner found for ownerhint: {ownerhints[0]}"))
+            access.reason.append(reason("4y", f"No owner found for ownerhint: {list(ownerhints)[0]}"))
+            return access
+        else:
             return access
 
     elif len(ownerhints) > 1:
@@ -305,13 +316,14 @@ def identify_access(file_metadata : FileMetadata) -> Access:
     else:
         access.reason.append(reason(ownerhint_search_rule, f"No ownerhints found."))
 
-    # Rule 5 Look for all observers on that night. 
-    apply_ownerhints(access, "5", ["all-observers"])
+    # Rule 5, if no matches have been found, look for all observers on that night. 
+    if len(access.ownerids) == 0:
+        apply_ownerhints(access, "5", ["all-observers"])
     
     return access
     
 
-def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], allow_multiple=False, allow_unscheduled=False):
+def apply_ownerhints(access : Access, rule : str, ownerhints : Collection[str], allow_multiple=False, allow_unscheduled=False):
     """Apply ownerhints to a file to find it's owners"""
 
     if len(ownerhints) == 0:
@@ -320,15 +332,21 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
     if "all-observers" in ownerhints:
         allow_multiple=True
 
-    # Convert public ownerhints to be "public"
+    # Convert public ownerhints to be "public". Use a set to filter out duplicates
     public_ownerhint_pattern = lick_archive_config.authorization.public_ownerhint_pattern
     if public_ownerhint_pattern is not None:
-        ownerhints = [oh if not re.match(public_ownerhint_pattern, oh) else "public" for oh in ownerhints]
+        ownerhints = set([oh if not re.match(public_ownerhint_pattern, oh) else "public" for oh in ownerhints])
 
-    all_obids = set()
-    all_coverids = set()
+    all_obids = set(access.ownerids)
+    all_coverids = set(access.coverids)
 
     for ownerhint in ownerhints:
+        if ownerhint.lower() == "unknown":
+            # The file was explicitly set to unknown
+            access.reason.append(reason(rule, f"unknown OWNERHINT found"))
+            access.visibility = Visibility.UNKNOWN
+            return
+
         try:
             # Query the schedule database for matching observer ids and cover ids
             obids, coverids = compute_ownerhint(access.observing_night, access.file_metadata.telescope, ownerhint)            
@@ -385,8 +403,7 @@ def apply_ownerhints(access : Access, rule : str, ownerhints : Sequence[str], al
                 all_obids.remove(ScheduleDB.UNKNOWN_USER)
 
             if len(all_obids) == 0:
-                # There were no known users, leave visibility at it's default value in case another rule can assign a value
-                access.visibility = Visibility.DEFAULT            
+                # There were no known users, leave visibility at it's original value in case another rule can assign a value
                 access.reason.append(reason(rule, f"Observing calendar ownerhint query returned unknown user."))
             else:
                 access.ownerids = list(all_obids)

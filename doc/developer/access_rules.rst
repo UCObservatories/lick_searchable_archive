@@ -151,14 +151,16 @@ Access Rules, Full Details
         instrument.
 
 
-3. Otherwise, if the file is identified as having a ``frame_type`` of
-   ``dark``, ``flat``, ``bias``, ``arc``, ``calibration``, or ``focus``
-   access is granted to all observers for that telescope/calnight;
-   the list of observers is found by querying the scheduling database.
+3.  Otherwise, if the file is identified as having a ``frame_type`` of
+    ``dark``, ``flat``, ``bias``, ``arc``, ``calibration``, or ``focus``
+    access is granted to all observers for that telescope/calnight;
+    the list of observers is found by querying the scheduling database.
 
-   3x. If a call to histsched returns an error, access is set to 'unknown'.
+    3x. If a call to histsched returns an error, access is set to 'unknown'.
 
-4. Otherwise, OWNRHINT's, OWNRNAME's, and COVERID's are applied as follows.
+4.  In addition to the observers added from Rule 3,  OWNRHINT's, OWNRNAME's, and
+    COVERID's are applied as follows.
+
     (Reminder: a data-taking application can set the keyword
     <telescope>schedule.OWNRHINT at any time.  If there are multiple
     observers in a night, it is recommended that the OWNRHINT is
@@ -179,6 +181,8 @@ Access Rules, Full Details
         the hint plus the calnight and telescope name are used to query the
         scheduling database, and access is granted to
         the resulting OWNRNAME and COVERID.
+
+    4v. If an "unknown" OWNRHINT is found, access is set to 'unknown'.
 
     4w. If there are multiple OWNRHINT values between DATE-BEG and DATE-END
         times, access is set to 'unknown'.

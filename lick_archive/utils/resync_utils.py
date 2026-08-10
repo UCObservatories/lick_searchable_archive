@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 from sqlalchemy import select, Engine
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, Session
 
 from lick_archive.db import db_utils
 from lick_archive.db.archive_schema import FileMetadata

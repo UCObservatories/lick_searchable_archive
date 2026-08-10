@@ -452,26 +452,45 @@ def test_identify_access_private_fixed_owner(monkeypatch):
         assert result_access.reason[1].startswith("Rule 2z: Unknown fixed owner")
 
 @django_db_setup
-def test_identify_access_rule3(monkeypatch):
+def test_identify_access_rule3(monkeypatch, tmp_path):
 
     with monkeypatch.context() as m:
+        m.chdir(tmp_path)
         from lick_archive.db.archive_schema import FileMetadata
         from lick_archive.metadata.data_dictionary import Telescope, Instrument, FrameType
         from lick_archive.authorization import user_access
-
+        from lick_archive import external
+        from lick_archive.config.archive_config import ArchiveConfigFile
+        lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
 
         # Mock compute_ownerhint
         mock_compute_ownerhint.desired_obids = [35, 36]
         mock_compute_ownerhint.desired_coverids = ["COVER1", "COVER2"]
 
+        # Use mock gshow
+        lick_archive_config.authorization.gshow_path = Path(__file__).parent / "mock_gshow.py"
+        mock_gshow_output = tmp_path / "mock_gshow_output.txt"
+        with open(mock_gshow_output, "w") as f:
+            print("1234 <undef>", file=f)
+
         m.setattr(user_access, "compute_ownerhint", mock_compute_ownerhint)
 
         # File metadata to test with
-        file_metadata = FileMetadata(filename = "2012-01/18/AOsample/s2345.fits", 
+        # This file's header info:
+        # DATE-BEG= '2019-05-03T09:28:29.74' / OBSERVATION BEGIN                          
+        # DATE-END= '2019-05-03T09:28:30.74' / OBSERVATION END
+        # These are    1556875709.74 /     1556875710.74  epoch time respecively
+        file_metadata = FileMetadata(filename = "2019-05/02/shane/r684.fits", 
                             telescope=Telescope.SHANE, 
-                            instrument=Instrument.SHARCS,
-                            obs_date=datetime(year=2012, month=1, day=19, hour=1, minute=1, second=1,tzinfo=timezone.utc),
+                            instrument=Instrument.KAST_RED,
+                            obs_date=datetime(year=2019, month=5, day=2, hour=20, minute=1, second=1,tzinfo=timezone.utc),
+                            mtime = datetime.fromisoformat("2019-05-03T09:28:32.740+00:00"),
                             frame_type=FrameType.arc, public_date=date(year=9999,month=12,day=31))
+
+        test_data_dir = Path(__file__).parent / 'test_data'
+        file = test_data_dir / '2019-05_02_shane_r684-hdu0.txt'
+        with open(file, "r") as f:
+            file_metadata.header = f.read()
 
         # Calibrations are visible to everyone that night
         result_access = user_access.identify_access(file_metadata)
@@ -482,6 +501,25 @@ def test_identify_access_rule3(monkeypatch):
         assert result_access.reason[0].startswith("Rule 3: All observers from the night can access frame type: arc")
         assert result_access.reason[1].startswith("Rule 3: Scheduled observer for all-observers")
         assert result_access.reason[2].startswith("Rule 3: Found 2 observers and 2 coverids")
+
+        # Now test a case where the calibration frame has a "public" ownerhint
+        with open(mock_gshow_output, "w") as f:
+            print("1556875710 public", file=f)
+
+        # Clear the timed cache of gshow output
+        external.get_keyword_ownerhints.cache.clear()
+
+        result_access = user_access.identify_access(file_metadata)
+
+        assert result_access.visibility == user_access.Visibility.PUBLIC
+        assert result_access.reason[0].startswith("Rule 3: All observers from the night can access frame type: arc")
+        assert result_access.reason[1].startswith("Rule 3: Scheduled observer for all-observers")
+        assert result_access.reason[2].startswith("Rule 3: Found 2 observers and 2 coverids")
+        assert result_access.reason[3].startswith("Rule 4a: Scheduled observer for public.")
+        assert result_access.reason[4].startswith("Rule 4a: Observing calendar ownerhint query returned public user.")
+        assert result_access.reason[5].startswith("Rule 4a: Found 3 observers and 2 coverids from override access ownerhints: public")
+        
+
 
 @django_db_setup
 def test_identify_access_rule4_query_failure(tmp_path, monkeypatch):
@@ -600,15 +638,31 @@ def test_identify_access_rule4_using_mtime(tmp_path, monkeypatch):
         assert result_access.visibility == user_access.Visibility.DEFAULT
         assert result_access.ownerids == []
         assert result_access.coverids == []
-        assert result_access.reason[0] == "Rule 4b: No ownerhints found."
+        assert result_access.reason[0] == "Rule 4a: No ownerhints found."
         assert result_access.reason[1] == "Rule 5: Found 0 observers and 0 coverids from override access ownerhints: all-observers"
 
         # Test for something with an ownerhint before the mtime
-        # to do this we set the ownerhints returned from gshow to be before the header's DATE-BEG, and also our mock mtime,
+        # to do this we set the ownerhints returned from gshow to be before the mock mtime,
         # (which is set to 2s after DATE-BEG)
+        # We also need a header without DATE-BEG/DATE-END
+        file_metadata = FileMetadata(filename = "2018-11/20/AO/s0066.fits", 
+                            telescope=Telescope.SHANE, 
+                            instrument=Instrument.SHARCS,
+                            obs_date=datetime(year=2018, month=11, day=20, hour=20, minute=1, second=1,tzinfo=timezone.utc),
+                            frame_type=FrameType.science, public_date=date(year=9999,month=12,day=31))
+
+        test_data_dir = Path(__file__).parent / 'test_data'
+        file = test_data_dir / '2018-11_20_AO_s0066-hdu0.txt'
+        with open(file, "r") as f:
+            file_metadata.header = f.read()
+
+        file_metadata.mtime = datetime.fromisoformat("2018-11-20T19:59:59+00:00")
+
+
         with open(mock_gshow_output, "w") as f:
-            print("1556874929   hint1", file=f) # 2019-05-03T09:15:29.740+00:00, 13 minutes before DATE-BEG  
-            print("1556875229   hint2", file=f) # 2019-05-03T09:20:29.740+00:00, 8 minutes before DATE-BEG
+            print("1542743939   hint1", file=f) # 2018-11-20T19:58:59+00:00, 1 minutes before mtime
+            print("1542743997   hint2", file=f) # 2018-11-20T19:59:57+00:00 2s before mtime
+            print("1542744029   hint3", file=f) # 2018-11-20T20:00:29+00:00, 30s minutes after mtime
 
         # For the above to take effect the cache must be cleared
         external.get_keyword_ownerhints.cache.clear()

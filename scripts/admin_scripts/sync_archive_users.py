@@ -99,14 +99,12 @@ def main(args):
     for obid in new_obids:
         sched_db_user = sched_db_user_map[obid]
 
-        # Don't create users that don't have passwords
-        if sched_db_user['webpass'] is not None and len(sched_db_user['webpass']) > 0:
-            try:
-                django_user = create_user(sched_db_user)
-                users_to_save.append(django_user)
-            except Exception as e:
-                logger.error(f"Failed to create new account for obid:{sched_db_user['obid']}: {e.__class__.__name__}:{e}")
-                return_code = 1
+        try:
+            django_user = create_user(sched_db_user)
+            users_to_save.append(django_user)
+        except Exception as e:
+            logger.error(f"Failed to create new account for obid:{sched_db_user['obid']}: {e.__class__.__name__}:{e}")
+            return_code = 1
 
     # Disable users that may have been deleted.
     # Staff/superusers are left alone
@@ -158,7 +156,7 @@ def parse_sched_db_users(users : list) -> dict:
 
     # Don't modify the original list of RowMapping objects
     new_users = [{key: value for key, value in u.items()} for u in users]
-
+    known_usernames = set()
     for user in new_users:
         
         if any([True if user.get(key,None) is None or (isinstance(user[key],str) and len(user[key]) == 0) else False for key in required_keys]):
@@ -206,6 +204,15 @@ def parse_sched_db_users(users : list) -> dict:
             del obid_map[obid]
             continue
 
+        # Figure out a username. We have to watchout for duplicates
+        # and append a "1" to the end.
+        username = generate_username_from_sched_db(user)
+        i=2
+        while username in known_usernames:
+            username = username + str(i)
+            i+=1
+        known_usernames.add(username)
+        user['username'] = username
         obid_map[obid] = user
     return obid_map
 
@@ -242,18 +249,11 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
         django_user.password = sched_db_user['webpass']
         update = True
 
-    # Regenerate the username to see if it should change
-    new_username = generate_username_from_sched_db(sched_db_user)
-    if new_username != django_user.username:
-
-        # Check for a duplicate username
-        if ArchiveUser.objects.filter(username = new_username).count() > 0:
-            raise RuntimeError(f"New username '{new_username}' for obid:{obid} is not unique.")
-
-        django_user.username = new_username
+    # Check attributes for changes
+    if sched_db_user['username'] != django_user.username:
+        django_user.username = sched_db_user['username']
         update = True
 
-    # Check attributes for changes
     if sched_db_user['firstname'] != django_user.first_name:
         django_user.first_name = sched_db_user['firstname']
         update = True
@@ -281,18 +281,21 @@ def create_user( sched_db_user : dict) -> ArchiveUser:
     Return: The newly created user object.
     """
 
-    username = generate_username_from_sched_db(sched_db_user)
-
-    if ArchiveUser.objects.filter(username = username).count() > 0:
-        raise RuntimeError(f"New username '{username}' for new user obid:{sched_db_user['obid']} is not unique.")
-
-    new_user = ArchiveUser(username   = username,
+    new_user = ArchiveUser(username   = sched_db_user['username'],
                            password   = sched_db_user['webpass'],
                            email      = sched_db_user['email'],
                            first_name = sched_db_user['firstname'],
                            last_name  = sched_db_user['lastname'],
                            obid       = sched_db_user['obid'],
                            stamp      = sched_db_user['stamp'])
+
+    # Make sure user is inactive if it has no password
+    if new_user.password is None:
+        new_user.password = ""
+
+    if len(new_user.password) == 0:
+        new_user.is_active=False
+ 
     logger.info(f"Creating user obid:{new_user.obid}/{new_user.username}")
 
     return new_user
