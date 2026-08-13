@@ -21,89 +21,97 @@ def test_frame_type():
 
     reader = APFReader()
 
-    # Test unknown
+    # Test unknown, too early obs_date
     decker = "W (1.00:3.0)"
     obstype = "OBJECT"
     object = None
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    obs_date = datetime.fromisoformat('2011-12-31T00:00:00.000Z')
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
+    assert frame_type == FrameType.unknown
+    assert ingest_flags == IngestFlags.OLD
+
+
+    # Test unknown, no OBJECT
+    obs_date = datetime.fromisoformat('2012-01-01T00:00:00.000Z')
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.unknown
     assert ingest_flags == IngestFlags.NO_OBJECT_IN_HEADER
 
     # Test object with bias
     object = "soemthing BIas something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.bias
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with dark
     object = "soemthing daRk something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.dark
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with wideflat is a flat
     object = "soemthing wideflat something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.flat
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with narrowflat is a flat
     object = "soemthing narrowflat something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.flat
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with iodine is a flat
     object = "soemthing iodine something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.flat
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with ThAr is an arc. ThAr may or may not be one word
     object = "soemthing ThAr something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.arc
     assert ingest_flags == IngestFlags.CLEAR
 
     object = "soemthing Th Ar something"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.arc
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with pinhole and no decker is pinhole 
     object = "soemthing pinhole something"
     decker = None
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.pinhole
     assert ingest_flags == IngestFlags.CLEAR
 
     decker = ''
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.pinhole
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with pinhole and decker = Pinhole is pinhole
     decker = "Pinhole"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.pinhole
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test object with pinhole and non-PinHhole decker is unknown
     decker = "W"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.unknown
     assert ingest_flags == IngestFlags.UNKNOWN_FORMAT
 
     # Test object with irrevelevant text, but OBSTYPE == DARK is treated as a dark
     object = "test"
     obstype = "DARK"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.dark
     assert ingest_flags == IngestFlags.CLEAR
 
     # Test Science
     obstype = "OBJECT"
-    frame_type, ingest_flags = reader.determine_frame_type(decker, obstype, object)
+    frame_type, ingest_flags = reader.determine_frame_type(obs_date, decker, obstype, object)
     assert frame_type == FrameType.science
     assert ingest_flags == IngestFlags.CLEAR
 
@@ -159,14 +167,14 @@ def test_apf_valid_files():
     assert row.instrument == Instrument.APF
     assert row.filename == str(path)
     assert row.obs_date == datetime(2011, 5, 19, 17, 20, 36, 0, tzinfo=timezone.utc)
-    assert row.ingest_flags == "{:032b}".format(IngestFlags.CLEAR)
+    assert row.ingest_flags == "{:032b}".format(IngestFlags.OLD)
     assert row.exptime == 0.0
     assert row.ra == '+00:29:43'
     assert row.dec == '+00:00:00'
     assert row.object == 'Baseline'
     assert row.program == 'NEWCAM'
     assert row.observer == 'Radovan'
-    assert row.frame_type == FrameType.dark
+    assert row.frame_type == FrameType.unknown
     assert row.decker is 'Unknown'
     assert row.slit_name is None
     assert row.beam_splitter_pos is None
@@ -197,14 +205,14 @@ def test_apf_missing_values():
     assert row.filename == str(path)
     # Date should be Noon PST on the directories date
     assert row.obs_date == datetime(2011, 5, 18, 20, 00, 00, 0, tzinfo=timezone.utc)
-    assert row.ingest_flags == "{:032b}".format(IngestFlags.USE_DIR_DATE | IngestFlags.NO_COORD)
+    assert row.ingest_flags == "{:032b}".format(IngestFlags.USE_DIR_DATE | IngestFlags.NO_COORD | IngestFlags.OLD)
     assert row.exptime == 0.0
     assert row.ra is None
     assert row.dec is None
     assert row.object == 'Baseline'
     assert row.program == 'NEWCAM'
     assert row.observer == 'Radovan'
-    assert row.frame_type == FrameType.dark
+    assert row.frame_type == FrameType.unknown
     assert row.decker is 'Unknown'
     assert row.slit_name is None
     assert row.beam_splitter_pos is None

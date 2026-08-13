@@ -62,6 +62,7 @@ class IngestFlags(enum.IntFlag):
     NO_COORD            = 512      # The RA/DEC in the header could be parsed, so cone searches will not match it.
     INVALID_CHAR        = 1024     # An invalid character (such as '\x00') was found in the header.
     NO_OBSTYPE          = 2048     # There was no OBSTYPE in the header when one was expected.
+    OLD                 = 4096
 
 class Telescope(enum.Enum):
     SHANE  = "Shane"

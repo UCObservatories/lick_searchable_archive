@@ -250,10 +250,6 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
         update = True
 
     # Check attributes for changes
-    if sched_db_user['username'] != django_user.username:
-        django_user.username = sched_db_user['username']
-        update = True
-
     if sched_db_user['firstname'] != django_user.first_name:
         django_user.first_name = sched_db_user['firstname']
         update = True
@@ -264,6 +260,12 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
 
     if django_user.email != sched_db_user['email']:
         django_user.email = sched_db_user['email']
+        # Regenerate username in case it should be set to the new e-mail address
+        sched_db_user['username'] = generate_username_from_sched_db(sched_db_user)
+        update = True
+
+    if sched_db_user['username'] != django_user.username:
+        django_user.username = sched_db_user['username']
         update = True
 
     if django_user.stamp != sched_db_user['stamp']:

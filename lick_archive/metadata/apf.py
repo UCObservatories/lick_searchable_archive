@@ -2,7 +2,7 @@
 MetadataReader implementation for Shane Kast data.
 """
 
-from datetime import datetime
+from datetime import datetime, date
 import logging
 from pathlib import Path
 from pickle import INST
@@ -47,12 +47,13 @@ class APFReader(AbstractReader):
     
 
 
-    def determine_frame_type(self, decker: str | None, obstype : str | None, object : str | None) -> tuple[FrameType, IngestFlags]:
+    def determine_frame_type(self, obs_date: datetime, decker: str | None, obstype : str | None, object : str | None) -> tuple[FrameType, IngestFlags]:
         """
         Determine the frame type based on exposure time, lamps and object name.
         Parts of this logic was adapted from PypeIt
 
         Args:
+        obs_date: The observation date/time of the file.
         decker:   The DECKRNAM keyword from the file's header.
         obstype:  The OBSTYPE keyword from the file's header.
         object:   The OBJECT keyword from the file's header.
@@ -61,7 +62,12 @@ class APFReader(AbstractReader):
                                           while determining the frame type.
         """
         ingest_flags = IngestFlags.CLEAR
-        if object is None:
+        if obs_date.date() < date(year=2012,month=1,day=1):
+            # Products pre-2012 are too inconsistent to determine the frame type
+            frame_type=FrameType.unknown
+            ingest_flags = IngestFlags.OLD
+        
+        elif object is None:
             frame_type = FrameType.unknown
             ingest_flags = IngestFlags.NO_OBJECT_IN_HEADER
         elif 'bias' in object.lower():
@@ -163,7 +169,7 @@ class APFReader(AbstractReader):
 
         m.filename = str(file_path)
 
-        (m.frame_type, frame_flags) = self.determine_frame_type(m.decker, safe_strip(safe_header(header, 'OBSTYPE')), object)
+        (m.frame_type, frame_flags) = self.determine_frame_type(m.obs_date, m.decker, safe_strip(safe_header(header, 'OBSTYPE')), object)
         ingest_flags |= frame_flags
 
         # Save the header for future updates, and 
