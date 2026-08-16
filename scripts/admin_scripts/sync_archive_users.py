@@ -7,7 +7,7 @@ import datetime
 
 import argparse
 import sys
-import copy
+import enum
 from pathlib import Path
 
 
@@ -231,22 +231,26 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
 
     obid = django_user.obid
 
-    # Handle password updates
-    if sched_db_user['webpass'] is None or len(sched_db_user['webpass']) == 0:
-        # Disabled user
+    # Handle password updates and making sure users with passwords are enabled, and those without passwords are disabled
+    has_webpass = 'webpass' in sched_db_user and sched_db_user['webpass'] is not None and len(sched_db_user['webpass']) > 0
+    if has_webpass:
+        # Check for password update
+        if sched_db_user['webpass'] != django_user.password:
+            logger.info(f"Updating password for obid:{obid}/{django_user.username}.")        
+            django_user.password = sched_db_user['webpass']
+            update = True
+
+        # See if we're also enabling/re-enabling the user
+        if django_user.is_active is False:
+            django_user.is_active = True
+            logger.info(f"Enabling previously disabled obid:{obid}/{django_user.username}.")        
+            update = True
+
+    # User does not have a password but is enabled.
+    elif django_user.is_active or django_user.has_usable_password():        
         django_user.is_active = False
         django_user.set_unusable_password()
         logger.info(f"Disabling observerid obid:{obid}/{django_user.username} with no password in schedule db.")
-        update = True
-    elif django_user.is_active is False or django_user.has_usable_password() is False:
-        # Enabling a previously disabled user
-        logger.info(f"Enabling previously disabled obid:{obid}/{django_user.username}.")
-        django_user.is_active = True
-        django_user.password = sched_db_user['webpass']
-        update = True
-    elif sched_db_user['webpass'] != django_user.password:
-        # Password update
-        django_user.password = sched_db_user['webpass']
         update = True
 
     # Check attributes for changes

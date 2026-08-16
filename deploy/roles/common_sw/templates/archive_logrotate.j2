@@ -32,6 +32,16 @@ su archive archive
 }
 {% endif %}
 
+
+{% if "backend" in group_names %}
+# sync_archive_users log
+{{ archive_log_dir }}/sync_archive_users.log {
+    {{ log_rotate_frequency }}
+    rotate {{ log_count }}
+    missingok
+}
+{% endif %}
+
 {% if "ingest_watchdog" in services %}
 # Ingest watchdog logs
 {{ archive_log_dir }}/ingest_watchdog.log {
