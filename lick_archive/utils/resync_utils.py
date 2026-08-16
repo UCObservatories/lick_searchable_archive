@@ -67,6 +67,35 @@ class ErrorList:
             for filename, sync_type, msg in failures:
                 print(f"{filename}|{sync_type}|{msg}", file=f)
 
+    @staticmethod
+    def read_failures(filename : str | Path) -> list[tuple[Path,SyncType]]:
+        failures = []
+        with open(filename, "r") as f:
+            lineno=0
+            for line in f:
+                lineno+=1
+                l = line.strip()
+                if l == "":
+                    # Blank line
+                    continue
+                parts = l.split('|')
+                if len(parts) != 3:
+                    msg = f"Wrong number of columns in error file '{filename}' on line {lineno}."
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+
+                try:
+                    failed_file = Path(parts[0])
+                    op_type = SyncType(parts[1])
+                    failures.append((failed_file, op_type))
+                except Exception as e:
+                    msg = f"Failed to parse filename or optype in file '{filename}' on line {lineno}: {e}"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+
+        return failures
+
+
 
 def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace) -> None| Iterator[FileMetadata|None]:
     """Get database metadata using the conventions for resync script command line arguments.

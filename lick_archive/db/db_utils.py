@@ -252,7 +252,7 @@ def _convert_object_to_python(mapped_object):
 _convert_object_to_python.past_objects = set()
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def get_single_result(results : Result) -> FileMetadata:
+def get_single_result(results : Result) -> FileMetadata | None:
     """Wraps fetching a result from a query in a retryable function"""
 
     result = results.fetchone()

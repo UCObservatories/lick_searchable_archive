@@ -47,7 +47,7 @@ class APFReader(AbstractReader):
     
 
 
-    def determine_frame_type(self, obs_date: datetime, decker: str | None, obstype : str | None, object : str | None) -> tuple[FrameType, IngestFlags]:
+    def determine_frame_type(self, obs_date: datetime, decker: str | None, obstype : str | int | None, object : str | None) -> tuple[FrameType, IngestFlags]:
         """
         Determine the frame type based on exposure time, lamps and object name.
         Parts of this logic was adapted from PypeIt
@@ -61,6 +61,11 @@ class APFReader(AbstractReader):
         Returns (FrameType, IngestFlags): A tuple with the frame type, and any ingest flags set
                                           while determining the frame type.
         """
+
+        # OBSTYPE is sometimes an int
+        if isinstance(obstype, int):
+            obstype = "DARK" if obstype == 0 else 'OBJECT'
+
         ingest_flags = IngestFlags.CLEAR
         if obs_date.date() < date(year=2012,month=1,day=1):
             # Products pre-2012 are too inconsistent to determine the frame type
@@ -169,7 +174,7 @@ class APFReader(AbstractReader):
 
         m.filename = str(file_path)
 
-        (m.frame_type, frame_flags) = self.determine_frame_type(m.obs_date, m.decker, safe_strip(safe_header(header, 'OBSTYPE')), object)
+        (m.frame_type, frame_flags) = self.determine_frame_type(m.obs_date, m.decker, safe_header(header, 'OBSTYPE'), object)
         ingest_flags |= frame_flags
 
         # Save the header for future updates, and 
