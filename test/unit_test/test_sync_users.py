@@ -7,6 +7,7 @@ import copy
 from lick_archive.apps.archive_auth.hashers import APR_MD5PasswordHasher
 from passlib.hash import apr_md5_crypt
 from django.utils.crypto import get_random_string, RANDOM_STRING_CHARS
+from django.db.utils import IntegrityError
 
 def get_password_hash(password):
     salt = get_random_string(8,RANDOM_STRING_CHARS)
@@ -282,8 +283,10 @@ def test_duplicate_username():
 
     # Try to create a duplicate user 
     new_dict['obid'] = 100
-    with pytest.raises(RuntimeError,match="New username 'john.doe@example.org' for new user obid:100 is not unique."):
+    with pytest.raises(IntegrityError,match="UNIQUE constraint failed: archive_auth_archiveuser.username"):
         dup_user = create_user(new_dict)
+        dup_user.save()
+    
 
     # Create a second user
     second_user = create_user(sched_db_map[5])
@@ -291,8 +294,9 @@ def test_duplicate_username():
 
     # Try updating the first user to have an identical username as the second
     new_dict['email'] = "jane.smith@example.org"
-    with pytest.raises(RuntimeError, match="New username 'jane.smith@example.org' for obid:4 is not unique"):
+    with pytest.raises(IntegrityError, match="UNIQUE constraint failed: archive_auth_archiveuser.username"):
         update_user(new_user, new_dict)
+        new_user.save()
 
 @django_db_setup
 def test_sync_users_main(monkeypatch, tmp_path):
@@ -322,20 +326,21 @@ def test_sync_users_main(monkeypatch, tmp_path):
 
         assert main(args) == 0
         users = ArchiveUser.objects.all()
-        assert len(users) == 6
+        assert len(users) == 7
+        user_map = {u.obid: u for u in users}
 
-        # Make sure only the users with passwords were created
-        all_obids = [user.obid for user in users]
+        # Make sure users without passwords are inactive
         for user_dict in test_sched_db_users:
-            if 'webpass' in user_dict:
-                assert user_dict['obid'] in all_obids
+            assert user_dict['obid'] in user_map
+            if 'webpass' not in user_dict:
+                assert user_map[user_dict['obid']].is_active is False
             else:
-                assert user_dict['obid'] not in all_obids
+                assert user_map[user_dict['obid']].is_active is True
 
-        # Make sure all the users can login
+        # Make sure all the users with passwords can login
         for user in users:
-            assert user.is_active
-            assert user.check_password("password")
+            if user.is_active:
+                assert user.check_password("password")
 
         # Update a user
         test_observers[1]['firstname'] = 'Jenny'
@@ -349,9 +354,9 @@ def test_sync_users_main(monkeypatch, tmp_path):
 
         # Make sure the changes took effect
         users = ArchiveUser.objects.all()
-        assert len(users) == 7
-
+        assert len(users) == 8
         user_map = {u.obid: u for u in users}
+
         assert user_map[8].first_name == 'Jenny'
         assert user_map[8].email == 'jsmith@example.org'
         assert user_map[8].username == 'jsmith@example.org'
@@ -361,13 +366,16 @@ def test_sync_users_main(monkeypatch, tmp_path):
 
         assert user_map[9].is_active is False
 
-        # Now throw in a user that will generate an errror (dup user name)
+        # Now throw in a user with a duplicate username
         test_observers.append({'obid': 11, 'firstname': 'John', 'lastname':'Smith', 'email':'jsmith@example.org', 'webpass': hashed_password})
-        assert main(args) == 1
+        assert main(args) == 0
 
-        # Make sure the new user wasn't created
+        # Make sure the new user was created, but with a modified username
         users = ArchiveUser.objects.all()
-        assert len(users) == 7
+        assert len(users) == 9
+        for user in users:
+            if user.obid==11:
+                assert user.username == 'jsmith@example.org2'
 
         # Test no users, indicating an error
         test_observers.clear()
@@ -375,9 +383,9 @@ def test_sync_users_main(monkeypatch, tmp_path):
 
         # Make sure it didn't try to disable the users
         users = ArchiveUser.objects.all()
-        assert len(users) == 7
+        assert len(users) == 9
         for user in users:
-            if user.obid == 9:
+            if user.obid == 9 or user.obid == 1:
                 assert user.is_active is False
                 assert user.has_usable_password() is False
             else:
@@ -391,9 +399,9 @@ def test_sync_users_main(monkeypatch, tmp_path):
 
         # Make sure it didn't try to disable the users
         users = ArchiveUser.objects.all()
-        assert len(users) == 7
+        assert len(users) == 9
         for user in users:
-            if user.obid == 9:
+            if user.obid == 9 or user.obid == 1:
                 assert user.is_active is False
                 assert user.has_usable_password() is False
             else:

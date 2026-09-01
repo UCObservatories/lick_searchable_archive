@@ -37,6 +37,7 @@ def get_parser():
     parser.add_argument("--id_file", type=Path, help="A file containing database ids separated by whitespace. Any of these files assigned to an unknown user are updated.")
     parser.add_argument("--ids", type=int, nargs='+', help="A list of database ids. Any of these files assigned to an unknown user are updated.")
     parser.add_argument("--files", type=str, help="A list of filenames. Any of these files assigned to an unknown user are updated.")
+    parser.add_argument("--file_list", type=Path, help="A file containing  a newline separated list of files.")
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest. Examples: "2010-01-04", "2010-01-01:2011-12-31". Defaults to all. Any files within this date range that are assigned to an unknown user are updated.')
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instrument subdirectories to get metadata from. Defaults to all.')
     
@@ -77,9 +78,17 @@ def main(args):
         if metadata is None:
             return 1
 
+        missing_metadata = 0
+
         # Update the files information in batches
         with BatchedDBOperation(db_engine, args.batch_size) as batch:
-            for file_metadata in metadata:
+            for file_metadata in metadata:                
+
+                # Keep track of how many files/ids aren't found in the db
+                if file_metadata is None:
+                    missing_metadata += 1
+                    continue
+
                 # Generatea the new list of user_data_access rows for the file,
                 # which will include existing rows if the command "remove" or "add" was used
                 new_user_access = []
@@ -134,6 +143,8 @@ def main(args):
                     batch.update(file_metadata.id, file_metadata, new_user_access)
 
         logger.info(f"Updated {batch.success} of {batch.total} files with {batch.total - batch.success} failures and {batch.success_retries} successful retries.")
+        if missing_metadata > 0:
+            logger.info(f"Could not find {missing_metadata} files in the db.")
         logger.info(f"Duration: {datetime.now(timezone.utc) - start_time}")
 
     except Exception as e:

@@ -6,6 +6,7 @@ from collections.abc import Iterator, Sequence, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Callable
+import copy
 
 from sqlalchemy import create_engine, Engine, select, func, inspect, update, delete, insert, Result
 from sqlalchemy.orm import Session
@@ -212,18 +213,46 @@ def execute_db_statement(session, stmt):
     logger.debug(f"SQL complete.")
     return result
 
-def convert_object_to_dict(mapped_object):
-    """Convert an SQLAlchemy ORM object instance to a dict.
+
+def convert_object_to_python(mapped_object):
+    """Convert an SQLAlchemy ORM object instance to a python dict or list.
     Args:
         mapped_object (Any): The SQLAlchemy mapped object instance.
     Return:
-        dict: A dictionary of the mapped attributes and their values.    
+        dict: A dictionary of the mapped attributes and their values.   
+        or
+        list: A list of converted mapped objects
     """
-    i = inspect(mapped_object)
-    return {key: getattr(mapped_object, key) for key in i.attrs.keys()}
+    # We use a recursive helper function to do the conversion, but it needs
+    # to keep track of past objects to avoid infinite recursion on backreferences
+    _convert_object_to_python.past_objects.clear()    
+    result = _convert_object_to_python(mapped_object)
+    _convert_object_to_python.past_objects.clear()    
+    return result
+
+def _convert_object_to_python(mapped_object):
+    """
+    Recursive helper function for convert_object_to_python
+    """
+    if isinstance(mapped_object, list):
+        # Create a copy of a list, which could be a SQLAlchemy InstrumentedList
+        return [_convert_object_to_python(o) for o in mapped_object]
+    elif hasattr(mapped_object, "__table__"):
+        # Make sure this isn't a backreference
+        if id(mapped_object) in _convert_object_to_python.past_objects:
+            return None
+        else:
+            _convert_object_to_python.past_objects.add(id(mapped_object))
+        # It is a mapped object, create a dict with an entry for each attribute
+        # converting each value in case it's a nested SQLAlchemy object
+        i = inspect(mapped_object)
+        return {key: _convert_object_to_python(getattr(mapped_object, key)) for key in i.attrs.keys()}
+    else:
+        return copy.deepcopy(mapped_object)
+_convert_object_to_python.past_objects = set()
 
 @retry(retry=retry_if_not_exception_type(psycopg2.IntegrityError) & retry_if_not_exception_type(psycopg2.ProgrammingError), reraise=True, stop=stop_after_delay(60), wait=wait_exponential(multiplier=1, min=4, max=10), after=after_log(logger, logging.DEBUG))
-def get_single_result(results : Result) -> FileMetadata:
+def get_single_result(results : Result) -> FileMetadata | None:
     """Wraps fetching a result from a query in a retryable function"""
 
     result = results.fetchone()

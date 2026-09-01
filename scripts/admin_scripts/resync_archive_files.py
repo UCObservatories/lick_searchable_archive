@@ -24,10 +24,9 @@ from lick_archive.db.db_utils import create_db_engine, find_file_metadata, Batch
 from lick_archive.db.archive_schema import FileMetadata
 from lick_archive.metadata.reader import read_file
 from lick_archive.authorization.override_access import OverrideAccessFile
-
-
-
-from lick_archive.apps.archive_auth.api import save_oaf_to_db
+from lick_archive.authorization.date_utils import get_observing_night
+from lick_archive.external.sched_db import ScheduleDB
+from lick_archive.apps.archive_auth.api import save_oaf_to_db, lookup_observer_by_obid
 
 from lick_archive.config.archive_config import ArchiveConfigFile
 lick_archive_config = ArchiveConfigFile.load_from_standard_inifile().config
@@ -46,6 +45,8 @@ def get_parser():
                         )
     parser.add_argument("--date_range", type=str, help='Date range of files to ingest, or "all" for everything. Examples: "2010-01-04", "2010-01-01:2011-12-31".')
     parser.add_argument("--dry_run", default = False, action="store_true", help="Run a dry run that does not do any updates but instead only logs what would have been updated.")
+    parser.add_argument("--only_override", default=False, action="store_true", help="Only resync override.access files")
+    parser.add_argument("--ownership_file", type=Path, default=None, help='Name of file to write ownership information created while running.')
     parser.add_argument("--files", type=Path, nargs="+", help="Files to resync.")
     parser.add_argument("--failure_file", type=Path, help="A failure file from a previous run of resync_archive_files.py")
     parser.add_argument("--instruments", type=str, default='all', nargs="*", help='Which instruments to get metadata from. Defaults to all.')
@@ -153,13 +154,17 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
     # Update the override access files first
     for oaf in oafs:
         try:
-            logger.info(f"Saving override access file: {oaf}")
             if not args.dry_run:
                 save_oaf_to_db(oaf)
+                logger.info(f"Saving override access file: {oaf}")
+            else:
+                logger.info(f"Skipping override access file: {oaf} due to --dry_run")
         except Exception as e:
             error_list.add_file(str(oaf),SyncType.OVERRIDE_FILE,str(e))
             logger.error(f"Failed to save {oaf} {e}", exc_info=True)
             continue
+    if args.only_override:
+        return
 
     # Resync the remaining files
     for file_to_resync in other_files:
@@ -194,6 +199,8 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
             error_list.add_file(file_to_resync, sync_type,msg)
             logger.error(msg, exc_info=True)
             continue
+        if args.ownership_file is not None:
+            print_ownership(new_file_metadata, args.ownership_file)
 
         if sync_type == SyncType.INSERT:
             if not args.dry_run:
@@ -201,7 +208,31 @@ def resync_files(args, db_batch : BatchedDBOperation, error_list : ErrorList, fi
         else:
             if not args.dry_run:
                 db_batch.update(file_metadata.id, new_file_metadata,new_file_metadata.user_access)
-            
+
+def print_ownership(new_file_metadata : FileMetadata, ownership_file : Path):
+    with open(args.ownership_file, "a") as f:
+        relative_filename = Path(new_file_metadata.filename).relative_to(lick_archive_config.ingest.archive_root_dir)
+        usernames = []
+        if new_file_metadata.public_date <= get_observing_night(datetime.now(tz=timezone.utc)):
+            usernames.append("public")
+        else:
+            obids = [uda.obid for uda in new_file_metadata.user_access]
+
+            if ScheduleDB.PUBLIC_USER in obids:
+                usernames.append("public")
+            elif ScheduleDB.UNKNOWN_USER in obids:
+                usernames.append("unknown")
+            else:
+                for obid in obids:
+                    user = lookup_observer_by_obid(obid)
+                    if user!=None:
+                        usernames.append(user[1])
+                    else:
+                        usernames.append(f"NONE({obid})")
+        for username in usernames:
+            print(f"{relative_filename}|{username}",file=f)
+
+
 
 
 if __name__ == '__main__':

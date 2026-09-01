@@ -7,7 +7,7 @@ import datetime
 
 import argparse
 import sys
-import copy
+import enum
 from pathlib import Path
 
 
@@ -99,14 +99,12 @@ def main(args):
     for obid in new_obids:
         sched_db_user = sched_db_user_map[obid]
 
-        # Don't create users that don't have passwords
-        if sched_db_user['webpass'] is not None and len(sched_db_user['webpass']) > 0:
-            try:
-                django_user = create_user(sched_db_user)
-                users_to_save.append(django_user)
-            except Exception as e:
-                logger.error(f"Failed to create new account for obid:{sched_db_user['obid']}: {e.__class__.__name__}:{e}")
-                return_code = 1
+        try:
+            django_user = create_user(sched_db_user)
+            users_to_save.append(django_user)
+        except Exception as e:
+            logger.error(f"Failed to create new account for obid:{sched_db_user['obid']}: {e.__class__.__name__}:{e}")
+            return_code = 1
 
     # Disable users that may have been deleted.
     # Staff/superusers are left alone
@@ -158,7 +156,7 @@ def parse_sched_db_users(users : list) -> dict:
 
     # Don't modify the original list of RowMapping objects
     new_users = [{key: value for key, value in u.items()} for u in users]
-
+    known_usernames = set()
     for user in new_users:
         
         if any([True if user.get(key,None) is None or (isinstance(user[key],str) and len(user[key]) == 0) else False for key in required_keys]):
@@ -206,6 +204,15 @@ def parse_sched_db_users(users : list) -> dict:
             del obid_map[obid]
             continue
 
+        # Figure out a username. We have to watchout for duplicates
+        # and append a "1" to the end.
+        username = generate_username_from_sched_db(user)
+        i=2
+        while username in known_usernames:
+            username = username + str(i)
+            i+=1
+        known_usernames.add(username)
+        user['username'] = username
         obid_map[obid] = user
     return obid_map
 
@@ -224,33 +231,26 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
 
     obid = django_user.obid
 
-    # Handle password updates
-    if sched_db_user['webpass'] is None or len(sched_db_user['webpass']) == 0:
-        # Disabled user
+    # Handle password updates and making sure users with passwords are enabled, and those without passwords are disabled
+    has_webpass = 'webpass' in sched_db_user and sched_db_user['webpass'] is not None and len(sched_db_user['webpass']) > 0
+    if has_webpass:
+        # Check for password update
+        if sched_db_user['webpass'] != django_user.password:
+            logger.info(f"Updating password for obid:{obid}/{django_user.username}.")        
+            django_user.password = sched_db_user['webpass']
+            update = True
+
+        # See if we're also enabling/re-enabling the user
+        if django_user.is_active is False:
+            django_user.is_active = True
+            logger.info(f"Enabling previously disabled obid:{obid}/{django_user.username}.")        
+            update = True
+
+    # User does not have a password but is enabled.
+    elif django_user.is_active or django_user.has_usable_password():        
         django_user.is_active = False
         django_user.set_unusable_password()
         logger.info(f"Disabling observerid obid:{obid}/{django_user.username} with no password in schedule db.")
-        update = True
-    elif django_user.is_active is False or django_user.has_usable_password() is False:
-        # Enabling a previously disabled user
-        logger.info(f"Enabling previously disabled obid:{obid}/{django_user.username}.")
-        django_user.is_active = True
-        django_user.password = sched_db_user['webpass']
-        update = True
-    elif sched_db_user['webpass'] != django_user.password:
-        # Password update
-        django_user.password = sched_db_user['webpass']
-        update = True
-
-    # Regenerate the username to see if it should change
-    new_username = generate_username_from_sched_db(sched_db_user)
-    if new_username != django_user.username:
-
-        # Check for a duplicate username
-        if ArchiveUser.objects.filter(username = new_username).count() > 0:
-            raise RuntimeError(f"New username '{new_username}' for obid:{obid} is not unique.")
-
-        django_user.username = new_username
         update = True
 
     # Check attributes for changes
@@ -264,6 +264,12 @@ def update_user(django_user : ArchiveUser, sched_db_user : dict) -> bool:
 
     if django_user.email != sched_db_user['email']:
         django_user.email = sched_db_user['email']
+        # Regenerate username in case it should be set to the new e-mail address
+        sched_db_user['username'] = generate_username_from_sched_db(sched_db_user)
+        update = True
+
+    if sched_db_user['username'] != django_user.username:
+        django_user.username = sched_db_user['username']
         update = True
 
     if django_user.stamp != sched_db_user['stamp']:
@@ -281,18 +287,21 @@ def create_user( sched_db_user : dict) -> ArchiveUser:
     Return: The newly created user object.
     """
 
-    username = generate_username_from_sched_db(sched_db_user)
-
-    if ArchiveUser.objects.filter(username = username).count() > 0:
-        raise RuntimeError(f"New username '{username}' for new user obid:{sched_db_user['obid']} is not unique.")
-
-    new_user = ArchiveUser(username   = username,
+    new_user = ArchiveUser(username   = sched_db_user['username'],
                            password   = sched_db_user['webpass'],
                            email      = sched_db_user['email'],
                            first_name = sched_db_user['firstname'],
                            last_name  = sched_db_user['lastname'],
                            obid       = sched_db_user['obid'],
                            stamp      = sched_db_user['stamp'])
+
+    # Make sure user is inactive if it has no password
+    if new_user.password is None:
+        new_user.password = ""
+
+    if len(new_user.password) == 0:
+        new_user.is_active=False
+ 
     logger.info(f"Creating user obid:{new_user.obid}/{new_user.username}")
 
     return new_user

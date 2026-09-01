@@ -32,9 +32,9 @@ def compute_ownerhint(observing_night : date, telescope : Telescope, ownerhint :
         cfgp.add_section('database')
     cfgp.set('database', 'database', lick_archive_config.authorization.sched_db_name)
     cfgp.set('database', 'hostname', lick_archive_config.authorization.sched_db_host)
-    username, password = lick_archive_config.authorization.read_user_information().split(':')
-    cfgp.set('database', 'username', username)
-    cfgp.set('database', 'password', password)
+    #username, password = lick_archive_config.authorization.read_user_information().split(':')
+    cfgp.set('database', 'username', lick_archive_config.authorization.sched_db_user)
+    cfgp.set('database', 'password', "")
     cfgp.set('database', 'timeout', '5')
 
     # ownerhintcompute sometimes returns duplicates, we use a set for cover_ids/observer_ids to filter those out

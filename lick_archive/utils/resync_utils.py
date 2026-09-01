@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 from sqlalchemy import select, Engine
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, Session
 
 from lick_archive.db import db_utils
 from lick_archive.db.archive_schema import FileMetadata
@@ -67,6 +67,35 @@ class ErrorList:
             for filename, sync_type, msg in failures:
                 print(f"{filename}|{sync_type}|{msg}", file=f)
 
+    @staticmethod
+    def read_failures(filename : str | Path) -> list[tuple[Path,SyncType]]:
+        failures = []
+        with open(filename, "r") as f:
+            lineno=0
+            for line in f:
+                lineno+=1
+                l = line.strip()
+                if l == "":
+                    # Blank line
+                    continue
+                parts = l.split('|')
+                if len(parts) != 3:
+                    msg = f"Wrong number of columns in error file '{filename}' on line {lineno}."
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+
+                try:
+                    failed_file = Path(parts[0])
+                    op_type = SyncType(parts[1])
+                    failures.append((failed_file, op_type))
+                except Exception as e:
+                    msg = f"Failed to parse filename or optype in file '{filename}' on line {lineno}: {e}"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+
+        return failures
+
+
 
 def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace) -> None| Iterator[FileMetadata|None]:
     """Get database metadata using the conventions for resync script command line arguments.
@@ -75,6 +104,7 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
         - `--instruments` A list of instrument directory names to look for. Must be specified
                           if `--date_range` is given.
         - `--files`       A list of filenames
+        - `--file_list`   A file containing a list of filenames separated by newlines
         - `--id_file`     A file containing database ids separated by whitespace
         - `--ids`         A list of database ids
 
@@ -99,6 +129,11 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
 
         metadata = get_metadata_from_files(db_engine, args.files)
 
+    # Get the metadata using a list of filenames in a file
+    elif args.file_list is not None:
+        file_list = read_file_list(args.file_list)
+        metadata = get_metadata_from_files(db_engine, file_list)
+
     # Get the metadata from a file containing database ids
     elif args.id_file is not None:
         id_list = read_id_file(args.id_file)
@@ -110,7 +145,7 @@ def get_metadata_from_command_line(db_engine: Engine, args : argparse.Namespace)
             args.ids = [args.ids]
         metadata = get_metadata_from_ids(db_engine, args.ids)
     else:
-        logger.error("Must specify one of --date_range, --files, --id_file, or --ids.")
+        logger.error("Must specify one of --date_range, --files, --file_list, --id_file, or --ids.")
         metadata = None
 
     return metadata
@@ -125,9 +160,12 @@ def get_metadata_from_files(db_engine : Engine, files : list[str | Path]) -> Ite
         
     Return: An iterator returning the metadata for each file in files, or None of the file could not be found.
     """
-    with db_utils.open_db_session(db_engine) as session:
+    with closing(db_utils.open_db_session(db_engine)) as session:
         for file in files:
-            yield db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.filename==str(file)))
+            result= db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.filename==str(file)))
+            if result is None:
+                logger.error(f"Could not find file {file}")
+            yield result
 
 def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[FileMetadata|None]:
     """Query the database for metadata from a list of ids.
@@ -138,9 +176,12 @@ def get_metadata_from_ids(db_engine : Engine, ids : list[int]) -> Iterator[FileM
         
     Return: An iterator returning the metadata for each id, or None of the id could not be found.
     """
-    with db_utils.open_db_session(db_engine) as session:
+    with closing(db_utils.open_db_session(db_engine)) as session:
         for id in ids:
-            yield db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.id==id))
+            result = db_utils.find_file_metadata(session, select(FileMetadata).options(selectinload(FileMetadata.user_access)).where(FileMetadata.id==id))
+            if result is None:
+                logger.error(f"Could not find id {id}")
+            yield result
 
 def get_metadata_from_date_range(db_engine : Engine, date_range : str, instruments: list[str]) -> Iterator[FileMetadata]:
     archive_root = lick_archive_config.ingest.archive_root_dir
@@ -279,3 +320,20 @@ def read_id_file(file : Path|str) -> list[int]:
 
     return list(sorted(set(id_list)))
 
+def read_file_list(file:Path|str) -> list[Path]:
+    """Read a list of file names from a file. The files are separated by newlines.
+    
+    Args:
+        file: The filename to read the list of files from.
+
+    Return: A sorted list of filenames. Any duplicates in the input file are removed.
+    """
+    file_list = set()
+    with open(file, "r") as f:
+        for line in f:
+            filename = line.strip()
+            if len(filename) > 0:
+                file_list.add(Path(filename))
+    result_list = list(sorted(file_list))
+    logger.debug(f"Read {len(result_list)} filenames from {file}")
+    return result_list

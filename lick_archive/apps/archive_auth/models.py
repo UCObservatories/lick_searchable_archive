@@ -105,27 +105,60 @@ def get_related_override_files(filepath : Path) -> list[override_access.Override
     night= datetime.date.fromisoformat(night)
     converted_access_files = []
     for access_file in DBOverrideAccessFile.objects.filter(night=night,instrument_dir=instrument_dir):
-        rules = []
-        for access_rule in access_file.rules.all():
-            if access_rule.type is not None:                
-                rules.append(override_access.OverrideAccessRule(pattern=access_rule.pattern,
-                                                                obstype=FrameType(access_rule.type)))
-            elif access_rule.access is not None:
-                if access_rule.access == "ownerhints":
-                    ownerhints = [oh.ownerhint for oh in access_rule.ownerhints.all()]
-                else:
-                    ownerhints = [access_rule.access]
-                rules.append(override_access.OverrideAccessRule(pattern=access_rule.pattern,
-                                                                ownerhints=ownerhints))
-            else:
-                raise RuntimeError(f"Rule with no obstype or access set for {access_file} {access_rule}")
-            
-        converted_access_files.append(override_access.OverrideAccessFile(observing_night=access_file.night,
-                                                                         instrument_dir = access_file.instrument_dir,
-                                                                         sequence_id = access_file.sequence_id,
-                                                                         override_rules = rules))
+        converted_access_files.append(convert_override_access_file(access_file))
     return converted_access_files
+
+def get_override_file(filepath : Path|str|None = None, night: datetime.date|None = None, instrument_dir : str|None=None, seq_id : int|None=None):
+    """Search for a single database override file either by filename, or by night/instrument/sequence id"""
+
+    # Make sure at least one set of arguments was given
+    if filepath is not None:
+        night, instrument_dir = parse_file_name(filepath)
+        night= datetime.date.fromisoformat(night)
+        split_name = Path(filepath).name.split('.')
+        if len(split_name) == 2:
+            # No number, it was just override.access
+            seq_id = 0
+        elif len(split_name) == 3:
+            # There is a number
+            seq_id = int(split_name[1])
+        else:
+            raise ValueError(f"{filepath} is not a valid override access file path name.")
+    elif night is None and instrument_dir is None and seq_id is None:
+        raise RuntimeError("Must pass either filepath or night/instrument_dir/seq_id to get_override_file")
+
+    access_file = DBOverrideAccessFile.objects.filter(night=night,instrument_dir=instrument_dir,sequence_id=seq_id).get()
+    return convert_override_access_file(access_file)
+    
+def convert_override_access_file(access_file : DBOverrideAccessFile) -> override_access.OverrideAccessFile:
+    rules = []
+    for access_rule in access_file.rules.all():
+        if access_rule.type is not None:                
+            rules.append(override_access.OverrideAccessRule(pattern=access_rule.pattern,
+                                                            obstype=FrameType(access_rule.type)))
+        elif access_rule.access is not None:
+            if access_rule.access == "ownerhints":
+                ownerhints = [oh.ownerhint for oh in access_rule.ownerhints.all()]
+            else:
+                ownerhints = [access_rule.access]
+            rules.append(override_access.OverrideAccessRule(pattern=access_rule.pattern,
+                                                            ownerhints=ownerhints))
+        else:
+            raise RuntimeError(f"Rule with no obstype or access set for {access_file} {access_rule}")
+        
+    return override_access.OverrideAccessFile(observing_night=access_file.night,
+                                              instrument_dir = access_file.instrument_dir,
+                                              sequence_id = access_file.sequence_id,
+                                              override_rules = rules)
+
+
 
 def get_all_observers()->Iterable:
     return ArchiveUser.objects.filter(obid__isnull=False)
 
+def lookup_observer_by_obid(obid : int) -> tuple[str, str]|None:
+    try:
+        user = ArchiveUser.objects.filter(obid=obid).get()
+        return (user.username, f"{user.first_name}.{user.last_name}")
+    except ArchiveUser.DoesNotExist:
+        return None
