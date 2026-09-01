@@ -9,21 +9,23 @@ The above diagram shows the architecture for the Lick Archive.
 Frontend
 --------
 The front end consists of the apache webserver and webpages. The javascript in 
-the frontend communicates with the backend on localhost:8000
+the frontend acts as a client for the backend.
 
-Backend API
------------
-The backend runs in a `Gunicorn <https://gunicorn.org/>`_ WSGI proxy server
-and provides an API for the frontend to access. Some portions of this API are accessible to the 
-internet for downloading files and viewing headers.  The API is implemented 
-by multiple `Django <https://docs.djangoproject.com/en/5.1/>`_ apps using 
-the `Django REST Framework <https://www.django-rest-framework.org/>`_.
+Backend
+-------
+The backend implements an using multiple `Django <https://docs.djangoproject.com/en/5.1/>`_ apps 
+written using the `Django REST Framework <https://www.django-rest-framework.org/>`_. These apps
+runs in a `Gunicorn <https://gunicorn.org/>`_ WSGI proxy server.
+The metadata ingest portion of the API is only used internally by the archive. The
+metadata query, file download, and header download portions of this API are accessible to the 
+clients to use over the internet.
 
-The backend implments query, header download, file donwload, and tarball downloads.
 See :ref:`Lick Archive API <archive_api>` for detailed API documentation.
 
-The backend implements an authentication scheme using the users and password hashes from
-the scheduling software database and Django session authentication. This is used to limit 
+Propreitary Access
+------------------
+The backend also implements an authentication scheme that periodically syncs its users with 
+the UCO scheduling software's database. This is used to limit 
 access to propreitary data. See :ref:`Access Rules for Propreitary Data <access_rules>`
 for more information.
 
@@ -31,9 +33,8 @@ for more information.
 Admin Interface
 ---------------
 The archive currently supports the `Django Admin Interface <https://docs.djangoproject.com/en/5.1/ref/contrib/admin/>`_,
-however it is not available externally and can only be accessed via ssh tunnel. Currently its use is limited because users are synced via a cronjob
-from the scheduling software's database.  It can however create/delete staff and admin users which are not 
-overwritten by the cronjob.
+however it is not available externally and can only be accessed via ssh tunnel. Currently its use is limited because users are overwritten via a cronjob
+with the scheduling software's users.  However any user marked as "staff" or "admin" are not overriden and can be managed with the Admin Interface.
 
 
 Ingest Workflow
@@ -42,8 +43,8 @@ The ``ingest_watchdog`` service is a Python application that will run as a Linux
 It's job is to monitor the archive NFS mounts for new data, and notify the 
 Metadata Ingest REST API of the new file.
 
-The Ingest API is run by the ingest Django app running in the backend gunicorn process. It creates
-a a background job to read a new file's metadata, determine who can access it, and ingests it into 
+The Ingest API is run by the ingest Django app running in the backend gunicorn process. It creates 
+a background job to read a new file's metadata, determine who can access it, and ingests it into 
 the archive's database. The job's are managed using `Celery <https://docs.celeryq.dev/en/stable/index.html>`_,
 using a `Redis <https://redis.io/>`_ database to persist the jobs.
 
@@ -58,8 +59,8 @@ information.  It also stores override access information.
 
 .. _architecture_simplification:
 
-Architecture simplification
----------------------------
+Future work: Architecture simplification
+----------------------------------------
 There are a few areas in which the archive's architecture was overdesigned, and could be
 simplified.
 
@@ -70,7 +71,7 @@ simplified.
   and Redis.
 
 * *Override Access Information* The override access information was intended to be editable
-  via the Django admin interface, so it was also placed in the ``archive_django``, 
+  via the Django admin interface, so it was also placed in the ``archive_django`` database, 
   however this has not been implemented, so it could be moved to the ``archive``
   database to simplify the authorization code.
 
@@ -117,7 +118,7 @@ Major Software Dependencies
     how gets new updates in its packages? 
 
 11. `Python <https://python.org>`_
-     All software is written in Python.
+     The backend API software and most administration scripts are written in Python.
 
 12. `Ansible <https://www.ansible.com/>`_
      Ansible is used to deploy the archive.

@@ -15,53 +15,9 @@ Inventory files control where Ansible deploys to. For the Lick Searchable Archiv
 Other names can be used for development environments.  The ops environment has less debugging information configurated
 than development environments.
 
-For ops the current inventory is::
+For ops the current inventory is:
 
-    [all:vars]
-    archive_config=ops
-    remote_watchdog=False 
-    # Front end user facing connection info
-    frontend_scheme="https"
-    frontend_host= "archive.ucolick.org"
-
-    # API access from frontend/backend
-    api_scheme=http
-    api_server=localhost
-    api_port=8000
-    # Where ansible should copy from 
-    archive_source_dir=/home/dusty/work/lick_searchable_archive
-    # Connection info Lick Observatory schedule database
-    schedule_db_host=schedpsql.ucolick.org
-    schedule_db_name=info
-    # Set this to "restarted" to restart everything after deploy
-    # "stopped" to keep the archive down after deploy
-    archive_service_state=restarted
-
-    [frontend]
-    # Frontend host. In theory this can be separate from the backend but this has not 
-    # been tested
-    quarry.ucolick.org
-
-    [backend]
-    # Backend host
-    quarry.ucolick.org
-
-    [backend:vars]
-    # Which django apps to install on the backend
-    archive_apps=['ingest', 'query', 'archive_admin', 'archive_auth','download']
-    # Which systemd services to install on the backend. 
-    # 'job_queue' : Installs celery and is used for ingesting metadata
-    # 'ingest_watchdog': Installs ingest_watchdog.py which watches the archive NFS mount for new files.
-    services=['job_queue', 'ingest_watchdog']
-    # The type of host. 
-    # `single_host`: Indicates the archive is installed on a single host
-    # 'frontend':    Indicates this is the frontend host in a dual host configuration (not tested)
-    # 'backend':     Indicates this is the backend host ina dualhost configuration (not tested)
-    host_type=single_host
-    gshow_path=/opt/kroot/rel/default/bin/gshow
-    # Gunicorn settings for frontend
-    frontend_proxy_server="localhost"
-    frontend_proxy_port=8000
+    .. literalinclude:: ../../deploy/ops
 
 This is for a single machine configuration.  Theoretically different machines could be used for the frontend and backend but this has not been tested.
 
@@ -70,24 +26,9 @@ This is for a single machine configuration.  Theoretically different machines co
 Ansible ``host_vars``
 ^^^^^^^^^^^^^^^^^^^^^
 Configuration for a specific machine can be set in a file in the ``host_vars`` directory. For example there's a
-file named ``deploy/host_vars/quarry.ucolick.org`` for the ops environment::
+file named ``deploy/host_vars/quarry.ucolick.org`` for the ops environment:
 
-    db_data_device: /dev/sdh
-    postgres_version: 16
-    archive_nfs_source: legion:/data/mthamilton
-    archive_nfs_uid: 1009
-    archive_nfs_gid: 1039
-    archive_data_root: /data/data
-    archive_data_mount: /data
-    archive_nfs_name: mhadmin
-    archive_nfs_group: mhdata
-    archive_service_group: stuff
-    archive_service_uid: 1002
-    archive_service_gid: 1001
-    webserver_user: www-data
-    webserver_group: stuff
-    ssl_cert: /etc/ssl/certs/server_cert.pem
-    ssl_private_key: /etc/ssl/private/server_privkey.pem
+    .. literalinclude:: ../../deploy/host_vars/quarry.ucolick.org
 
 ``db_data_device``
     This is the device that the database storage is available at. Deployment will create a new
@@ -123,8 +64,9 @@ file named ``deploy/host_vars/quarry.ucolick.org`` for the ops environment::
     The user and group that the apache virtual host server will run as. This user/group combination 
     should have read permissions to all of the archive data files and directories.
 
-``ssl_cert`` and ``ssl_private_key``
-    The location of the SSL certs and private key, typically under ``/etc/ssl/certs`` and ``/etc/ssl/private`` respectively.
+``ssl_cert``, ``ssl_cert_chain``,  and ``ssl_private_key``
+    The location of the SSL certs and private key, typically under ``/etc/ssl/certs`` and ``/etc/ssl/private`` respectively. The ``ssl_cert_chain`` value
+    is not required if the full cert chain is included in the cert file.
 
 Ansible defaults
 ^^^^^^^^^^^^^^^^
@@ -166,13 +108,13 @@ can be overridden by variables in host_vars, or be changed directly before deplo
     The name of the file storing Django's secret key. This is only created in ops. Defaults to: ``{{ archive_config_dir }}/secret_key``.
 
 ``django_log``
-    The name of the log file for Django apps. Defaults to ``{{ archive_log_dir }}/lsa_apps.log``
+    The name of the log file for Django apps. Defaults to ``{{ archive_log_dir }}/apps.log``
 
 ``redis_url``
     The URL for connecting to Redis. Used by Celery.  Defaults to ``redis://localhost:6379/0``
 
 ``supported_instrument_dirs``
-    The currently supported instrument directories. Defaults to ``['AO', 'shane']``
+    The currently supported instrument directories. Defaults to ``['AO', 'shane', 'nickel', 'APF']``
 
 ``frontend_url``
     The URL used to access the archvie frontend, based on variables defined in the inventory file. Defaults to ``{{ frontend_scheme }}://{{ frontend_host }}/{{ archive_url_path_prefix }}``
@@ -235,6 +177,9 @@ Database Section
     The database user that will be used to ingest new metadata into the database. This
     user has read/write privilege to the database. Typically ``archive_ingest``.
 
+All database passwords are assumed to be in a ``.pgpass`` file in the archive user's
+home directory.
+
 Query Section
 +++++++++++++
 
@@ -271,8 +216,8 @@ Authorization Section
 ``sched_db_name``
     The database name of the scheduling database.
 
-``sched_db_user_info``
-    The path to a file containing the login credentials for logging into the scheduling database.
+``sched_db_user``
+    The database username for the scheduling database.
 
 ``gshow_path``
     The path to the ``gshoww`` script.
@@ -283,9 +228,46 @@ Authorization Section
 ``public_ownerhint_pattern``
     Regular expression to match a public ownerhint.
 
+The scheduling database's password is assumed to be in a ``.pgpass`` file in the archive user's
+home directory.
+
+Download Section
+++++++++++++++++
+
+``file_download_url_format``
+    Python format string for formatting the download URL. TODO document parameters needed for string?
+
+``max_tarball_files``
+    The maximum number of files to allow in a .tar.gz file being downloaded.
+
+``Max_targall_size``
+    The maximum total size of all files in a .tar.gz file, in MiB.
+
+Telescope Names Section
+-----------------------
+A dictionary that maps directories found in the archive file system to telescope names.
+
+Fixed Owners
+------------
+A dictionary that mapps instrument names to observer usernames, for those instruments that generate data owned by a single account.
+For many instruments this is ``Public.Observer`` indicating that everything from that instrument is public.
+
+Public Suffixes
+---------------
+A dictionary that maps instrument names to a list of file suffixes that are always public. For most instruments,
+``.jpg``, ``.jpeg``, ``.mpg``, ``.mp4`` files are always public.
+
+Schedule services
+-----------------
+A dictionary mapping telescope names to the scheduling service for that telescope.
+
+File Types
+----------
+A dictionary mapping instrument names to the MIME file type to report when serving data files to web browsers. Currently, only ``image/fits`` is supported.
+
 Ingest Watchdog Service
-^^^^^^^^^^^^^^^^^^^^^^^
-The ingest watchdog service has its own configuration in ``/opt/lick_archive/etc/ingest_watchdog.conf``.
+-----------------------
+The ingest watchdog service has its own configuration file in ``/opt/lick_archive/etc/ingest_watchdog.conf``.
 It is generated from the :file:`deploy/roles/ingest_watchdog/templates/ingest_watchdog.conf.j2` template.
 
 ``data_root``
